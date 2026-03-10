@@ -1,4 +1,4 @@
-﻿"""API routes for Part 1 and Part 3 鈥?dynamic AI examiner with follow-up questions."""
+"""API routes for Part 1 and Part 3 鈥?dynamic AI examiner with follow-up questions."""
 
 import uuid
 from datetime import datetime
@@ -348,8 +348,6 @@ async def get_part3_questions(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     _assert_session_access(session, current_user)
-    if request.part not in FOLLOWUP_PARTS:
-        raise HTTPException(status_code=400, detail=f"Invalid follow-up part: {request.part}")
 
     topic = await db.get(Topic, session.topic_id) if session.topic_id else None
     category = topic.category if topic else "general"
