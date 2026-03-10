@@ -8,14 +8,31 @@ build/
 
 # Environment
 .env
+.env.*
 .venv/
 .venv312/
 venv/
 env/
 backend/env/
+backend/.env
+!.env.example
+!backend/.env.example
 
 # Data (generated at runtime)
 backend/data/
+backend/*.db
+*.db
+*.sqlite3
+logs.txt
+*.log
+
+# Local runtimes/installers
+.python*/
+.python-*.exe
+.python*.zip
+
+# Large local model binaries (use Git LFS if you want to version them)
+backend/whisper_base_model/model.bin
 
 # IDE
 .vscode/
