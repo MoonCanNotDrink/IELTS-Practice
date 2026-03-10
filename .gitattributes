@@ -1,0 +1,1 @@
+backend/whisper_base_model/model.bin filter=lfs diff=lfs merge=lfs -text

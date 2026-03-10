@@ -1,0 +1,15 @@
+.gcloudignore
+.git
+.gitignore
+.vscode
+.venv
+venv
+env
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+backend/data/
+docker-compose.yml
+*.md
+*.log

@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="IELTS Speaking Practice — Full Mock Exam with AI Scoring">
+    <title>IELTS Speaking Practice — AI Examiner</title>
+    <link rel="stylesheet" href="/static/index.css?v=10">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎤</text></svg>">
+</head>
+<body>
+    <!-- Auth Modal -->
+    <div id="authModal" class="auth-overlay">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h2>Welcome Back</h2>
+                <p id="authSubtitle">Please log in to save your practice history.</p>
+            </div>
+            <div id="authError" class="auth-error"></div>
+            <div class="form-group">
+                <label for="authUsername">Username</label>
+                <input type="text" id="authUsername" placeholder="Enter username" autocomplete="username">
+            </div>
+            <div class="form-group">
+                <label for="authPassword">Password</label>
+                <input type="password" id="authPassword" placeholder="Enter password" autocomplete="current-password">
+            </div>
+            <div class="form-group" id="inviteCodeGroup" style="display: none;">
+                <label for="authInviteCode">Invite Code</label>
+                <input type="password" id="authInviteCode" placeholder="Required for new accounts">
+            </div>
+            <button class="btn btn-primary btn-full" id="btnSubmitAuth" style="margin-top:20px;" onclick="submitAuth()">Log In</button>
+            <div class="auth-toggle">
+                <span id="authToggleText">No account? <a onclick="toggleAuthMode()">Register here</a></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-container">
+
+        <!-- Header -->
+        <header class="app-header" style="position: relative;">
+            <div style="position: absolute; right: 0; top: 20px; display: flex; gap: 10px;">
+                <button id="btnLogin" class="btn btn-primary" style="font-size: 0.8rem; padding: 4px 10px;" onclick="showAuth()">Log In</button>
+                <button id="btnLogout" class="btn btn-ghost" style="font-size: 0.8rem; padding: 4px 10px; display: none;" onclick="logout()">Log Out</button>
+            </div>
+            <h1>
+                <svg style="width:1.15em;height:1.15em;vertical-align:-0.2em;margin-right:0.25em;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="url(#micGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+                    <defs><linearGradient id="micGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#60a5fa"/><stop offset="100%" style="stop-color:#a78bfa"/></linearGradient></defs>
+                    <rect x="9" y="2" width="6" height="12" rx="3"/>
+                    <path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/>
+                </svg>
+                IELTS Speaking Practice
+            </h1>
+            <p class="subtitle">AI-Powered Full Mock Exam • Parts 1, 2 & 3</p>
+        </header>
+
+        <!-- Mode Selector (shown on start screen) -->
+        <div id="modeSelector">
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">🎯</span>
+                    <h2>Choose Practice Mode</h2>
+                </div>
+                <div class="btn-group" style="flex-direction: column; gap: 12px;">
+                    <button class="btn btn-primary btn-full" id="btnFullExam" onclick="startMode('full')">
+                        🎓 Full Mock Exam (Part 1 + 2 + 3)
+                    </button>
+                    <button class="btn btn-ghost btn-full" id="btnPart2Only" onclick="startMode('part2')">
+                        📋 Part 2 Only (Quick Practice)
+                    </button>
+                </div>
+                
+                <div style="margin-top: 16px; padding: 12px; background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: space-between;">
+                    <div>
+                        <div style="font-weight: 600; font-size: 0.95rem;">🎧 Audio Examiner Mode</div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Default is text mode. Turn this on for spoken examiner prompts.</div>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="audioModeToggle">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- History Card -->
+            <div class="card" id="historyCard">
+                <div class="card-header">
+                    <span class="icon">📈</span>
+                    <h2>Recent Progress</h2>
+                    <a href="/history" class="btn btn-ghost"
+                        style="padding:4px 12px;font-size:0.75rem;margin-left:auto;text-decoration:none;">
+                        View All →
+                    </a>
+                </div>
+                <div id="historyContent">
+                    <p style="color: var(--text-muted); font-size: 0.875rem; text-align: center; padding: 16px 0;">
+                        No sessions yet. Complete a practice to see your progress.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ FULL EXAM FLOW ═══════════════════════════════════════════ -->
+        <div id="examFlow" class="hidden">
+
+            <!-- Phase Steps -->
+            <div class="phase-steps" id="phaseSteps">
+                <div class="phase-step" id="step-topic"><span class="step-icon">🎲</span> Topic</div>
+                <div class="phase-step" id="step-part1"><span class="step-icon">💬</span> Part 1</div>
+                <div class="phase-step" id="step-part2"><span class="step-icon">📋</span> Part 2</div>
+                <div class="phase-step" id="step-part3"><span class="step-icon">🗣️</span> Part 3</div>
+                <div class="phase-step" id="step-score"><span class="step-icon">📊</span> Score</div>
+            </div>
+
+            <!-- Topic Draw Card -->
+            <div class="card cue-card" id="topicCard">
+                <div class="card-header">
+                    <span class="icon">🎲</span>
+                    <h2>Draw Part 2 Topic</h2>
+                </div>
+                <div id="topicContent">
+                    <div class="empty-state">
+                        <span class="big-icon">🎲</span>
+                        <p>Draw a random Part 2 topic to begin your mock exam</p>
+                    </div>
+                </div>
+                <div style="margin-top: 20px;">
+                    <button class="btn btn-primary btn-full" id="btnDrawTopic" onclick="drawTopic()">
+                        🎲 Draw Topic & Start Exam
+                    </button>
+                </div>
+            </div>
+
+            <!-- Part 1 Section -->
+            <div class="card hidden" id="part1Section">
+                <div class="card-header">
+                    <span class="icon">💬</span>
+                    <h2>Part 1 — General Questions</h2>
+                    <span class="status-badge prep" id="part1TopicBadge">Topic</span>
+                </div>
+                <div class="part-question-display" id="part1Question">
+                    <p id="part1QuestionText" style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); line-height: 1.5; margin-bottom: 8px;"></p>
+                    <p style="color: var(--text-muted); font-size: 0.8rem;" id="part1Progress"></p>
+                </div>
+                <div class="recording-indicator hidden" id="p1RecordingIndicator">
+                    <span class="recording-dot"></span> Recording...
+                </div>
+                <div id="part1Transcript" class="transcript-box hidden" style="margin-top: 12px; margin-bottom: 12px;"></div>
+                <div class="btn-group" style="margin-top: 16px; justify-content: center;" id="part1Controls">
+                    <button class="btn btn-danger btn-full" id="btnP1Record" onclick="toggleP1Recording()">
+                        🎤 Answer this Question
+                    </button>
+                </div>
+            </div>
+
+            <!-- Part 2 Section -->
+            <div class="card cue-card hidden" id="part2CueCard">
+                <div class="card-header">
+                    <span class="icon">📋</span>
+                    <h2>Part 2 — Cue Card</h2>
+                </div>
+                <div id="part2TopicDisplay"></div>
+            </div>
+
+            <div class="card hidden" id="part2Section">
+                <div class="card-header">
+                    <span class="icon">⏱️</span>
+                    <h2 id="part2PhaseTitle">Preparation Phase</h2>
+                    <span class="status-badge prep" id="part2Badge">1 Min</span>
+                </div>
+                <div class="timer-display">
+                    <div class="timer-time" id="part2Timer">01:00</div>
+                    <div class="timer-label" id="part2TimerLabel">Preparation Time</div>
+                </div>
+                <textarea class="notes-area hidden" id="notesInput" placeholder="📝 Take notes here — keywords, examples, structure..."></textarea>
+                <div class="recording-indicator hidden" id="p2RecordingIndicator">
+                    <span class="recording-dot"></span> Recording Part 2...
+                </div>
+                <div class="btn-group" style="margin-top: 16px;" id="part2Controls">
+                    <button class="btn btn-primary" id="btnStartPrep" onclick="startPrep()">⏳ Start 1-Min Prep</button>
+                    <button class="btn btn-ghost" onclick="skipPrep()">⏭️ Skip to Speaking</button>
+                </div>
+            </div>
+
+            <!-- Part 3 Section -->
+            <div class="card hidden" id="part3Section">
+                <div class="card-header">
+                    <span class="icon">🗣️</span>
+                    <h2>Part 3 — Discussion</h2>
+                    <span class="status-badge speaking" id="part3Badge">In-depth</span>
+                </div>
+                <div class="part-question-display">
+                    <p id="part3QuestionText" style="font-size: 1.05rem; font-weight: 600; color: var(--text-primary); line-height: 1.5; margin-bottom: 8px;"></p>
+                    <p style="color: var(--text-muted); font-size: 0.8rem;" id="part3Progress"></p>
+                </div>
+                <div class="recording-indicator hidden" id="p3RecordingIndicator">
+                    <span class="recording-dot"></span> Recording...
+                </div>
+                <div id="part3Transcript" class="transcript-box hidden" style="margin-top: 12px; margin-bottom: 12px;"></div>
+                <div class="btn-group" style="margin-top: 16px;" id="part3Controls">
+                    <button class="btn btn-danger btn-full" id="btnP3Record" onclick="toggleP3Recording()">
+                        🎤 Answer this Question
+                    </button>
+                </div>
+            </div>
+
+            <!-- Scoring Section -->
+            <div class="card hidden" id="scoreSection">
+                <div class="card-header">
+                    <span class="icon">📊</span>
+                    <h2>AI Assessment Results</h2>
+                </div>
+                <div class="loading-overlay" id="scoringLoader">
+                    <div class="spinner"></div>
+                    <p class="loading-text">Analyzing your full exam...</p>
+                    <p class="loading-text" style="font-size:0.78rem; margin-top:4px;">ASR • Pronunciation • AI Scoring</p>
+                </div>
+                <div class="hidden" id="scoreResults">
+                    <div id="flowStatusBanner" class="flow-status-banner hidden"></div>
+                    <!-- Score cards -->
+                    <div class="scores-grid" id="scoresGrid"></div>
+                    <!-- Transcript tabs -->
+                    <div style="margin: 20px 0 8px; display: flex; gap: 8px; flex-wrap: wrap;" id="transcriptTabs"></div>
+                    <div class="transcript-box" id="transcriptDisplay"></div>
+                    <!-- Feedback -->
+                    <div class="feedback-section" id="feedbackSection"></div>
+                    <!-- Restart / History -->
+                    <div class="btn-group" style="margin-top: 24px;">
+                        <button class="btn btn-primary btn-full" onclick="backToHome()">
+                            🏠 Back to Home
+                        </button>
+                        <a href="/history" class="btn btn-ghost btn-full" style="text-decoration:none;text-align:center;">
+                            📈 View Progress Chart
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /examFlow -->
+    </div>
+
+    <script src="/static/app.js?v=11"></script>
+</body>
+</html>
