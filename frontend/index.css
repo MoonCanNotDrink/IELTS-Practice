@@ -606,48 +606,6 @@ body::before {
     border: 1px solid rgba(139, 92, 246, 0.2);
 }
 
-/* ---------- Phase Steps ---------- */
-.phase-steps {
-    display: flex;
-    justify-content: center;
-    gap: 0;
-    margin-bottom: 28px;
-}
-
-.phase-step {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: var(--text-muted);
-    position: relative;
-}
-
-.phase-step::after {
-    content: '\2192';
-    margin-left: 8px;
-    color: var(--text-muted);
-    opacity: 0.3;
-}
-
-.phase-step:last-child::after {
-    display: none;
-}
-
-.phase-step.active {
-    color: var(--accent-blue);
-}
-
-.phase-step.completed {
-    color: var(--accent-green);
-}
-
-.phase-step .step-icon {
-    font-size: 1rem;
-}
-
 /* ---------- Session Actions ---------- */
 .session-actions {
     display: flex;
@@ -914,7 +872,9 @@ body::before {
     padding: 8px;
     border-radius: 6px;
     display: none;
-}/* ---------- Checkbox Toggle Switch ---------- */
+}
+
+/* ---------- Checkbox Toggle Switch ---------- */
 .switch {
     position: relative;
     display: inline-block;
