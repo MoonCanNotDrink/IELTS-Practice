@@ -34,6 +34,40 @@ def _determine_exam_scope(recorded_parts: set[str], is_full_flow: bool) -> str:
     return "partial_exam"
 
 
+def _parse_feedback_blob(raw_feedback: str | None) -> dict | None:
+    if not raw_feedback:
+        return None
+
+    import ast
+
+    try:
+        parsed = json.loads(raw_feedback)
+    except Exception:
+        try:
+            parsed = ast.literal_eval(raw_feedback)
+        except Exception:
+            parsed = None
+
+    return parsed if isinstance(parsed, dict) else None
+
+
+def _feedback_error_info(raw_feedback: str | None) -> tuple[str, str, str]:
+    parsed = _parse_feedback_blob(raw_feedback)
+    if not parsed or not parsed.get("error"):
+        return "ok", "", ""
+    return "error", str(parsed.get("error", "")), str(parsed.get("detail", ""))
+
+
+def _is_valid_wav_payload(audio_filename: str | None, audio_bytes: bytes) -> bool:
+    return bool(
+        audio_filename
+        and audio_filename.lower().endswith(".wav")
+        and len(audio_bytes) >= 12
+        and audio_bytes[:4] == b"RIFF"
+        and audio_bytes[8:12] == b"WAVE"
+    )
+
+
 def _build_combined_transcript(recordings: list) -> tuple[str, str, str, str, list]:
     """
     Build per-part transcripts and a combined full transcript.
@@ -111,15 +145,16 @@ async def score_full_session(
         audio_path = settings.recordings_path / part2_rec.audio_filename
         if audio_path.exists() and part2_rec.transcript:
             audio_bytes = audio_path.read_bytes()
-            try:
-                pron_data = await asyncio.wait_for(
-                    asyncio.to_thread(
-                        assess_pronunciation_sync, audio_bytes, part2_rec.transcript
-                    ),
-                    timeout=max(1, settings.PRONUNCIATION_TIMEOUT_SECONDS),
-                )
-            except (Exception, asyncio.TimeoutError):
-                pron_data = None
+            if _is_valid_wav_payload(part2_rec.audio_filename, audio_bytes):
+                try:
+                    pron_data = await asyncio.wait_for(
+                        asyncio.to_thread(
+                            assess_pronunciation_sync, audio_bytes, part2_rec.transcript
+                        ),
+                        timeout=max(1, settings.PRONUNCIATION_TIMEOUT_SECONDS),
+                    )
+                except (Exception, asyncio.TimeoutError):
+                    pron_data = None
 
     # Acoustic analysis (librosa) on Part 2 audio
     acoustic_data = None
@@ -222,10 +257,14 @@ async def get_history(
 
     history = []
     for s, topic_title in rows:
+        scoring_status, scoring_error, scoring_error_detail = _feedback_error_info(s.feedback)
         history.append({
             "session_id": s.id,
             "topic_title": topic_title or "Unknown",
             "date": s.finished_at.isoformat() if s.finished_at else None,
+            "scoring_status": scoring_status,
+            "scoring_error": scoring_error,
+            "scoring_error_detail": scoring_error_detail,
             "scores": {
                 "fluency": s.fluency_score,
                 "vocabulary": s.vocabulary_score,
@@ -271,22 +310,12 @@ async def get_session_detail(
             part_key = r.part  # 'part1','part2','part3'
             transcripts[part_key] = (transcripts.get(part_key, '') + ' ' + r.transcript).strip()
 
-    # Parse feedback from stored JSON string.
-    import ast
     feedback = {}
     key_improvements = []
     sample_answer = ""
+    scoring_status, scoring_error, scoring_error_detail = _feedback_error_info(session.feedback)
     if session.feedback:
-        fb = None
-        try:
-            fb = json.loads(session.feedback)
-        except Exception:
-            # Backward compatibility for legacy rows that stored Python repr.
-            try:
-                fb = ast.literal_eval(session.feedback)
-            except Exception:
-                fb = None
-
+        fb = _parse_feedback_blob(session.feedback)
         if isinstance(fb, dict):
             feedback = {
                 "fluency": fb.get("fluency_feedback", ""),
@@ -314,6 +343,9 @@ async def get_session_detail(
             "pronunciation": session.pronunciation_score,
             "overall": session.overall_score,
         },
+        "scoring_status": scoring_status,
+        "scoring_error": scoring_error,
+        "scoring_error_detail": scoring_error_detail,
         "feedback": feedback,
         "key_improvements": key_improvements,
         "sample_answer": session.sample_answer or sample_answer,
