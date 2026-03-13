@@ -4,6 +4,7 @@ import uuid
 import json
 import asyncio
 from datetime import datetime
+from pathlib import Path
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +12,7 @@ from sqlalchemy import select, func
 
 from app.database import get_db
 from app.models import Topic, PracticeSession, Recording
+from app.config import settings
 from app.services.asr_service import transcribe_audio
 from app.services.scoring_service import score_speaking
 from app.services.pronunciation_service import assess_pronunciation_sync
@@ -73,6 +75,16 @@ def _assert_session_access(session: PracticeSession, current_user: User) -> None
         raise HTTPException(status_code=403, detail="You do not have access to this session")
 
 
+def _resolve_audio_extension(filename: str | None) -> str:
+    ext = Path(filename or "").suffix.lower().lstrip(".")
+    if ext in settings.ALLOWED_AUDIO_FORMATS:
+        return ext
+    raise HTTPException(
+        status_code=400,
+        detail=f"Unsupported audio format: .{ext or 'unknown'}",
+    )
+
+
 @router.post("/sessions")
 async def create_session(
     request: CreateSessionRequest,
@@ -123,9 +135,8 @@ async def upload_audio(
         question_text = topic.title + "\n" + "\n".join(f"- {p}" for p in topic.points)
 
     # Save audio file
-    ext = audio.filename.split(".")[-1] if audio.filename else "webm"
+    ext = _resolve_audio_extension(audio.filename)
     audio_filename = f"session_{session_id}_part2_{uuid.uuid4().hex[:8]}.{ext}"
-    from app.config import settings
     audio_path = settings.recordings_path / audio_filename
     with open(audio_path, "wb") as f:
         f.write(audio_bytes)
@@ -210,9 +221,15 @@ async def score_session(
         if audio_path.exists():
             audio_bytes = audio_path.read_bytes()
             # Azure SDK is synchronous 鈥?run in thread pool
-            pron_data = await asyncio.to_thread(
-                assess_pronunciation_sync, audio_bytes, part2_recording.transcript
-            )
+            try:
+                pron_data = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        assess_pronunciation_sync, audio_bytes, part2_recording.transcript
+                    ),
+                    timeout=max(1, app_settings.PRONUNCIATION_TIMEOUT_SECONDS),
+                )
+            except asyncio.TimeoutError:
+                pron_data = None
 
     # Acoustic analysis (librosa)
     acoustic_data = None

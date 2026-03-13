@@ -2,6 +2,8 @@
 
 import uuid
 from datetime import datetime
+from pathlib import Path
+from typing import Literal
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,6 +27,16 @@ def _assert_session_access(session: PracticeSession, current_user: User) -> None
     """Ensure a session can only be accessed by its owner."""
     if session.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="You do not have access to this session")
+
+
+def _resolve_audio_extension(filename: str | None) -> str:
+    ext = Path(filename or "").suffix.lower().lstrip(".")
+    if ext in settings.ALLOWED_AUDIO_FORMATS:
+        return ext
+    raise HTTPException(
+        status_code=400,
+        detail=f"Unsupported audio format: .{ext or 'unknown'}",
+    )
 
 # 鈹€鈹€鈹€ Part 1 question bank 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 # Organized by topic 鈥?the examiner picks ~4-5 questions from one topic
@@ -155,7 +167,7 @@ class AnswerRequest(BaseModel):
 
 
 class NextQuestionRequest(BaseModel):
-    part: str         # "part1" | "part3"
+    part: Literal["part1", "part3"]
     topic_name: str   # e.g., "Hometown" or "Technology"
     current_index: int = Field(ge=0)
 
@@ -297,7 +309,7 @@ async def upload_part_audio(
         raise HTTPException(status_code=400, detail="Empty audio file")
 
     # Save audio
-    ext = audio.filename.split(".")[-1] if audio.filename else "webm"
+    ext = _resolve_audio_extension(audio.filename)
     audio_filename = f"session_{session_id}_{part}_{question_index}_{uuid.uuid4().hex[:6]}.{ext}"
     audio_path = settings.recordings_path / audio_filename
     with open(audio_path, "wb") as f:

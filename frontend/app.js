@@ -33,6 +33,8 @@ const state = {
     isRecording: false,
     recordingStream: null,
     currentRecordingTarget: null,  // 'part1' | 'part2' | 'part3'
+    speechRecognition: null,
+    clientTranscripts: { part1: '', part2: '', part3: '' },
 
     // Transcripts for display
     transcripts: { part1: '', part2: '', part3: '' },
@@ -148,11 +150,20 @@ function startMode(mode) {
 
 function backToHome() {
     // Reset everything
+    if (state.speechRecognition) {
+        try {
+            state.speechRecognition.stop();
+        } catch (e) {
+            console.warn('Failed to stop browser speech recognition during reset:', e);
+        }
+        state.speechRecognition = null;
+    }
     Object.assign(state, {
         mode: null, sessionId: null, topic: null, phase: 'home',
         part1Questions: [], part1Topic: '', part1Index: 0,
         part3Questions: [], part3Category: '', part3Index: 0,
         audioChunks: [], isRecording: false,
+        clientTranscripts: { part1: '', part2: '', part3: '' },
         transcripts: { part1: '', part2: '', part3: '' },
     });
     clearTimer();
@@ -333,8 +344,8 @@ function renderPart1Question() {
 
 async function toggleP1Recording() {
     if (state.isRecording && state.currentRecordingTarget === 'part1') {
-        stopRecording(async (wavBlob) => {
-            await uploadAndNext('part1', wavBlob);
+        stopRecording(async (wavBlob, clientTranscript) => {
+            await uploadAndNext('part1', wavBlob, clientTranscript);
         });
     } else {
         await startRecording('part1');
@@ -343,7 +354,7 @@ async function toggleP1Recording() {
     }
 }
 
-async function uploadAndNext(part, wavBlob) {
+async function uploadAndNext(part, wavBlob, clientTranscript = '') {
     document.getElementById(`p${part.slice(-1)}RecordingIndicator`).classList.add('hidden');
     const btn = part === 'part1' ? document.getElementById('btnP1Record')
                : document.getElementById('btnP3Record');
@@ -360,6 +371,7 @@ async function uploadAndNext(part, wavBlob) {
         form.append('part', part);
         form.append('question_index', part === 'part1' ? state.part1Index : state.part3Index);
         form.append('question_text', qText);
+        if (clientTranscript.trim()) form.append('client_transcript', clientTranscript.trim());
 
         const result = await api(`/api/exam/sessions/${state.sessionId}/upload-part-audio`, {
             method: 'POST', body: form,
@@ -452,9 +464,9 @@ async function toggleP2Recording() {
     if (state.isRecording && state.currentRecordingTarget === 'part2') {
         btn.disabled = true;
         btn.textContent = '鈴?Converting...';
-        stopRecording(async (wavBlob) => {
+        stopRecording(async (wavBlob, clientTranscript) => {
             document.getElementById('p2RecordingIndicator').classList.add('hidden');
-            await uploadPart2(wavBlob);
+            await uploadPart2(wavBlob, clientTranscript);
         });
     } else {
         await startRecording('part2');
@@ -469,10 +481,11 @@ async function toggleP2Recording() {
     }
 }
 
-async function uploadPart2(wavBlob) {
+async function uploadPart2(wavBlob, clientTranscript = '') {
     const form = new FormData();
     form.append('audio', wavBlob, `part2_${Date.now()}.wav`);
     form.append('notes', document.getElementById('notesInput').value || '');
+    if (clientTranscript.trim()) form.append('client_transcript', clientTranscript.trim());
 
     try {
         const result = await api(`/api/part2/sessions/${state.sessionId}/upload-audio`, {
@@ -519,8 +532,8 @@ function renderPart3Question() {
 
 async function toggleP3Recording() {
     if (state.isRecording && state.currentRecordingTarget === 'part3') {
-        stopRecording(async (wavBlob) => {
-            await uploadAndNext('part3', wavBlob);
+        stopRecording(async (wavBlob, clientTranscript) => {
+            await uploadAndNext('part3', wavBlob, clientTranscript);
         });
     } else {
         await startRecording('part3');
@@ -606,6 +619,7 @@ async function startRecording(target) {
     state.mediaRecorder.ondataavailable = e => { if (e.data.size > 0) state.audioChunks.push(e.data); };
     state.mediaRecorder.start(1000);
     state.isRecording = true;
+    startClientTranscription(target);
 }
 
 function stopRecording(onDone) {
@@ -613,13 +627,99 @@ function stopRecording(onDone) {
     state.isRecording = false;
     state.mediaRecorder.onstop = async () => {
         state.recordingStream?.getTracks().forEach(t => t.stop());
+        const clientTranscript = await stopClientTranscription(state.currentRecordingTarget);
         const rawBlob = new Blob(state.audioChunks, { type: 'audio/webm' });
         // Convert to WAV so Azure Speech SDK can decode it natively
         const wavBlob = await audioBlob2Wav(rawBlob);
-        onDone(wavBlob);
+        onDone(wavBlob, clientTranscript);
     };
     state.mediaRecorder.stop();
     clearTimer();
+}
+
+function startClientTranscription(target) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    state.clientTranscripts[target] = '';
+    if (!SpeechRecognition) return;
+
+    if (state.speechRecognition) {
+        try {
+            state.speechRecognition.stop();
+        } catch (e) {
+            console.warn('Failed to stop previous speech recognition session:', e);
+        }
+        state.speechRecognition = null;
+    }
+
+    let finalTranscript = '';
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = (event) => {
+        let interimTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            const chunk = event.results[i][0]?.transcript || '';
+            if (event.results[i].isFinal) {
+                finalTranscript = `${finalTranscript} ${chunk}`.trim();
+            } else {
+                interimTranscript = `${interimTranscript} ${chunk}`.trim();
+            }
+        }
+        state.clientTranscripts[target] = `${finalTranscript} ${interimTranscript}`.trim();
+    };
+
+    recognition.onerror = (event) => {
+        console.warn('Browser speech recognition error:', event.error);
+    };
+
+    recognition.onend = () => {
+        if (state.speechRecognition === recognition) {
+            state.speechRecognition = null;
+        }
+        state.clientTranscripts[target] = finalTranscript.trim() || state.clientTranscripts[target];
+    };
+
+    try {
+        recognition.start();
+        state.speechRecognition = recognition;
+    } catch (e) {
+        console.warn('Browser speech recognition unavailable:', e);
+    }
+}
+
+function stopClientTranscription(target) {
+    const transcript = () => (state.clientTranscripts[target] || '').trim();
+    const recognition = state.speechRecognition;
+    if (!recognition) return Promise.resolve(transcript());
+
+    return new Promise((resolve) => {
+        let settled = false;
+        const finish = () => {
+            if (settled) return;
+            settled = true;
+            if (state.speechRecognition === recognition) {
+                state.speechRecognition = null;
+            }
+            resolve(transcript());
+        };
+
+        const timer = setTimeout(finish, 500);
+        recognition.onend = () => {
+            clearTimeout(timer);
+            finish();
+        };
+
+        try {
+            recognition.stop();
+        } catch (e) {
+            clearTimeout(timer);
+            console.warn('Failed to stop browser speech recognition:', e);
+            finish();
+        }
+    });
 }
 
 // ========== Timer ==========
