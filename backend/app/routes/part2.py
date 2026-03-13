@@ -13,7 +13,7 @@ from sqlalchemy import select, func
 from app.database import get_db
 from app.models import Topic, PracticeSession, Recording
 from app.config import settings
-from app.services.asr_service import transcribe_audio
+from app.services.asr_service import transcribe_audio, _estimate_word_timestamps, _looks_like_wav
 from app.services.scoring_service import score_speaking
 from app.services.pronunciation_service import assess_pronunciation_sync
 from app.services.auth_service import get_current_user, User
@@ -85,6 +85,10 @@ def _resolve_audio_extension(filename: str | None) -> str:
     )
 
 
+def _can_run_azure_pronunciation(audio_filename: str | None, audio_bytes: bytes) -> bool:
+    return bool(audio_filename and audio_filename.lower().endswith(".wav") and _looks_like_wav(audio_bytes))
+
+
 @router.post("/sessions")
 async def create_session(
     request: CreateSessionRequest,
@@ -141,15 +145,12 @@ async def upload_audio(
     with open(audio_path, "wb") as f:
         f.write(audio_bytes)
 
-    # ASR transcription 鈥?use client transcript if available, otherwise run ASR
-    if client_transcript.strip():
-        # Browser sent transcript via Web Speech API 鈥?use it directly
+    # ASR transcription: prefer server ASR, then fall back to browser-finalized text.
+    asr_result = await transcribe_audio(audio_bytes, audio_filename)
+    if not asr_result.get("text") and client_transcript.strip():
         transcript = client_transcript.strip()
-        from app.services.asr_service import _estimate_word_timestamps
         words = _estimate_word_timestamps(transcript)
         asr_result = {"text": transcript, "words": words}
-    else:
-        asr_result = await transcribe_audio(audio_bytes, audio_filename)
 
     # Create recording entry
     recording = Recording(
@@ -220,16 +221,17 @@ async def score_session(
         audio_path = app_settings.recordings_path / part2_recording.audio_filename
         if audio_path.exists():
             audio_bytes = audio_path.read_bytes()
-            # Azure SDK is synchronous 鈥?run in thread pool
-            try:
-                pron_data = await asyncio.wait_for(
-                    asyncio.to_thread(
-                        assess_pronunciation_sync, audio_bytes, part2_recording.transcript
-                    ),
-                    timeout=max(1, app_settings.PRONUNCIATION_TIMEOUT_SECONDS),
-                )
-            except asyncio.TimeoutError:
-                pron_data = None
+            if _can_run_azure_pronunciation(part2_recording.audio_filename, audio_bytes):
+                # Azure SDK is synchronous 鈥?run in thread pool
+                try:
+                    pron_data = await asyncio.wait_for(
+                        asyncio.to_thread(
+                            assess_pronunciation_sync, audio_bytes, part2_recording.transcript
+                        ),
+                        timeout=max(1, app_settings.PRONUNCIATION_TIMEOUT_SECONDS),
+                    )
+                except asyncio.TimeoutError:
+                    pron_data = None
 
     # Acoustic analysis (librosa)
     acoustic_data = None

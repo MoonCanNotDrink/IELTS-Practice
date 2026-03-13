@@ -12,7 +12,7 @@ import google.generativeai as genai
 
 from app.database import get_db
 from app.models import PracticeSession, Recording, Topic
-from app.services.asr_service import transcribe_audio
+from app.services.asr_service import transcribe_audio, _estimate_word_timestamps
 from app.services.auth_service import get_current_user, User
 from app.config import settings
 
@@ -315,14 +315,12 @@ async def upload_part_audio(
     with open(audio_path, "wb") as f:
         f.write(audio_bytes)
 
-    # ASR 鈥?prefer client transcript (Web Speech API), fall back to server ASR
-    from app.services.asr_service import _estimate_word_timestamps
-    if client_transcript.strip():
+    # ASR: prefer server transcription, then fall back to browser-finalized text.
+    asr_result = await transcribe_audio(audio_bytes, audio_filename)
+    if not asr_result.get("text") and client_transcript.strip():
         transcript = client_transcript.strip()
         words = _estimate_word_timestamps(transcript)
         asr_result = {"text": transcript, "words": words}
-    else:
-        asr_result = await transcribe_audio(audio_bytes, audio_filename)
 
     recording = Recording(
         session_id=session_id,
