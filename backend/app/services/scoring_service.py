@@ -3,6 +3,7 @@
 import json
 import re
 import logging
+import asyncio
 import google.generativeai as genai
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 from app.config import settings
@@ -224,18 +225,21 @@ async def score_speaking(
 
     logger.info("score_speaking: calling Gemini model=%s, transcript_len=%d", settings.GEMINI_MODEL, len(transcript))
     try:
-        response = await model.generate_content_async(
-            user_prompt,
-            generation_config=genai.GenerationConfig(
-                temperature=0.3,
-                max_output_tokens=4096,
+        response = await asyncio.wait_for(
+            model.generate_content_async(
+                user_prompt,
+                generation_config=genai.GenerationConfig(
+                    temperature=0.3,
+                    max_output_tokens=4096,
+                ),
+                safety_settings={
+                    HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+                    HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+                    HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+                    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+                }
             ),
-            safety_settings={
-                HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-                HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-                HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-                HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-            }
+            timeout=max(1, settings.GEMINI_TIMEOUT_SECONDS),
         )
         # Log finish_reason to diagnose truncation issues
         raw_text = ""
@@ -258,16 +262,23 @@ async def score_speaking(
         logger.info("score_speaking: parsed result keys=%s, overall_score=%s", list(result.keys()), result.get('overall_score'))
         return result
     except Exception as e:
+        if isinstance(e, asyncio.TimeoutError):
+            detail = (
+                f"Gemini request timed out after {settings.GEMINI_TIMEOUT_SECONDS}s. "
+                "Returned fallback scores."
+            )
+        else:
+            detail = str(e)
         logger.error("score_speaking: EXCEPTION %s: %s", type(e).__name__, str(e), exc_info=True)
         return {
             "error": "llm_generation_failed",
-            "detail": str(e),
+            "detail": detail,
             "fluency_score": 0.0,
             "vocabulary_score": 0.0,
             "grammar_score": 0.0,
             "pronunciation_score": 0.0,
             "overall_score": 0.0,
-            "overall_feedback": f"❌ Scoring Failed: The AI model refused to score this transcript or encountered an error. Detail: {str(e)}\n\n(This sometimes happens if safety filters incorrectly flag the speech.)",
+            "overall_feedback": f"❌ Scoring Failed: The AI model refused to score this transcript or encountered an error. Detail: {detail}\n\n(This sometimes happens if safety filters incorrectly flag the speech.)",
             "fluency_feedback": "-",
             "vocabulary_feedback": "-",
             "grammar_feedback": "-",

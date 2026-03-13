@@ -112,10 +112,13 @@ async def score_full_session(
         if audio_path.exists() and part2_rec.transcript:
             audio_bytes = audio_path.read_bytes()
             try:
-                pron_data = await asyncio.to_thread(
-                    assess_pronunciation_sync, audio_bytes, part2_rec.transcript
+                pron_data = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        assess_pronunciation_sync, audio_bytes, part2_rec.transcript
+                    ),
+                    timeout=max(1, settings.PRONUNCIATION_TIMEOUT_SECONDS),
                 )
-            except Exception:
+            except (Exception, asyncio.TimeoutError):
                 pron_data = None
 
     # Acoustic analysis (librosa) on Part 2 audio
@@ -321,8 +324,7 @@ class TTSRequest(BaseModel):
     text: str
     voice_name: str = "Aoede"
 
-@router.post("/tts")
-async def generate_tts(req: TTSRequest, current_user: User = Depends(get_current_user)):
+async def _generate_tts_response(req: TTSRequest) -> Response:
     """
     Generate examiner TTS using Gemini 2.5 Flash Native Audio.
     Proxies the request to avoid CORS and SSL blockages on the client.
@@ -358,7 +360,7 @@ async def generate_tts(req: TTSRequest, current_user: User = Depends(get_current
                 if 'inlineData' in p and p['inlineData']['mimeType'].startswith("audio/"):
                     audio_b64 = p['inlineData']['data']
                     audio_bytes = base64.b64decode(audio_b64)
-                    return Response(content=audio_bytes, media_type="audio/mpeg")
+                    return Response(content=audio_bytes, media_type=p['inlineData']['mimeType'])
             
             raise HTTPException(status_code=500, detail="Gemini response contained no audio data.")
         except httpx.HTTPStatusError as e:
@@ -366,5 +368,10 @@ async def generate_tts(req: TTSRequest, current_user: User = Depends(get_current
             raise HTTPException(status_code=e.response.status_code, detail=f"Gemini API Error: {error_body}")
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/tts")
+async def generate_tts(req: TTSRequest, current_user: User = Depends(get_current_user)):
+    return await _generate_tts_response(req)
 
 

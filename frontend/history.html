@@ -225,6 +225,21 @@
         window.location.reload();
     }
 
+    function hasScore(value) {
+        return value !== null && value !== undefined;
+    }
+
+    function formatScore(value) {
+        return hasScore(value) ? Number(value).toFixed(1) : '—';
+    }
+
+    function getScoreColor(value) {
+        if (!hasScore(value)) return '#64748b';
+        if (value >= 7) return 'var(--accent-green)';
+        if (value >= 5.5) return 'var(--accent-amber)';
+        return 'var(--accent-red)';
+    }
+
     async function loadHistory() {
         const token = localStorage.getItem('ielts_token');
         if (!token) {
@@ -252,7 +267,7 @@
     }
 
     function renderStats(history) {
-        const complete = history.filter(s => s.scores?.overall);
+        const complete = history.filter(s => hasScore(s.scores?.overall));
         document.getElementById('statTotal').textContent = complete.length || '0';
 
         if (!complete.length) {
@@ -262,12 +277,12 @@
         }
 
         const scores = complete.map(s => s.scores.overall);
-        document.getElementById('statBest').textContent = Math.max(...scores).toFixed(1);
-        document.getElementById('statAvg').textContent = (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1);
+        document.getElementById('statBest').textContent = formatScore(Math.max(...scores));
+        document.getElementById('statAvg').textContent = formatScore(scores.reduce((a,b)=>a+b,0)/scores.length);
 
         const latestEl = document.getElementById('statLatest');
         const latest = scores[0];
-        latestEl.textContent = latest.toFixed(1);
+        latestEl.textContent = formatScore(latest);
         latestEl.className = 'score-value ' + (latest >= 7 ? 'high' : latest >= 5.5 ? 'mid' : 'low');
     }
 
@@ -321,7 +336,7 @@
                 }},
                 scales: {
                     y: {
-                        min: 1, max: 9, ticks: { stepSize: 1 },
+                        min: 0, max: 9, ticks: { stepSize: 1 },
                         grid: { color: 'rgba(255,255,255,0.05)' },
                     },
                     x: { grid: { display: false } }
@@ -331,9 +346,9 @@
     }
 
     function renderRadarChart(history) {
-        const recent = history.slice(0, 5).filter(s => s.scores?.overall);
+        const recent = history.slice(0, 5).filter(s => hasScore(s.scores?.overall));
         const avg = key => {
-            const vals = recent.map(s => s.scores?.[key]).filter(Boolean);
+            const vals = recent.map(s => s.scores?.[key]).filter(hasScore);
             return vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length) : 0;
         };
 
@@ -374,10 +389,7 @@
 
         el.innerHTML = history.map(s => {
             const overall = s.scores?.overall;
-            const scoreColor = !overall ? '#64748b'
-                             : overall >= 7 ? 'var(--accent-green)'
-                             : overall >= 5.5 ? 'var(--accent-amber)'
-                             : 'var(--accent-red)';
+            const scoreColor = getScoreColor(overall);
             const date = s.date ? new Date(s.date).toLocaleString('zh-CN', {
                 month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'
             }) : '';
@@ -398,13 +410,13 @@
                         <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap;">
                             ${['fluency','vocabulary','grammar','pronunciation'].map(k => `
                                 <span style="font-size:0.72rem;color:var(--text-secondary);">
-                                    ${k.slice(0,4).toUpperCase()} <b style="color:${scoreColor}">${(scores[k] ?? '—')}</b>
+                                    ${k.slice(0,4).toUpperCase()} <b style="color:${getScoreColor(scores[k])}">${formatScore(scores[k])}</b>
                                 </span>`).join('')}
                         </div>
                     </div>
                     <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
                         <div style="font-family:var(--font-mono);font-size:1.8rem;font-weight:700;
-                            color:${scoreColor};">${overall ? overall.toFixed(1) : '—'}</div>
+                            color:${scoreColor};">${formatScore(overall)}</div>
                         <span style="color:var(--text-muted);font-size:1rem;">›</span>
                     </div>
                 </div>
@@ -439,7 +451,7 @@
                 ['pronunciation','🔊 发音'],
             ];
 
-            const getColor = v => !v ? '#64748b' : v >= 7 ? 'var(--accent-green)' : v >= 5.5 ? 'var(--accent-amber)' : 'var(--accent-red)';
+            const getColor = getScoreColor;
 
             let html = `
                 <h2 style="font-size:1.1rem;margin:0 0 4px;padding-right:40px;color:var(--text-primary);">${r.topic_title || 'Practice Session'}</h2>
@@ -448,11 +460,11 @@
                     ${dimLabels.map(([k, label]) => `
                         <div style="background:var(--bg-glass);border-radius:var(--radius-md);padding:12px;text-align:center;">
                             <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:6px;">${label}</div>
-                            <div style="font-size:1.6rem;font-weight:700;color:${getColor(scores[k])};">${scores[k] ? scores[k].toFixed(1) : '—'}</div>
+                            <div style="font-size:1.6rem;font-weight:700;color:${getColor(scores[k])};">${formatScore(scores[k])}</div>
                         </div>`).join('')}
                     <div style="background:var(--bg-glass);border-radius:var(--radius-md);padding:12px;text-align:center;border:1px solid var(--border-accent);">
                         <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:6px;">⭐ 总分</div>
-                        <div style="font-size:1.6rem;font-weight:700;color:${getColor(scores.overall)};">${scores.overall ? scores.overall.toFixed(1) : '—'}</div>
+                        <div style="font-size:1.6rem;font-weight:700;color:${getColor(scores.overall)};">${formatScore(scores.overall)}</div>
                     </div>
                 </div>`;
 
