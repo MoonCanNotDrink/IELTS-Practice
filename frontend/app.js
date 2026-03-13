@@ -1,10 +1,32 @@
 ﻿/**
- * IELTS Speaking Practice 鈥?Full 3-Part Exam Frontend
- * State machine: home 鈫?topic 鈫?part1 鈫?part2(prep+speak) 鈫?part3 鈫?scoring
+ * IELTS Speaking Practice - Full 3-Part Exam Frontend
+ * State machine: home -> topic -> part1 -> part2(prep+speak) -> part3 -> scoring
  */
 
 // ========== Config ==========
-const API_BASE = '';  // Same-origin 鈥?FastAPI serves both
+const API_BASE = '';  // Same-origin - FastAPI serves both
+
+const UI_TEXT = {
+    topicIcon: '&#127922;',
+    drawTopicStart: '&#127922; Draw Topic & Start Exam',
+    drawAnother: '&#128260; Draw Another',
+    answerQuestion: '&#127908; Answer this Question',
+    startPrep: '&#9203; Start 1-Min Prep',
+    skipToSpeaking: '&#9197; Skip to Speaking',
+    startRecording: '&#127908; Start Recording',
+    stopAndSubmit: '&#9209; Stop & Submit',
+    loading: '&#9203; Loading...',
+    transcribing: '&#9203; Transcribing...',
+    converting: '&#9203; Converting...',
+    stopRecording: '&#9209; Stop Recording',
+    tryAgain: '&#127908; Try Again',
+    examinerThinking: '&#129300; Examiner is thinking...',
+};
+
+function setHtml(id, html) {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = html;
+}
 
 // ========== State ==========
 const state = {
@@ -148,16 +170,54 @@ function startMode(mode) {
     }
 }
 
-function backToHome() {
-    // Reset everything
+function stopActiveCapture() {
+
+    if (state.mediaRecorder) {
+        try {
+            state.mediaRecorder.ondataavailable = null;
+            state.mediaRecorder.onstop = null;
+            if (state.mediaRecorder.state !== 'inactive') {
+                state.mediaRecorder.stop();
+            }
+        } catch (e) {
+            console.warn('Failed to stop media recorder during reset:', e);
+        }
+    }
+
+    if (state.recordingStream) {
+        try {
+            state.recordingStream.getTracks().forEach((track) => track.stop());
+        } catch (e) {
+            console.warn('Failed to stop recording stream during reset:', e);
+        }
+    }
+
     if (state.speechRecognition) {
         try {
             state.speechRecognition.stop();
         } catch (e) {
             console.warn('Failed to stop browser speech recognition during reset:', e);
         }
-        state.speechRecognition = null;
     }
+
+    state.mediaRecorder = null;
+    state.recordingStream = null;
+    state.speechRecognition = null;
+    state.audioChunks = [];
+    state.isRecording = false;
+    state.currentRecordingTarget = null;
+}
+
+function interruptPractice() {
+    if (state.phase === 'home') return;
+    const confirmed = window.confirm('Stop current practice and return to home? Current progress will be discarded.');
+    if (!confirmed) return;
+    backToHome();
+}
+function backToHome() {
+    clearTimer();
+    stopActiveCapture();
+    stopExaminerAudio();
     Object.assign(state, {
         mode: null, sessionId: null, topic: null, phase: 'home',
         part1Questions: [], part1Topic: '', part1Index: 0,
@@ -166,22 +226,29 @@ function backToHome() {
         clientTranscripts: { part1: '', part2: '', part3: '' },
         transcripts: { part1: '', part2: '', part3: '' },
     });
-    clearTimer();
 
     document.getElementById('modeSelector').classList.remove('hidden');
     document.getElementById('examFlow').classList.add('hidden');
 
     // Reset UI elements
     document.getElementById('topicContent').innerHTML = `
-        <div class="empty-state"><span class="big-icon">馃幉</span>
+        <div class="empty-state"><span class="big-icon">${UI_TEXT.topicIcon}</span>
         <p>Draw a random Part 2 topic to begin your mock exam</p></div>`;
-    document.getElementById('btnDrawTopic').textContent = '馃幉 Draw Topic & Start Exam';
+    setHtml('btnDrawTopic', UI_TEXT.drawTopicStart);
     document.getElementById('btnDrawTopic').disabled = false;
     document.getElementById('notesInput').value = '';
     document.getElementById('part2Timer').textContent = '01:00';
     document.getElementById('part2Timer').classList.remove('warning', 'danger');
     document.getElementById('part1Transcript').classList.add('hidden');
     document.getElementById('part3Transcript').classList.add('hidden');
+    document.getElementById('p1RecordingIndicator').classList.add('hidden');
+    document.getElementById('p2RecordingIndicator').classList.add('hidden');
+    document.getElementById('p3RecordingIndicator').classList.add('hidden');
+    document.getElementById('btnP1Record').disabled = false;
+    setHtml('btnP1Record', UI_TEXT.answerQuestion);
+    document.getElementById('btnP3Record').disabled = false;
+    setHtml('btnP3Record', UI_TEXT.answerQuestion);
+    document.querySelectorAll('#scoreSection .history-back-btn').forEach((btn) => btn.remove());
     const flowBanner = document.getElementById('flowStatusBanner');
     if (flowBanner) {
         flowBanner.classList.add('hidden');
@@ -220,6 +287,7 @@ function setPhase(phase) {
     show('part2Section', phase === 'part2prep' || phase === 'part2speak');
     show('part3Section', phase === 'part3');
     show('scoreSection', phase === 'scoring');
+    show('sessionActions', phase !== 'home' && phase !== 'scoring');
 
     if (phase === 'part2prep') {
         // Show cue card and prep controls
@@ -235,8 +303,8 @@ function setPhase(phase) {
         document.getElementById('part2Badge').className = 'status-badge prep';
         document.getElementById('part2TimerLabel').textContent = 'Preparation Time';
         document.getElementById('part2Controls').innerHTML = `
-            <button class="btn btn-primary" onclick="startPrep()">鈴?Start 1-Min Prep</button>
-            <button class="btn btn-ghost" onclick="skipPrep()">鈴笍 Skip to Speaking</button>`;
+            <button class="btn btn-primary" onclick="startPrep()">${UI_TEXT.startPrep}</button>
+            <button class="btn btn-ghost" onclick="skipPrep()">${UI_TEXT.skipToSpeaking}</button>`;
             
         if (state.topic) {
             playExaminerAudio("Now I'm going to give you a topic and I'd like you to talk about it for one to two minutes. Before you talk, you'll have one minute to think about what you're going to say. You can make some notes if you wish. Here is your topic: " + state.topic.title);
@@ -259,7 +327,7 @@ function setPhase(phase) {
         document.getElementById('part2Timer').classList.remove('warning', 'danger');
         document.getElementById('part2Controls').innerHTML = `
             <button class="btn btn-danger btn-full" id="btnP2Record" onclick="toggleP2Recording()">
-                馃帳 Start Recording</button>`;
+                ${UI_TEXT.startRecording}</button>`;
     }
 }
 
@@ -274,7 +342,7 @@ function show(id, visible) {
 async function drawTopic() {
     const btn = document.getElementById('btnDrawTopic');
     btn.disabled = true;
-    btn.textContent = '鈴?Loading...';
+    btn.innerHTML = UI_TEXT.loading;
 
     try {
         const topic = await api('/api/part2/topics/random');
@@ -283,7 +351,7 @@ async function drawTopic() {
         document.getElementById('topicContent').innerHTML = renderTopicCard(topic);
         document.getElementById('topicContent').classList.add('fade-in');
 
-        btn.textContent = '馃攧 Draw Another';
+        btn.innerHTML = UI_TEXT.drawAnother;
         btn.disabled = false;
 
         // Next step depends on mode
@@ -302,7 +370,7 @@ async function drawTopic() {
 
     } catch (e) {
         alert('Failed to load topic: ' + e.message);
-        btn.textContent = '馃幉 Draw Topic & Start Exam';
+        btn.innerHTML = UI_TEXT.drawTopicStart;
         btn.disabled = false;
     }
 }
@@ -334,11 +402,11 @@ async function loadPart1() {
 function renderPart1Question() {
     const q = state.part1Questions[state.part1Index];
     document.getElementById('part1QuestionText').textContent = q;
-    document.getElementById('part1Progress').textContent = `Topic: ${state.part1Topic} 鈥?Q${state.part1Index + 1} of 5`;
+    document.getElementById('part1Progress').textContent = `Topic: ${state.part1Topic} | Q${state.part1Index + 1} of 5`;
     document.getElementById('part1TopicBadge').textContent = state.part1Topic;
     document.getElementById('part1Transcript').classList.add('hidden');
     document.getElementById('btnP1Record').disabled = false;
-    document.getElementById('btnP1Record').textContent = '馃帳 Answer this Question';
+    setHtml('btnP1Record', UI_TEXT.answerQuestion);
     playExaminerAudio(q);
 }
 
@@ -349,7 +417,7 @@ async function toggleP1Recording() {
         });
     } else {
         await startRecording('part1');
-        document.getElementById('btnP1Record').textContent = '鈴?Stop & Submit';
+        setHtml('btnP1Record', UI_TEXT.stopAndSubmit);
         document.getElementById('p1RecordingIndicator').classList.remove('hidden');
     }
 }
@@ -359,7 +427,7 @@ async function uploadAndNext(part, wavBlob, clientTranscript = '') {
     const btn = part === 'part1' ? document.getElementById('btnP1Record')
                : document.getElementById('btnP3Record');
     btn.disabled = true;
-    btn.textContent = '鈴?Transcribing...';
+    btn.innerHTML = UI_TEXT.transcribing;
 
     try {
         const qText = part === 'part1'
@@ -391,7 +459,7 @@ async function uploadAndNext(part, wavBlob, clientTranscript = '') {
     } catch (e) {
         alert('Upload failed: ' + e.message);
         btn.disabled = false;
-        btn.textContent = '馃帳 Try Again';
+        btn.innerHTML = UI_TEXT.tryAgain;
     }
 }
 
@@ -402,7 +470,7 @@ async function advanceQuestion(part) {
     // We want the user to be able to read their transcript for a few seconds.
     // So we don't clear the transcript immediately.
     btn.disabled = true;
-    btn.textContent = '馃 Examiner is thinking...';
+    btn.innerHTML = UI_TEXT.examinerThinking;
 
     const topicName = part === 'part1' ? state.part1Topic : state.part3Category;
     const currentIndex = part === 'part1' ? state.part1Index : state.part3Index;
@@ -443,7 +511,7 @@ async function advanceQuestion(part) {
     } catch(e) {
         alert('Failed to get next question: ' + e.message);
         btn.disabled = false;
-        btn.textContent = '馃帳 Try Again';
+        btn.innerHTML = UI_TEXT.tryAgain;
     }
 }
 
@@ -455,7 +523,6 @@ function startPrep() {
 }
 
 function skipPrep() {
-    clearTimer();
     setPhase('part2speak');
 }
 
@@ -463,14 +530,14 @@ async function toggleP2Recording() {
     const btn = document.getElementById('btnP2Record');
     if (state.isRecording && state.currentRecordingTarget === 'part2') {
         btn.disabled = true;
-        btn.textContent = '鈴?Converting...';
+        btn.innerHTML = UI_TEXT.converting;
         stopRecording(async (wavBlob, clientTranscript) => {
             document.getElementById('p2RecordingIndicator').classList.add('hidden');
             await uploadPart2(wavBlob, clientTranscript);
         });
     } else {
         await startRecording('part2');
-        btn.textContent = '鈴?Stop Recording';
+        btn.innerHTML = UI_TEXT.stopRecording;
         document.getElementById('p2RecordingIndicator').classList.remove('hidden');
         startTimer(120, 'part2Timer', () => {
             if (state.isRecording && state.currentRecordingTarget === 'part2') {
@@ -525,8 +592,14 @@ function renderPart3Question() {
     document.getElementById('part3QuestionText').textContent = q;
     document.getElementById('part3Progress').textContent = `Q${state.part3Index + 1} of 5`;
     document.getElementById('part3Transcript').classList.add('hidden');
+    document.getElementById('p1RecordingIndicator').classList.add('hidden');
+    document.getElementById('p2RecordingIndicator').classList.add('hidden');
+    document.getElementById('p3RecordingIndicator').classList.add('hidden');
+    document.getElementById('btnP1Record').disabled = false;
+    setHtml('btnP1Record', UI_TEXT.answerQuestion);
     document.getElementById('btnP3Record').disabled = false;
-    document.getElementById('btnP3Record').textContent = '馃帳 Answer this Question';
+    setHtml('btnP3Record', UI_TEXT.answerQuestion);
+    document.querySelectorAll('#scoreSection .history-back-btn').forEach((btn) => btn.remove());
     playExaminerAudio(q);
 }
 
@@ -537,7 +610,7 @@ async function toggleP3Recording() {
         });
     } else {
         await startRecording('part3');
-        document.getElementById('btnP3Record').textContent = '鈴?Stop & Submit';
+        setHtml('btnP3Record', UI_TEXT.stopAndSubmit);
         document.getElementById('p3RecordingIndicator').classList.remove('hidden');
     }
 }
@@ -595,7 +668,7 @@ async function audioBlob2Wav(blob) {
     writeStr(36, 'data');
     view.setUint32(40, dataSize, true);
 
-    // Float32 PCM 鈫?Int16 PCM
+    // Float32 PCM -> Int16 PCM
     let offset = 44;
     for (let i = 0; i < samples.length; i++, offset += 2) {
         const s = Math.max(-1, Math.min(1, samples[i]));
@@ -634,7 +707,6 @@ function stopRecording(onDone) {
         onDone(wavBlob, clientTranscript);
     };
     state.mediaRecorder.stop();
-    clearTimer();
 }
 
 function startClientTranscription(target) {
@@ -651,24 +723,22 @@ function startClientTranscription(target) {
         state.speechRecognition = null;
     }
 
-    let finalTranscript = '';
     const recognition = new SpeechRecognition();
+    recognition._target = target;
+    recognition._finalTranscript = '';
     recognition.lang = 'en-US';
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
 
     recognition.onresult = (event) => {
-        let interimTranscript = '';
         for (let i = event.resultIndex; i < event.results.length; i++) {
             const chunk = event.results[i][0]?.transcript || '';
             if (event.results[i].isFinal) {
-                finalTranscript = `${finalTranscript} ${chunk}`.trim();
-            } else {
-                interimTranscript = `${interimTranscript} ${chunk}`.trim();
+                recognition._finalTranscript = `${recognition._finalTranscript} ${chunk}`.trim();
             }
         }
-        state.clientTranscripts[target] = `${finalTranscript} ${interimTranscript}`.trim();
+        state.clientTranscripts[target] = recognition._finalTranscript.trim();
     };
 
     recognition.onerror = (event) => {
@@ -679,7 +749,7 @@ function startClientTranscription(target) {
         if (state.speechRecognition === recognition) {
             state.speechRecognition = null;
         }
-        state.clientTranscripts[target] = finalTranscript.trim() || state.clientTranscripts[target];
+        state.clientTranscripts[target] = recognition._finalTranscript.trim();
     };
 
     try {
@@ -697,6 +767,7 @@ function stopClientTranscription(target) {
 
     return new Promise((resolve) => {
         let settled = false;
+        const previousOnEnd = recognition.onend;
         const finish = () => {
             if (settled) return;
             settled = true;
@@ -708,6 +779,7 @@ function stopClientTranscription(target) {
 
         const timer = setTimeout(finish, 500);
         recognition.onend = () => {
+            previousOnEnd?.();
             clearTimeout(timer);
             finish();
         };
@@ -724,7 +796,6 @@ function stopClientTranscription(target) {
 
 // ========== Timer ==========
 function startTimer(seconds, elementId, onComplete) {
-    clearTimer();
     state.timeRemaining = seconds;
     updateTimer(elementId);
     state.timerInterval = setInterval(() => {
@@ -1059,4 +1130,5 @@ document.addEventListener('DOMContentLoaded', () => {
     loadHistory();
     console.log('IELTS Speaking Practice v0.2.8 initialized');
 });
+
 
