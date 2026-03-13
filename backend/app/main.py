@@ -27,7 +27,8 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title=settings.APP_NAME, version="0.2.6", lifespan=lifespan)
+APP_VERSION = "0.2.6"
+app = FastAPI(title=settings.APP_NAME, version=APP_VERSION, lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -47,7 +48,7 @@ app.include_router(dev_router)
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "ok", "app": settings.APP_NAME, "version": "0.2.0"}
+    return {"status": "ok", "app": settings.APP_NAME, "version": app.version}
 
 
 # Static assets

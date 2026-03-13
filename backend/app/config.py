@@ -1,6 +1,7 @@
 """Application configuration loaded from environment variables."""
 
 from pydantic_settings import BaseSettings
+from pydantic import field_validator
 from pathlib import Path
 
 
@@ -23,14 +24,20 @@ class Settings(BaseSettings):
 
     # --- OpenAI (Whisper ASR) ---
     OPENAI_API_KEY: str = ""
+    WHISPER_MODEL_PATH: str = "whisper_base_model"
+    WHISPER_MODEL_SIZE: str = "base"
+    WHISPER_DEVICE: str = "cpu"
+    WHISPER_COMPUTE_TYPE: str = "int8"
 
     # --- Google Gemini (LLM Scoring) ---
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-2.5-flash"
+    GEMINI_TIMEOUT_SECONDS: int = 25
 
     # --- Azure Speech (Pronunciation Assessment) ---
     AZURE_SPEECH_KEY: str = ""
     AZURE_SPEECH_REGION: str = "eastasia"
+    PRONUNCIATION_TIMEOUT_SECONDS: int = 15
 
     # --- Recording ---
     MAX_RECORDING_SECONDS: int = 150  # 2.5 min max (Part 2 = 2 min + buffer)
@@ -41,6 +48,21 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
     INVITE_CODE: str = "IELTS2025"  # Default invite code if not set in .env
+
+    @field_validator("DEBUG", mode="before")
+    @classmethod
+    def normalize_debug(cls, value):
+        if isinstance(value, bool):
+            return value
+        if value is None:
+            return False
+        if isinstance(value, str):
+            token = value.strip().lower()
+            if token in {"1", "true", "yes", "on", "debug", "dev", "development"}:
+                return True
+            if token in {"0", "false", "no", "off", "release", "prod", "production"}:
+                return False
+        return value
 
     @property
     def database_url(self) -> str:
@@ -60,6 +82,7 @@ class Settings(BaseSettings):
             return url
         # Default: local SQLite
         db_path = self.BASE_DIR / self.DB_PATH
+        db_path.parent.mkdir(parents=True, exist_ok=True)
         return f"sqlite+aiosqlite:///{db_path}"
 
     @property
