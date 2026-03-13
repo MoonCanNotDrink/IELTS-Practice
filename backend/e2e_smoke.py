@@ -256,7 +256,7 @@ async def main() -> None:
     if args.invite_code == "IELTS2025" and os.getenv("INVITE_CODE"):
         args.invite_code = os.environ["INVITE_CODE"]
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
+    async with httpx.AsyncClient(timeout=300.0) as client:
         auth = await register_and_login(client, args.base_url, args.invite_code)
         headers = {"Authorization": f"Bearer {auth['token']}"}
         topic = await fetch_random_topic(client, args.base_url, headers)
