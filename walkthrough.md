@@ -68,3 +68,57 @@
 此方案的推荐用法是依靠我写好的 `Dockerfile` 与配置好的 Nginx 文件，依据之前生成的 `deploy_guide.md` 推上 Google Cloud Run 或个人服务器。它会自动分配好带有 HTTPS 支持的线上链接。
 
 ✨ 所有的核心开发与衍生任务清单 (Phase 1-5) 均已悉数完美收官！
+
+---
+
+## 🧾 Staged 变更补充记录（未 commit）
+
+以下为当前 Git 暂存区（staged）改动的汇总，已同步到 walkthrough 文档：
+
+### 1) 后端配置与稳定性增强
+- `backend/app/config.py`
+  - 新增 Whisper 本地模型配置：`WHISPER_MODEL_PATH / WHISPER_MODEL_SIZE / WHISPER_DEVICE / WHISPER_COMPUTE_TYPE`。
+  - 新增超时配置：`GEMINI_TIMEOUT_SECONDS`、`PRONUNCIATION_TIMEOUT_SECONDS`。
+  - 增加 `DEBUG` 兼容解析（支持 `release/prod/dev/debug` 等字符串）。
+  - SQLite 默认路径自动创建父目录，避免冷启动 `unable to open database file`。
+
+### 2) 应用入口与健康检查一致性
+- `backend/app/main.py`
+  - 统一版本常量 `APP_VERSION`。
+  - `/api/health` 返回 `app.version`，避免硬编码版本漂移。
+
+### 3) 安全与输入校验
+- `backend/app/routes/dev.py`
+  - Dev 路由增加鉴权依赖（需登录）。
+  - 增加 `DEBUG=true` 才可访问的保护，避免生产环境误用重置接口。
+- `backend/app/routes/part2.py`、`backend/app/routes/exam.py`
+  - 上传音频扩展名校验（仅允许 `ALLOWED_AUDIO_FORMATS`）。
+  - `NextQuestionRequest.part` 收紧为 `Literal["part1","part3"]`。
+
+### 4) 评分与外部依赖降级能力
+- `backend/app/routes/part2.py`、`backend/app/routes/scoring.py`
+  - Azure 发音评估增加超时控制，超时自动降级，避免接口长时间阻塞。
+- `backend/app/services/scoring_service.py`
+  - Gemini 调用加入 `asyncio.wait_for` 超时控制。
+  - 超时时返回可解释的 fallback 评分信息，提升可用性。
+
+### 5) ASR 架构升级（Azure + 本地 Whisper 双层回退）
+- `backend/app/services/asr_service.py`
+  - 从单一路径升级为分层策略：优先 Azure，失败后回退 `faster-whisper`。
+  - 增加模型惰性加载与本地模型路径探测，统一输出 `{"text","words"}`。
+
+### 6) TTS 与 E2E 冒烟脚本增强
+- `backend/app/routes/scoring.py`
+  - 抽离 `_generate_tts_response`，返回动态 `audio/*` MIME 类型。
+- `backend/e2e_smoke.py`（新增）
+  - 覆盖注册/登录、抽题、Part2 上传与评分、Full Exam 评分、历史详情校验等端到端链路。
+  - `.env` 加载顺序修复，支持 `--skip-tts` 与 `E2E_SKIP_TTS`。
+  - demo 音频生成与登录校验逻辑优化。
+
+### 7) 前端体验与数据展示修正
+- `frontend/app.js`
+  - 增加浏览器 Web Speech 客户端转写链路，录音上传时携带 `client_transcript`。
+  - 录音开始/结束与重置流程中补全识别器生命周期管理。
+- `frontend/history.html`
+  - 分数显示由“truthy 判断”改为显式空值判断，`0.0` 不再被误判为缺失。
+  - 抽离 `formatScore/getScoreColor`，图表与列表展示一致性提升。
