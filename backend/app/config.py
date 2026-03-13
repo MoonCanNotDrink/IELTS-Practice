@@ -1,12 +1,18 @@
 """Application configuration loaded from environment variables."""
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import field_validator
 from pathlib import Path
 
 
 class Settings(BaseSettings):
     """All configuration is loaded from .env file or environment variables."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     # --- Application ---
     APP_NAME: str = "IELTS Speaking Practice"
@@ -22,8 +28,7 @@ class Settings(BaseSettings):
     # Otherwise, fall back to local SQLite.
     DATABASE_URL: str = ""
 
-    # --- OpenAI (Whisper ASR) ---
-    OPENAI_API_KEY: str = ""
+    # --- Local Whisper fallback ---
     WHISPER_MODEL_PATH: str = "whisper_base_model"
     WHISPER_MODEL_SIZE: str = "base"
     WHISPER_DEVICE: str = "cpu"
@@ -96,10 +101,5 @@ class Settings(BaseSettings):
         path = self.BASE_DIR / "data"
         path.mkdir(parents=True, exist_ok=True)
         return path
-
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-
 
 settings = Settings()

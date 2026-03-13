@@ -19,6 +19,19 @@ from app.routes.auth import router as auth_router
 FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend"
 
 
+class FrontendStaticFiles(StaticFiles):
+    """Serve frontend assets with explicit UTF-8 text charset and no-store cache."""
+
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        content_type = response.headers.get("content-type", "")
+        is_text_asset = content_type.startswith("text/") or content_type.startswith("application/javascript")
+        if content_type and is_text_asset and "charset=" not in content_type.lower():
+            response.headers["content-type"] = f"{content_type}; charset=utf-8"
+        response.headers["Cache-Control"] = "no-store, max-age=0"
+        return response
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
@@ -53,14 +66,18 @@ async def health_check():
 
 # Static assets
 if FRONTEND_DIR.exists():
-    app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
+    app.mount("/static", FrontendStaticFiles(directory=str(FRONTEND_DIR)), name="static")
 
 
 @app.get("/history", include_in_schema=False)
 async def serve_history():
     history_path = FRONTEND_DIR / "history.html"
     if history_path.exists():
-        return FileResponse(str(history_path))
+        return FileResponse(
+            str(history_path),
+            media_type="text/html; charset=utf-8",
+            headers={"Cache-Control": "no-store, max-age=0"},
+        )
     return {"message": "History page not found"}
 
 
@@ -68,5 +85,9 @@ async def serve_history():
 async def serve_index():
     index_path = FRONTEND_DIR / "index.html"
     if index_path.exists():
-        return FileResponse(str(index_path))
+        return FileResponse(
+            str(index_path),
+            media_type="text/html; charset=utf-8",
+            headers={"Cache-Control": "no-store, max-age=0"},
+        )
     return {"message": "Frontend not found"}
