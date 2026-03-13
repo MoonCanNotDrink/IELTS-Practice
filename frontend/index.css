@@ -1,5 +1,5 @@
 /* =========================================================
-   IELTS Speaking Practice — Design System & Global Styles
+   IELTS Speaking Practice - Design System & Global Styles
    Premium dark theme with glassmorphism and subtle animations
    ========================================================= */
 
@@ -8,7 +8,7 @@
 
 /* ---------- CSS Variables ---------- */
 :root {
-    /* Colors — curated dark palette */
+    /* Colors - curated dark palette */
     --bg-primary: #0b0f1a;
     --bg-secondary: #111827;
     --bg-card: rgba(17, 24, 39, 0.7);
@@ -196,7 +196,7 @@ body::before {
 }
 
 .cue-card .topic-points li::before {
-    content: '▸';
+    content: '\25B8';
     position: absolute;
     left: 0;
     color: var(--accent-blue);
@@ -508,7 +508,7 @@ body::before {
 }
 
 .improvements-list li::before {
-    content: '💡';
+    content: '\1F4A1';
     position: absolute;
     left: 0;
 }
@@ -626,7 +626,7 @@ body::before {
 }
 
 .phase-step::after {
-    content: '→';
+    content: '\2192';
     margin-left: 8px;
     color: var(--text-muted);
     opacity: 0.3;
@@ -646,6 +646,18 @@ body::before {
 
 .phase-step .step-icon {
     font-size: 1rem;
+}
+
+/* ---------- Session Actions ---------- */
+.session-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin: -12px 0 16px;
+}
+
+.session-actions .btn {
+    padding: 8px 14px;
+    font-size: 0.78rem;
 }
 
 /* ---------- Hidden ---------- */
@@ -696,6 +708,10 @@ body::before {
         font-size: 0.72rem;
         white-space: nowrap;
     }
+
+    .session-actions {
+        margin: -8px 0 14px;
+    }
 }
 
 /* ---------- Part 1 / Part 3 Question Display ---------- */
@@ -729,7 +745,7 @@ body::before {
     gap: 4px;
 }
 
-/* ---------- Phase Steps — improved ---------- */
+/* ---------- Phase Steps - improved ---------- */
 .phase-steps {
     display: flex;
     justify-content: center;
@@ -755,7 +771,7 @@ body::before {
 }
 
 .phase-step::after {
-    display: none; /* Remove arrow — replaced by pill style */
+    display: none; /* Remove arrow - replaced by pill style */
 }
 
 .phase-step.active {

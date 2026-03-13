@@ -240,6 +240,14 @@
         return 'var(--accent-red)';
     }
 
+    function isSuccessfulScore(session) {
+        return session?.scoring_status !== 'error' && hasScore(session?.scores?.overall);
+    }
+
+    function getScoredHistory(history) {
+        return history.filter(isSuccessfulScore);
+    }
+
     async function loadHistory() {
         const token = localStorage.getItem('ielts_token');
         if (!token) {
@@ -267,7 +275,7 @@
     }
 
     function renderStats(history) {
-        const complete = history.filter(s => hasScore(s.scores?.overall));
+        const complete = getScoredHistory(history);
         document.getElementById('statTotal').textContent = complete.length || '0';
 
         if (!complete.length) {
@@ -287,7 +295,7 @@
     }
 
     function renderTrendChart(history) {
-        const data = [...history].reverse();
+        const data = [...getScoredHistory(history)].reverse();
         const labels = data.map((s, i) => {
             const d = s.date ? new Date(s.date) : null;
             return d ? `${d.getMonth()+1}/${d.getDate()}` : `#${i+1}`;
@@ -346,7 +354,7 @@
     }
 
     function renderRadarChart(history) {
-        const recent = history.slice(0, 5).filter(s => hasScore(s.scores?.overall));
+        const recent = getScoredHistory(history).slice(0, 5);
         const avg = key => {
             const vals = recent.map(s => s.scores?.[key]).filter(hasScore);
             return vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length) : 0;
@@ -389,11 +397,15 @@
 
         el.innerHTML = history.map(s => {
             const overall = s.scores?.overall;
-            const scoreColor = getScoreColor(overall);
+            const scoreReady = isSuccessfulScore(s);
+            const scoreColor = scoreReady ? getScoreColor(overall) : '#64748b';
             const date = s.date ? new Date(s.date).toLocaleString('zh-CN', {
                 month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'
             }) : '';
             const scores = s.scores || {};
+            const statusText = s.scoring_status === 'error'
+                ? 'Scoring fallback used'
+                : '';
 
             return `
             <div onclick="viewSessionDetail(${s.session_id})" style="padding:14px;border-radius:var(--radius-md);background:var(--bg-glass);
@@ -407,16 +419,17 @@
                             margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                             ${s.topic_title || 'Practice Session'}</div>
                         <div style="font-size:0.75rem;color:var(--text-muted);">${date}</div>
+                        ${statusText ? `<div style="font-size:0.72rem;color:var(--accent-amber);margin-top:6px;">${statusText}</div>` : ''}
                         <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap;">
                             ${['fluency','vocabulary','grammar','pronunciation'].map(k => `
                                 <span style="font-size:0.72rem;color:var(--text-secondary);">
-                                    ${k.slice(0,4).toUpperCase()} <b style="color:${getScoreColor(scores[k])}">${formatScore(scores[k])}</b>
+                                    ${k.slice(0,4).toUpperCase()} <b style="color:${scoreReady ? getScoreColor(scores[k]) : '#64748b'}">${scoreReady ? formatScore(scores[k]) : '—'}</b>
                                 </span>`).join('')}
                         </div>
                     </div>
                     <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
                         <div style="font-family:var(--font-mono);font-size:1.8rem;font-weight:700;
-                            color:${scoreColor};">${formatScore(overall)}</div>
+                            color:${scoreColor};">${scoreReady ? formatScore(overall) : '—'}</div>
                         <span style="color:var(--text-muted);font-size:1rem;">›</span>
                     </div>
                 </div>
@@ -443,6 +456,9 @@
             const improvements = r.key_improvements || [];
             const sample = r.sample_answer || '';
             const date = r.date ? new Date(r.date).toLocaleString('zh-CN') : '';
+            const hasScoringError = r.scoring_status === 'error';
+            const detailScore = (value) => hasScoringError ? '—' : formatScore(value);
+            const detailColor = (value) => hasScoringError ? '#64748b' : getScoreColor(value);
 
             const dimLabels = [
                 ['fluency','🗣️ 流利度与连贯性'],
@@ -456,15 +472,16 @@
             let html = `
                 <h2 style="font-size:1.1rem;margin:0 0 4px;padding-right:40px;color:var(--text-primary);">${r.topic_title || 'Practice Session'}</h2>
                 <p style="font-size:0.78rem;color:var(--text-muted);margin:0 0 20px;">${date}</p>
+                ${hasScoringError ? `<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.24);border-radius:var(--radius-md);padding:12px 14px;margin-bottom:16px;"><div style="font-size:0.82rem;color:var(--accent-amber);font-weight:600;margin-bottom:4px;">Scoring fallback used</div><div style="font-size:0.8rem;color:var(--text-secondary);">${r.scoring_error_detail || r.scoring_error || 'The model could not produce a normal score for this session.'}</div></div>` : ''}
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:20px;">
                     ${dimLabels.map(([k, label]) => `
                         <div style="background:var(--bg-glass);border-radius:var(--radius-md);padding:12px;text-align:center;">
                             <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:6px;">${label}</div>
-                            <div style="font-size:1.6rem;font-weight:700;color:${getColor(scores[k])};">${formatScore(scores[k])}</div>
+                            <div style="font-size:1.6rem;font-weight:700;color:${detailColor(scores[k])};">${detailScore(scores[k])}</div>
                         </div>`).join('')}
                     <div style="background:var(--bg-glass);border-radius:var(--radius-md);padding:12px;text-align:center;border:1px solid var(--border-accent);">
                         <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:6px;">⭐ 总分</div>
-                        <div style="font-size:1.6rem;font-weight:700;color:${getColor(scores.overall)};">${formatScore(scores.overall)}</div>
+                        <div style="font-size:1.6rem;font-weight:700;color:${detailColor(scores.overall)};">${detailScore(scores.overall)}</div>
                     </div>
                 </div>`;
 
