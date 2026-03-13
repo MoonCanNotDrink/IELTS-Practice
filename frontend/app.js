@@ -1,4 +1,4 @@
-﻿/**
+/**
  * IELTS Speaking Practice - Full 3-Part Exam Frontend
  * State machine: home -> topic -> part1 -> part2(prep+speak) -> part3 -> scoring
  */
@@ -142,6 +142,7 @@ async function submitAuth() {
 
         localStorage.setItem('ielts_token', data.access_token);
         hideAuth();
+        document.getElementById('btnLogin').style.display = 'none';
         document.getElementById('btnLogout').style.display = 'block';
         // Resume initialization if needed
         loadHistory();
@@ -592,14 +593,9 @@ function renderPart3Question() {
     document.getElementById('part3QuestionText').textContent = q;
     document.getElementById('part3Progress').textContent = `Q${state.part3Index + 1} of 5`;
     document.getElementById('part3Transcript').classList.add('hidden');
-    document.getElementById('p1RecordingIndicator').classList.add('hidden');
-    document.getElementById('p2RecordingIndicator').classList.add('hidden');
     document.getElementById('p3RecordingIndicator').classList.add('hidden');
-    document.getElementById('btnP1Record').disabled = false;
-    setHtml('btnP1Record', UI_TEXT.answerQuestion);
     document.getElementById('btnP3Record').disabled = false;
     setHtml('btnP3Record', UI_TEXT.answerQuestion);
-    document.querySelectorAll('#scoreSection .history-back-btn').forEach((btn) => btn.remove());
     playExaminerAudio(q);
 }
 
