@@ -1,11 +1,10 @@
-"""Azure Speech cognitive service — speech-to-text with word-level timestamps.
+"""Speech-to-text service with layered fallbacks.
 
-Accepts WAV audio files (16kHz mono PCM), produced by the browser's
-AudioContext WAV encoder. Azure SDK handles WAV natively without any
-format conversion.
+Priority:
+1. Azure Speech when configured
+2. Local faster-whisper model bundled with the repo
 
-Word-level timestamps are returned in the Detailed JSON output format:
-  NBest[0].Words[{Word, Offset (100ns ticks), Duration (100ns ticks)}]
+Both paths return the same {text, words} shape.
 """
 
 import json
@@ -14,13 +13,20 @@ import asyncio
 import tempfile
 import os
 import threading
+from typing import Any
 
 import azure.cognitiveservices.speech as speechsdk
 from app.config import settings
 
+try:
+    from faster_whisper import WhisperModel
+except ImportError:  # pragma: no cover - optional dependency for local fallback
+    WhisperModel = None
+
 logger = logging.getLogger(__name__)
 
 _TICKS_PER_SEC = 10_000_000  # Azure ticks are 100-nanosecond units
+_WHISPER_MODEL: Any | None = None
 
 
 def _make_config() -> speechsdk.SpeechConfig:
@@ -35,6 +41,42 @@ def _make_config() -> speechsdk.SpeechConfig:
         speechsdk.PropertyId.Speech_SegmentationSilenceTimeoutMs, "2000"
     )
     return cfg
+
+
+def _get_local_model_path() -> str | None:
+    """Return a usable local whisper model path if one exists."""
+    candidates = [
+        settings.BASE_DIR / settings.WHISPER_MODEL_PATH,
+        settings.BASE_DIR / "whisper_base_model",
+    ]
+    for path in candidates:
+        if path.exists():
+            return str(path)
+    return None
+
+
+def _get_model() -> WhisperModel:
+    """Lazily initialize the local faster-whisper model."""
+    global _WHISPER_MODEL
+    if _WHISPER_MODEL is not None:
+        return _WHISPER_MODEL
+
+    if WhisperModel is None:
+        raise RuntimeError("faster-whisper is not installed")
+
+    model_ref = _get_local_model_path() or settings.WHISPER_MODEL_SIZE
+    logger.info(
+        "Loading faster-whisper model: ref=%s device=%s compute_type=%s",
+        model_ref,
+        settings.WHISPER_DEVICE,
+        settings.WHISPER_COMPUTE_TYPE,
+    )
+    _WHISPER_MODEL = WhisperModel(
+        model_ref,
+        device=settings.WHISPER_DEVICE,
+        compute_type=settings.WHISPER_COMPUTE_TYPE,
+    )
+    return _WHISPER_MODEL
 
 
 def _parse_words(result_json_str: str) -> list[dict]:
@@ -103,12 +145,50 @@ def _transcribe_wav_sync(wav_path: str) -> dict:
     return {"text": text, "words": all_words}
 
 
+def _transcribe_with_whisper_sync(audio_path: str) -> dict:
+    """Synchronous faster-whisper transcription with word timestamps."""
+    model = _get_model()
+    segments, _info = model.transcribe(
+        audio_path,
+        language="en",
+        beam_size=1,
+        vad_filter=True,
+        word_timestamps=True,
+        condition_on_previous_text=False,
+    )
+
+    all_texts: list[str] = []
+    all_words: list[dict] = []
+
+    for segment in segments:
+        segment_text = (segment.text or "").strip()
+        if segment_text:
+            all_texts.append(segment_text)
+        for word in getattr(segment, "words", []) or []:
+            token = (word.word or "").strip()
+            if not token:
+                continue
+            all_words.append(
+                {
+                    "word": token,
+                    "start": round(float(word.start), 3),
+                    "end": round(float(word.end), 3),
+                }
+            )
+
+    text = " ".join(all_texts).strip()
+    logger.info(
+        "Whisper ASR: %d segments → %d words, %d chars",
+        len(all_texts),
+        len(all_words),
+        len(text),
+    )
+    return {"text": text, "words": all_words}
+
+
 async def transcribe_audio(audio_bytes: bytes, filename: str = "audio.wav") -> dict:
     """
-    Async wrapper — writes audio to a temp WAV file, runs Azure ASR in a thread.
-
-    The frontend converts all recordings to WAV (16kHz mono PCM) before uploading,
-    so Azure SDK can read the file directly without any format conversion.
+    Async wrapper around the layered ASR pipeline.
     """
     suffix = ".wav"  # Always save as WAV (browser sends pre-converted WAV)
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as f:
@@ -116,11 +196,28 @@ async def transcribe_audio(audio_bytes: bytes, filename: str = "audio.wav") -> d
         tmp_path = f.name
 
     try:
-        result = await asyncio.to_thread(_transcribe_wav_sync, tmp_path)
-        return result
-    except Exception as e:
-        logger.error("Azure ASR failed: %s", e, exc_info=True)
-        return {"text": "", "words": [], "error": str(e)}
+        errors: list[str] = []
+
+        if settings.AZURE_SPEECH_KEY:
+            try:
+                result = await asyncio.to_thread(_transcribe_wav_sync, tmp_path)
+                if result.get("text"):
+                    return result
+                errors.append("Azure ASR returned empty transcript")
+            except Exception as e:
+                logger.error("Azure ASR failed: %s", e, exc_info=True)
+                errors.append(f"Azure ASR failed: {e}")
+
+        try:
+            result = await asyncio.to_thread(_transcribe_with_whisper_sync, tmp_path)
+            if result.get("text"):
+                return result
+            errors.append("Whisper ASR returned empty transcript")
+        except Exception as e:
+            logger.error("Whisper ASR failed: %s", e, exc_info=True)
+            errors.append(f"Whisper ASR failed: {e}")
+
+        return {"text": "", "words": [], "error": " | ".join(errors) or "No ASR backend available"}
     finally:
         try:
             os.unlink(tmp_path)
