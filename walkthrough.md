@@ -49,7 +49,7 @@
 | **后端** | FastAPI (Python) | 异步并发极高，完美适配处理长录音和实时 API 代理 |
 | **数据库** | SQLite / PostgreSQL (自适应) | 本地零配置默认驱动 SQLite 便捷开发，上云时配置环境变量即可瞬间无缝拨换云端 PostgreSQL |
 | **音频处理**| WebAudioContext + WebM 转 WAV | 前端解决音频重采样难题，省去后端巨额算力 |
-| **ASR** | OpenAI Whisper API | 提供最强多语种英文语音识别与词级时间戳 |
+| **ASR** | Azure Speech + 本地 faster-whisper | Azure 优先转写，失败时回退本地模型并保留词级时间戳 |
 | **物理声学** | `librosa` | 抽取停顿、流利度、词/秒速率 |
 | **发音底层** | Azure Speech Services | 提供最专业的音素级发音错误检测 (GOP) |
 | **大模型** | Google Gemini 2.5 Flash | 主导考官追问、四维度最终评分整合、范文生成 |
