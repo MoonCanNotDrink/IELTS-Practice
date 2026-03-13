@@ -13,6 +13,7 @@ import asyncio
 import tempfile
 import os
 import threading
+from pathlib import Path
 from typing import Any
 
 import azure.cognitiveservices.speech as speechsdk
@@ -27,6 +28,15 @@ logger = logging.getLogger(__name__)
 
 _TICKS_PER_SEC = 10_000_000  # Azure ticks are 100-nanosecond units
 _WHISPER_MODEL: Any | None = None
+
+
+def _normalize_audio_suffix(filename: str | None) -> str:
+    suffix = Path(filename or "").suffix.lower()
+    return suffix if suffix in {".wav", ".webm", ".mp3", ".ogg"} else ".wav"
+
+
+def _looks_like_wav(audio_bytes: bytes) -> bool:
+    return len(audio_bytes) >= 12 and audio_bytes[:4] == b"RIFF" and audio_bytes[8:12] == b"WAVE"
 
 
 def _make_config() -> speechsdk.SpeechConfig:
@@ -55,7 +65,7 @@ def _get_local_model_path() -> str | None:
     return None
 
 
-def _get_model() -> WhisperModel:
+def _get_model() -> Any:
     """Lazily initialize the local faster-whisper model."""
     global _WHISPER_MODEL
     if _WHISPER_MODEL is not None:
@@ -190,7 +200,7 @@ async def transcribe_audio(audio_bytes: bytes, filename: str = "audio.wav") -> d
     """
     Async wrapper around the layered ASR pipeline.
     """
-    suffix = ".wav"  # Always save as WAV (browser sends pre-converted WAV)
+    suffix = _normalize_audio_suffix(filename)
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as f:
         f.write(audio_bytes)
         tmp_path = f.name
@@ -198,7 +208,8 @@ async def transcribe_audio(audio_bytes: bytes, filename: str = "audio.wav") -> d
     try:
         errors: list[str] = []
 
-        if settings.AZURE_SPEECH_KEY:
+        azure_compatible = suffix == ".wav" and _looks_like_wav(audio_bytes)
+        if settings.AZURE_SPEECH_KEY and azure_compatible:
             try:
                 result = await asyncio.to_thread(_transcribe_wav_sync, tmp_path)
                 if result.get("text"):
@@ -207,6 +218,8 @@ async def transcribe_audio(audio_bytes: bytes, filename: str = "audio.wav") -> d
             except Exception as e:
                 logger.error("Azure ASR failed: %s", e, exc_info=True)
                 errors.append(f"Azure ASR failed: {e}")
+        elif settings.AZURE_SPEECH_KEY and suffix == ".wav":
+            errors.append("Azure ASR skipped: uploaded .wav payload is not valid WAV data")
 
         try:
             result = await asyncio.to_thread(_transcribe_with_whisper_sync, tmp_path)
