@@ -808,8 +808,12 @@ function clearTimer() {
 // ========== Audio Examiner TTS ==========
 let currentExaminerAudio = null;
 let currentExaminerAudioUrl = null;
+const EXAMINER_SPEECH_RATE = 0.9;
 
 function stopExaminerAudio() {
+    if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+    }
     if (currentExaminerAudio) {
         currentExaminerAudio.pause();
         currentExaminerAudio = null;
@@ -818,6 +822,19 @@ function stopExaminerAudio() {
         URL.revokeObjectURL(currentExaminerAudioUrl);
         currentExaminerAudioUrl = null;
     }
+}
+
+function speakExaminerFallback(text) {
+    const synth = window.speechSynthesis;
+    const Utterance = window.SpeechSynthesisUtterance || window.webkitSpeechSynthesisUtterance;
+    if (!synth || !Utterance) return false;
+
+    const utterance = new Utterance(text);
+    utterance.lang = 'en-US';
+    utterance.rate = EXAMINER_SPEECH_RATE;
+    synth.cancel();
+    synth.speak(utterance);
+    return true;
 }
 
 async function playExaminerAudio(text) {
@@ -839,17 +856,21 @@ async function playExaminerAudio(text) {
         
         if (!res.ok) {
             console.error('TTS failed:', await res.text());
+            speakExaminerFallback(text);
             return;
         }
         
         const blob = await res.blob();
         currentExaminerAudioUrl = URL.createObjectURL(blob);
         currentExaminerAudio = new Audio(currentExaminerAudioUrl);
+        currentExaminerAudio.defaultPlaybackRate = EXAMINER_SPEECH_RATE;
+        currentExaminerAudio.playbackRate = EXAMINER_SPEECH_RATE;
         currentExaminerAudio.onended = stopExaminerAudio;
         await currentExaminerAudio.play();
     } catch (e) {
         console.error("Audio Examiner error:", e);
         stopExaminerAudio();
+        speakExaminerFallback(text);
     }
 }
 
