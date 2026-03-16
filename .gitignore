@@ -40,6 +40,10 @@ backend/whisper_base_model/model.bin
 *.swp
 *.swo
 
+# Playwright
+test-results/
+playwright-report/
+
 # OS
 .DS_Store
 Thumbs.db
