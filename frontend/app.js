@@ -1,4 +1,4 @@
-﻿/**
+/**
  * IELTS Speaking Practice - Full 3-Part Exam Frontend
  * State machine: home -> topic -> part1 -> part2(prep+speak) -> part3 -> scoring
  */
@@ -142,6 +142,7 @@ async function submitAuth() {
 
         localStorage.setItem('ielts_token', data.access_token);
         hideAuth();
+        document.getElementById('btnLogin').style.display = 'none';
         document.getElementById('btnLogout').style.display = 'block';
         // Resume initialization if needed
         loadHistory();
@@ -592,14 +593,9 @@ function renderPart3Question() {
     document.getElementById('part3QuestionText').textContent = q;
     document.getElementById('part3Progress').textContent = `Q${state.part3Index + 1} of 5`;
     document.getElementById('part3Transcript').classList.add('hidden');
-    document.getElementById('p1RecordingIndicator').classList.add('hidden');
-    document.getElementById('p2RecordingIndicator').classList.add('hidden');
     document.getElementById('p3RecordingIndicator').classList.add('hidden');
-    document.getElementById('btnP1Record').disabled = false;
-    setHtml('btnP1Record', UI_TEXT.answerQuestion);
     document.getElementById('btnP3Record').disabled = false;
     setHtml('btnP3Record', UI_TEXT.answerQuestion);
-    document.querySelectorAll('#scoreSection .history-back-btn').forEach((btn) => btn.remove());
     playExaminerAudio(q);
 }
 
@@ -812,8 +808,12 @@ function clearTimer() {
 // ========== Audio Examiner TTS ==========
 let currentExaminerAudio = null;
 let currentExaminerAudioUrl = null;
+const EXAMINER_SPEECH_RATE = 0.9;
 
 function stopExaminerAudio() {
+    if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+    }
     if (currentExaminerAudio) {
         currentExaminerAudio.pause();
         currentExaminerAudio = null;
@@ -822,6 +822,19 @@ function stopExaminerAudio() {
         URL.revokeObjectURL(currentExaminerAudioUrl);
         currentExaminerAudioUrl = null;
     }
+}
+
+function speakExaminerFallback(text) {
+    const synth = window.speechSynthesis;
+    const Utterance = window.SpeechSynthesisUtterance || window.webkitSpeechSynthesisUtterance;
+    if (!synth || !Utterance) return false;
+
+    const utterance = new Utterance(text);
+    utterance.lang = 'en-US';
+    utterance.rate = EXAMINER_SPEECH_RATE;
+    synth.cancel();
+    synth.speak(utterance);
+    return true;
 }
 
 async function playExaminerAudio(text) {
@@ -843,17 +856,21 @@ async function playExaminerAudio(text) {
         
         if (!res.ok) {
             console.error('TTS failed:', await res.text());
+            speakExaminerFallback(text);
             return;
         }
         
         const blob = await res.blob();
         currentExaminerAudioUrl = URL.createObjectURL(blob);
         currentExaminerAudio = new Audio(currentExaminerAudioUrl);
+        currentExaminerAudio.defaultPlaybackRate = EXAMINER_SPEECH_RATE;
+        currentExaminerAudio.playbackRate = EXAMINER_SPEECH_RATE;
         currentExaminerAudio.onended = stopExaminerAudio;
         await currentExaminerAudio.play();
     } catch (e) {
         console.error("Audio Examiner error:", e);
         stopExaminerAudio();
+        speakExaminerFallback(text);
     }
 }
 
