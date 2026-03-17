@@ -58,6 +58,21 @@ def _feedback_error_info(raw_feedback: str | None) -> tuple[str, str, str]:
     return "error", str(parsed.get("error", "")), str(parsed.get("detail", ""))
 
 
+async def _get_part2_prompt_title(db: AsyncSession, session_id: int) -> str | None:
+    result = await db.execute(
+        select(Recording.question_text)
+        .where(
+            Recording.session_id == session_id,
+            Recording.part == "part2",
+            Recording.question_text.is_not(None),
+            Recording.question_text != "",
+        )
+        .order_by(Recording.question_index, Recording.created_at)
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
 def _is_valid_wav_payload(audio_filename: str | None, audio_bytes: bytes) -> bool:
     return bool(
         audio_filename
@@ -258,9 +273,10 @@ async def get_history(
     history = []
     for s, topic_title in rows:
         scoring_status, scoring_error, scoring_error_detail = _feedback_error_info(s.feedback)
+        resolved_title = topic_title or await _get_part2_prompt_title(db, s.id) or "Unknown"
         history.append({
             "session_id": s.id,
-            "topic_title": topic_title or "Unknown",
+            "topic_title": resolved_title,
             "date": s.finished_at.isoformat() if s.finished_at else None,
             "scoring_status": scoring_status,
             "scoring_error": scoring_error,
@@ -313,6 +329,12 @@ async def get_session_detail(
     feedback = {}
     key_improvements = []
     sample_answer = ""
+    resolved_title = topic.title if topic else None
+    if not resolved_title:
+        resolved_title = next(
+            ((r.question_text or "").strip() for r in recordings if r.part == "part2" and (r.question_text or "").strip()),
+            "Unknown",
+        )
     scoring_status, scoring_error, scoring_error_detail = _feedback_error_info(session.feedback)
     if session.feedback:
         fb = _parse_feedback_blob(session.feedback)
@@ -331,7 +353,7 @@ async def get_session_detail(
 
     return {
         "session_id": session_id,
-        "topic_title": topic.title if topic else "Unknown",
+        "topic_title": resolved_title,
         "date": session.finished_at.isoformat() if session.finished_at else None,
         "exam_scope": exam_scope,
         "is_full_flow": is_full_flow,
