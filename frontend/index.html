@@ -78,13 +78,45 @@
                 <div class="practice-form hidden" id="freePracticePanel" data-duration-source="preset" data-duration-seconds="120">
                     <div class="practice-form-header">
                         <div class="practice-form-title">Free Practice</div>
-                        <p class="practice-form-subtitle">Start speaking right away with your own prompt and timer.</p>
+                        <p class="practice-form-subtitle">Choose a topic from the library, or write your own prompt and start speaking right away.</p>
                     </div>
                     <div class="inline-error hidden" id="freePracticeError"></div>
-                    <div class="form-group">
-                        <label for="freePracticePrompt">Custom prompt</label>
-                        <textarea id="freePracticePrompt" placeholder="Describe a challenge you overcame recently."></textarea>
+                    
+                    <div class="topic-selection-group">
+                        <div class="fp-type-toggle" id="fpTypeToggle">
+                            <button type="button" class="btn btn-ghost active" data-target="library" onclick="setFpType('library')">Topic Library</button>
+                            <button type="button" class="btn btn-ghost" data-target="custom" onclick="setFpType('custom')">Write My Own</button>
+                        </div>
+                        
+                        <div id="library-view" class="view-panel active">
+                            <div class="form-group" id="fpLibrarySelectGroup">
+                                <label id="fpTopicSelectLabel">Select a topic</label>
+                                <input type="hidden" id="freePracticeTopicSelect" value="">
+                                <div class="custom-select-container" id="fpTopicSelectContainer">
+                                    <button type="button" class="custom-select-button" id="fpTopicSelectBtn" onclick="toggleFpTopicDropdown(event)" aria-haspopup="listbox" aria-expanded="false" aria-controls="fpTopicOptions" aria-labelledby="fpTopicSelectLabel fpTopicSelectText">
+                                        <span class="custom-select-text" id="fpTopicSelectText">Select a topic...</span>
+                                        <span class="custom-select-icon">▼</span>
+                                    </button>
+                                    <div class="custom-select-dropdown hidden" id="fpTopicDropdown">
+                                        <div class="custom-select-search">
+                                            <input type="text" id="fpTopicSearchInput" placeholder="Search topics..." aria-label="Search topics" oninput="filterFpTopics(event)" onclick="event.stopPropagation()">
+                                        </div>
+                                        <div class="custom-select-options" id="fpTopicOptions" role="listbox" aria-labelledby="fpTopicSelectLabel">
+                                            <!-- Populated by JS -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="custom-view" class="view-panel hidden">
+                            <div class="form-group">
+                                <label for="freePracticePrompt">Custom prompt</label>
+                                <textarea id="freePracticePrompt" placeholder="Describe a challenge you overcame recently."></textarea>
+                            </div>
+                        </div>
                     </div>
+
                     <div class="form-group">
                         <label>Speaking countdown</label>
                         <div class="duration-presets">
