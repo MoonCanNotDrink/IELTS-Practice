@@ -66,7 +66,8 @@ async def list_topics(
 
 
 class CreateSessionRequest(BaseModel):
-    topic_id: int
+    topic_id: int | None = None
+    custom_topic: str = ""
 
 
 def _assert_session_access(session: PracticeSession, current_user: User) -> None:
@@ -89,6 +90,21 @@ def _can_run_azure_pronunciation(audio_filename: str | None, audio_bytes: bytes)
     return bool(audio_filename and audio_filename.lower().endswith(".wav") and _looks_like_wav(audio_bytes))
 
 
+async def _get_part2_prompt_title(db: AsyncSession, session_id: int) -> str | None:
+    result = await db.execute(
+        select(Recording.question_text)
+        .where(
+            Recording.session_id == session_id,
+            Recording.part == "part2",
+            Recording.question_text.is_not(None),
+            Recording.question_text != "",
+        )
+        .order_by(Recording.question_index, Recording.created_at)
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
 @router.post("/sessions")
 async def create_session(
     request: CreateSessionRequest,
@@ -96,16 +112,26 @@ async def create_session(
     current_user: User = Depends(get_current_user)
 ):
     """Start a new practice session for Part 2."""
-    # Verify topic exists
-    topic = await db.get(Topic, request.topic_id)
-    if not topic:
-        raise HTTPException(status_code=404, detail="Topic not found")
+    custom_topic = request.custom_topic.strip()
+
+    if request.topic_id is None and not custom_topic:
+        raise HTTPException(status_code=400, detail="Either topic_id or custom_topic is required")
+
+    if request.topic_id is not None:
+        topic = await db.get(Topic, request.topic_id)
+        if not topic:
+            raise HTTPException(status_code=404, detail="Topic not found")
 
     session = PracticeSession(topic_id=request.topic_id, status="in_progress", user_id=current_user.id)
     db.add(session)
     await db.flush()
 
-    return {"session_id": session.id, "topic_id": request.topic_id, "status": "in_progress"}
+    return {
+        "session_id": session.id,
+        "topic_id": request.topic_id,
+        "custom_topic": custom_topic or None,
+        "status": "in_progress",
+    }
 
 
 @router.post("/sessions/{session_id}/upload-audio")
@@ -113,6 +139,7 @@ async def upload_audio(
     session_id: int,
     audio: UploadFile = File(...),
     notes: str = Form(default=""),
+    question_text: str = Form(default=""),
     client_transcript: str = Form(default=""),  # text from browser Web Speech API
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -133,10 +160,15 @@ async def upload_audio(
         raise HTTPException(status_code=400, detail="Empty audio file")
 
     # Get topic info for context
-    topic = await db.get(Topic, session.topic_id)
+    topic = await db.get(Topic, session.topic_id) if session.topic_id else None
+    prompt_text = question_text.strip()
     question_text = ""
     if topic:
         question_text = topic.title + "\n" + "\n".join(f"- {p}" for p in topic.points)
+    elif prompt_text:
+        question_text = prompt_text
+    else:
+        raise HTTPException(status_code=400, detail="question_text is required for custom-topic sessions")
 
     # Save audio file
     ext = _resolve_audio_extension(audio.filename)
@@ -209,10 +241,12 @@ async def score_session(
         raise HTTPException(status_code=422, detail=NO_SPEECH_DETAIL)
 
     # Get topic
-    topic = await db.get(Topic, session.topic_id)
+    topic = await db.get(Topic, session.topic_id) if session.topic_id else None
     question_text = ""
     if topic:
         question_text = topic.title + "\n" + "\n".join(f"- {p}" for p in topic.points)
+    elif part2_recording.question_text:
+        question_text = part2_recording.question_text
 
     # Run pronunciation assessment (if audio file exists and Azure is configured)
     pron_data = None
@@ -339,9 +373,10 @@ async def get_history(
 
     history = []
     for s, topic_title in rows:
+        resolved_title = topic_title or await _get_part2_prompt_title(db, s.id) or "Unknown"
         history.append({
             "session_id": s.id,
-            "topic_title": topic_title or "Unknown",
+            "topic_title": resolved_title,
             "date": s.finished_at.isoformat() if s.finished_at else None,
             "scores": {
                 "fluency": s.fluency_score,

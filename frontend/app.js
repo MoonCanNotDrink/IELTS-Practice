@@ -5,6 +5,7 @@
 
 // ========== Config ==========
 const API_BASE = '';  // Same-origin - FastAPI serves both
+const DEFAULT_PART2_SPEAKING_SECONDS = 120;
 
 const UI_TEXT = {
     topicIcon: '&#127922;',
@@ -21,6 +22,7 @@ const UI_TEXT = {
     stopRecording: '&#9209; Stop Recording',
     tryAgain: '&#127908; Try Again',
     examinerThinking: '&#129300; Examiner is thinking...',
+    startFreePractice: '&#127908; Start Answering',
 };
 
 function setHtml(id, html) {
@@ -28,9 +30,55 @@ function setHtml(id, html) {
     if (el) el.innerHTML = html;
 }
 
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+    }[char]));
+}
+
+function formatTimerValue(seconds) {
+    const totalSeconds = Math.max(0, Math.round(Number(seconds) || 0));
+    const minutes = Math.floor(totalSeconds / 60);
+    const remainder = totalSeconds % 60;
+    return `${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`;
+}
+
+function formatDurationBadge(seconds) {
+    const totalSeconds = Math.max(1, Math.round(Number(seconds) || DEFAULT_PART2_SPEAKING_SECONDS));
+    return totalSeconds % 60 === 0 ? `${totalSeconds / 60} Min` : `${totalSeconds} Sec`;
+}
+
+function formatSpeakingDuration(seconds) {
+    const totalSeconds = Math.max(1, Math.round(Number(seconds) || DEFAULT_PART2_SPEAKING_SECONDS));
+    const minutes = Math.floor(totalSeconds / 60);
+    const remainder = totalSeconds % 60;
+    const parts = [];
+
+    if (minutes) parts.push(`${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`);
+    if (remainder) parts.push(`${remainder} ${remainder === 1 ? 'second' : 'seconds'}`);
+
+    return parts.join(' ');
+}
+
+function buildFreePracticeTopic(prompt, speakingSeconds) {
+    return {
+        title: prompt,
+        categoryLabel: 'Free Practice',
+        introLabel: 'Use this prompt',
+        points: [
+            `Speak for ${formatSpeakingDuration(speakingSeconds)}.`,
+            'Give reasons, examples, and a clear structure in your answer.',
+        ],
+    };
+}
+
 // ========== State ==========
 const state = {
-    mode: null,          // 'full' | 'part2'
+    mode: null,
     sessionId: null,
     topic: null,
     phase: 'home',       // home|topic|part1|part2prep|part2speak|part3|scoring
@@ -48,6 +96,8 @@ const state = {
     // Timer
     timerInterval: null,
     timeRemaining: 0,
+    part2SpeakingSeconds: DEFAULT_PART2_SPEAKING_SECONDS,
+    part2QuestionText: '',
 
     // Recording (shared)
     mediaRecorder: null,
@@ -158,8 +208,151 @@ function logout() {
 }
 
 // ========== Home ==========
+function clearFreePracticeError() {
+    const errorEl = document.getElementById('freePracticeError');
+    if (!errorEl) return;
+    errorEl.textContent = '';
+    errorEl.classList.add('hidden');
+}
+
+function showFreePracticeError(message) {
+    const errorEl = document.getElementById('freePracticeError');
+    if (!errorEl) return;
+    errorEl.textContent = message;
+    errorEl.classList.remove('hidden');
+}
+
+function setFreePracticePreset(seconds) {
+    const panel = document.getElementById('freePracticePanel');
+    const customInput = document.getElementById('freePracticeCustomSeconds');
+
+    document.querySelectorAll('[data-free-practice-preset]').forEach((btn) => {
+        btn.classList.toggle('is-selected', Number(btn.dataset.seconds) === seconds);
+    });
+
+    if (panel) {
+        panel.dataset.durationSource = 'preset';
+        panel.dataset.durationSeconds = String(seconds);
+    }
+
+    if (customInput) customInput.value = '';
+    clearFreePracticeError();
+}
+
+function resetFreePracticeSetup() {
+    const panel = document.getElementById('freePracticePanel');
+    const promptInput = document.getElementById('freePracticePrompt');
+    const startButton = document.getElementById('btnStartFreePractice');
+
+    if (panel) {
+        panel.classList.add('hidden');
+        panel.dataset.durationSource = 'preset';
+        panel.dataset.durationSeconds = String(DEFAULT_PART2_SPEAKING_SECONDS);
+    }
+
+    if (promptInput) promptInput.value = '';
+    if (startButton) {
+        startButton.disabled = false;
+        startButton.innerHTML = UI_TEXT.startFreePractice;
+    }
+
+    setFreePracticePreset(DEFAULT_PART2_SPEAKING_SECONDS);
+}
+
+function showFreePracticeSetup() {
+    const panel = document.getElementById('freePracticePanel');
+    if (!panel) return;
+    panel.classList.remove('hidden');
+    if (!panel.dataset.durationSeconds) {
+        setFreePracticePreset(DEFAULT_PART2_SPEAKING_SECONDS);
+    }
+    clearFreePracticeError();
+    document.getElementById('freePracticePrompt')?.focus();
+}
+
+function hideFreePracticeSetup() {
+    resetFreePracticeSetup();
+}
+
+function handleFreePracticeCustomDurationInput() {
+    const panel = document.getElementById('freePracticePanel');
+    const customInput = document.getElementById('freePracticeCustomSeconds');
+    if (!panel || !customInput) return;
+
+    if (customInput.value.trim()) {
+        panel.dataset.durationSource = 'custom';
+        panel.dataset.durationSeconds = '';
+        document.querySelectorAll('[data-free-practice-preset]').forEach((btn) => {
+            btn.classList.remove('is-selected');
+        });
+    } else {
+        setFreePracticePreset(DEFAULT_PART2_SPEAKING_SECONDS);
+    }
+
+    clearFreePracticeError();
+}
+
+async function startFreePractice() {
+    const promptInput = document.getElementById('freePracticePrompt');
+    const customInput = document.getElementById('freePracticeCustomSeconds');
+    const startButton = document.getElementById('btnStartFreePractice');
+    const panel = document.getElementById('freePracticePanel');
+    const prompt = promptInput?.value.trim() || '';
+
+    if (!prompt) {
+        showFreePracticeError('Enter a custom prompt to start free practice.');
+        return;
+    }
+
+    let speakingSeconds = Number(panel?.dataset.durationSeconds || DEFAULT_PART2_SPEAKING_SECONDS);
+    if (customInput?.value.trim()) {
+        speakingSeconds = Number(customInput.value.trim());
+        if (!Number.isFinite(speakingSeconds) || speakingSeconds <= 0) {
+            showFreePracticeError('Enter a positive speaking duration in seconds.');
+            return;
+        }
+        speakingSeconds = Math.round(speakingSeconds);
+    }
+
+    clearFreePracticeError();
+    if (startButton) {
+        startButton.disabled = true;
+        startButton.innerHTML = UI_TEXT.loading;
+    }
+
+    try {
+        const session = await api('/api/part2/sessions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ custom_topic: prompt }),
+        });
+
+        state.mode = 'free_practice';
+        state.sessionId = session.session_id;
+        state.topic = buildFreePracticeTopic(prompt, speakingSeconds);
+        state.part2QuestionText = prompt;
+        state.part2SpeakingSeconds = speakingSeconds;
+        state.transcripts.part2 = '';
+        state.clientTranscripts.part2 = '';
+        document.getElementById('notesInput').value = '';
+
+        document.getElementById('modeSelector').classList.add('hidden');
+        document.getElementById('examFlow').classList.remove('hidden');
+        setPhase('part2speak');
+    } catch (e) {
+        showFreePracticeError('Failed to start free practice: ' + e.message);
+        if (startButton) {
+            startButton.disabled = false;
+            startButton.innerHTML = UI_TEXT.startFreePractice;
+        }
+    }
+}
+
 function startMode(mode) {
+    resetFreePracticeSetup();
     state.mode = mode;
+    state.part2SpeakingSeconds = DEFAULT_PART2_SPEAKING_SECONDS;
+    state.part2QuestionText = '';
     document.getElementById('modeSelector').classList.add('hidden');
     document.getElementById('examFlow').classList.remove('hidden');
 
@@ -223,6 +416,8 @@ function backToHome() {
         mode: null, sessionId: null, topic: null, phase: 'home',
         part1Questions: [], part1Topic: '', part1Index: 0,
         part3Questions: [], part3Category: '', part3Index: 0,
+        part2SpeakingSeconds: DEFAULT_PART2_SPEAKING_SECONDS,
+        part2QuestionText: '',
         audioChunks: [], isRecording: false,
         clientTranscripts: { part1: '', part2: '', part3: '' },
         transcripts: { part1: '', part2: '', part3: '' },
@@ -240,6 +435,7 @@ function backToHome() {
     document.getElementById('notesInput').value = '';
     document.getElementById('part2Timer').textContent = '01:00';
     document.getElementById('part2Timer').classList.remove('warning', 'danger');
+    document.getElementById('part2CueTitle').textContent = 'Part 2 - Cue Card';
     document.getElementById('part1Transcript').classList.add('hidden');
     document.getElementById('part3Transcript').classList.add('hidden');
     document.getElementById('p1RecordingIndicator').classList.add('hidden');
@@ -256,6 +452,7 @@ function backToHome() {
         flowBanner.innerHTML = '';
     }
 
+    resetFreePracticeSetup();
     loadHistory();
 }
 
@@ -292,6 +489,7 @@ function setPhase(phase) {
 
     if (phase === 'part2prep') {
         // Show cue card and prep controls
+        document.getElementById('part2CueTitle').textContent = 'Part 2 - Cue Card';
         document.getElementById('part2TopicDisplay').innerHTML = renderTopicCard(state.topic);
         show('part2CueCard', true);
         const notesEl = document.getElementById('notesInput');
@@ -313,18 +511,22 @@ function setPhase(phase) {
     }
 
     if (phase === 'part2speak') {
+        clearTimer();
+        document.getElementById('part2CueTitle').textContent = state.mode === 'free_practice'
+            ? 'Free Practice Prompt'
+            : 'Part 2 - Cue Card';
+        document.getElementById('part2TopicDisplay').innerHTML = renderTopicCard(state.topic);
         show('part2CueCard', true);
-        // Keep notes visible but read-only so user can refer to them while speaking
         const notesEl = document.getElementById('notesInput');
-        notesEl.classList.remove('hidden');
+        notesEl.classList.toggle('hidden', state.mode === 'free_practice');
         notesEl.readOnly = true;
-        notesEl.style.opacity = '0.7';
-        notesEl.style.cursor = 'default';
+        notesEl.style.opacity = state.mode === 'free_practice' ? '' : '0.7';
+        notesEl.style.cursor = state.mode === 'free_practice' ? '' : 'default';
         document.getElementById('part2PhaseTitle').textContent = 'Speaking Phase';
-        document.getElementById('part2Badge').textContent = '2 Min';
+        document.getElementById('part2Badge').textContent = formatDurationBadge(state.part2SpeakingSeconds);
         document.getElementById('part2Badge').className = 'status-badge speaking';
         document.getElementById('part2TimerLabel').textContent = 'Speaking Time';
-        document.getElementById('part2Timer').textContent = '02:00';
+        document.getElementById('part2Timer').textContent = formatTimerValue(state.part2SpeakingSeconds);
         document.getElementById('part2Timer').classList.remove('warning', 'danger');
         document.getElementById('part2Controls').innerHTML = `
             <button class="btn btn-danger btn-full" id="btnP2Record" onclick="toggleP2Recording()">
@@ -377,11 +579,14 @@ async function drawTopic() {
 }
 
 function renderTopicCard(topic) {
+    const safeTopic = topic || {};
+    const points = Array.isArray(safeTopic.points) ? safeTopic.points : [];
     return `
-        <h3 class="topic-title">${topic.title}</h3>
-        <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:12px;">You should say:</p>
+        ${safeTopic.categoryLabel ? `<div class="category-badge">${escapeHtml(safeTopic.categoryLabel)}</div>` : ''}
+        <h3 class="topic-title">${escapeHtml(safeTopic.title || '')}</h3>
+        <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:12px;">${escapeHtml(safeTopic.introLabel || 'You should say:')}</p>
         <ul class="topic-points">
-            ${topic.points.map(p => `<li>${p}</li>`).join('')}
+            ${points.map((point) => `<li>${escapeHtml(point)}</li>`).join('')}
         </ul>`;
 }
 
@@ -524,6 +729,7 @@ function startPrep() {
 }
 
 function skipPrep() {
+    clearTimer();
     setPhase('part2speak');
 }
 
@@ -532,6 +738,7 @@ async function toggleP2Recording() {
     if (state.isRecording && state.currentRecordingTarget === 'part2') {
         btn.disabled = true;
         btn.innerHTML = UI_TEXT.converting;
+        clearTimer();
         stopRecording(async (wavBlob, clientTranscript) => {
             document.getElementById('p2RecordingIndicator').classList.add('hidden');
             await uploadPart2(wavBlob, clientTranscript);
@@ -540,7 +747,7 @@ async function toggleP2Recording() {
         await startRecording('part2');
         btn.innerHTML = UI_TEXT.stopRecording;
         document.getElementById('p2RecordingIndicator').classList.remove('hidden');
-        startTimer(120, 'part2Timer', () => {
+        startTimer(state.part2SpeakingSeconds, 'part2Timer', () => {
             if (state.isRecording && state.currentRecordingTarget === 'part2') {
                 const btn2 = document.getElementById('btnP2Record');
                 if (btn2) btn2.click();
@@ -554,6 +761,9 @@ async function uploadPart2(wavBlob, clientTranscript = '') {
     form.append('audio', wavBlob, `part2_${Date.now()}.wav`);
     form.append('notes', document.getElementById('notesInput').value || '');
     if (clientTranscript.trim()) form.append('client_transcript', clientTranscript.trim());
+    if (state.mode === 'free_practice' && state.part2QuestionText.trim()) {
+        form.append('question_text', state.part2QuestionText.trim());
+    }
 
     try {
         const result = await api(`/api/part2/sessions/${state.sessionId}/upload-audio`, {
@@ -623,7 +833,8 @@ async function toggleP3Recording() {
  */
 async function audioBlob2Wav(blob) {
     const arrayBuffer = await blob.arrayBuffer();
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+    const AudioContextCtor = window.AudioContext || window['webkitAudioContext'];
+    const audioCtx = new AudioContextCtor({ sampleRate: 16000 });
     let audioBuffer;
     try {
         audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
@@ -826,7 +1037,7 @@ function stopExaminerAudio() {
 
 function speakExaminerFallback(text) {
     const synth = window.speechSynthesis;
-    const Utterance = window.SpeechSynthesisUtterance || window.webkitSpeechSynthesisUtterance;
+    const Utterance = window.SpeechSynthesisUtterance || window['webkitSpeechSynthesisUtterance'];
     if (!synth || !Utterance) return false;
 
     const utterance = new Utterance(text);
@@ -946,15 +1157,15 @@ function updateFlowStatusBanner(result, transcripts) {
     }
 
     const scopeTitle = result?.exam_scope === 'part2_only'
-        ? '\u975e\u5168\u6d41\u7a0b\u6210\u7ee9\uff08Part 2 \u5355\u9879\u7ec3\u4e60\uff09'
-        : '\u975e\u5168\u6d41\u7a0b\u6210\u7ee9';
+        ? 'Partial Assessment (Part 2 Only)'
+        : 'Partial Assessment';
     const missingText = missingParts.length
         ? missingParts.map((p) => partLabels[p] || p).join(' / ')
         : 'Part 1 / Part 2 / Part 3';
 
     banner.innerHTML = `
         <div class="flow-status-title">${scopeTitle}</div>
-        <div class="flow-status-text">\u672c\u6b21\u8bc4\u5206\u672a\u8986\u76d6\u5b8c\u6574 IELTS \u53e3\u8bed\u5168\u6d41\u7a0b\u3002\u7f3a\u5931\u90e8\u5206\uff1a${missingText}</div>
+        <div class="flow-status-text">This score does not cover the full IELTS speaking flow. Missing parts: ${missingText}</div>
     `;
     banner.classList.remove('hidden');
 }
@@ -1135,6 +1346,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // ========== Init ==========
 document.addEventListener('DOMContentLoaded', () => {
     setPhase('home');
+    resetFreePracticeSetup();
     const audioToggle = document.getElementById('audioModeToggle');
     if (audioToggle) {
         audioToggle.checked = false;

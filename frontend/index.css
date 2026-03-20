@@ -28,6 +28,8 @@
     --accent-red-glow: rgba(239, 68, 68, 0.3);
     --accent-amber: #f59e0b;
     --accent-amber-glow: rgba(245, 158, 11, 0.3);
+    --surface-danger: rgba(239, 68, 68, 0.1);
+    --border-danger: rgba(239, 68, 68, 0.2);
 
     --gradient-primary: linear-gradient(135deg, #3b82f6, #8b5cf6);
     --gradient-success: linear-gradient(135deg, #10b981, #059669);
@@ -295,6 +297,59 @@ body::before {
 
 .btn-full {
     width: 100%;
+}
+
+.duration-option.is-selected {
+    background: rgba(59, 130, 246, 0.14);
+    color: var(--accent-blue);
+    border: 1px solid var(--border-accent);
+    box-shadow: var(--shadow-glow-blue);
+}
+
+.practice-form {
+    margin-top: 16px;
+    padding: 16px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-glass);
+}
+
+.practice-form-header {
+    margin-bottom: 14px;
+}
+
+.practice-form-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.practice-form-subtitle,
+.form-hint {
+    margin-top: 4px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.duration-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.custom-duration-row {
+    margin-top: 12px;
+}
+
+.inline-error {
+    margin-bottom: 14px;
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-danger);
+    background: var(--surface-danger);
+    color: var(--accent-red);
+    font-size: 0.85rem;
 }
 
 /* ---------- Timer ---------- */
@@ -827,7 +882,8 @@ body::before {
     color: var(--text-secondary);
 }
 
-.form-group input {
+.form-group input,
+.form-group textarea {
     width: 100%;
     background: var(--bg-glass);
     border: 1px solid var(--border-subtle);
@@ -839,7 +895,13 @@ body::before {
     transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
-.form-group input:focus {
+.form-group textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
     outline: none;
     border-color: var(--accent-blue);
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
