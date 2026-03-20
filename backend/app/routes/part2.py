@@ -11,7 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.database import get_db
-from app.models import Topic, PracticeSession, Recording
+from app.models import Topic, PracticeSession, Recording, SavedTopic
+from app.services.saved_topic_service import upsert_saved_topic, normalize_saved_topic_prompt
 from app.config import settings
 from app.services.asr_service import transcribe_audio, _estimate_word_timestamps, _looks_like_wav
 from app.services.scoring_service import score_speaking
@@ -65,8 +66,111 @@ async def list_topics(
     ]
 
 
+
+class CreateSavedTopicRequest(BaseModel):
+    prompt_text: str
+    category: str | None = None
+
+
+@router.get("/free-practice-topics")
+async def get_free_practice_topics(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Return grouped selector data for free-practice topics.
+
+    Response shape MUST be exactly:
+    { "official_topics": [...], "saved_topics": [...] }
+    """
+    # Official topics (selector needs id, title, category)
+    result = await db.execute(select(Topic).order_by(Topic.category, Topic.id))
+    official = result.scalars().all()
+    official_topics = [
+        {"id": t.id, "title": t.title, "category": t.category} for t in official
+    ]
+
+    # Saved topics scoped to current user (return specific fields for frontend wiring)
+    result = await db.execute(
+        select(SavedTopic).where(SavedTopic.user_id == current_user.id, SavedTopic.is_archived == False)
+        .order_by(SavedTopic.updated_at.desc())
+    )
+    saved_rows = result.scalars().all()
+    saved_topics = [
+        {
+            "id": s.id,
+            "title": s.title,
+            "prompt_text": s.prompt_text,
+            "category": s.category,
+            "source": s.source,
+            "use_count": s.use_count,
+            "last_used_at": s.last_used_at.isoformat() if s.last_used_at else None,
+        }
+        for s in saved_rows
+    ]
+
+    return {"official_topics": official_topics, "saved_topics": saved_topics}
+
+
+@router.post("/free-practice-topics")
+async def create_free_practice_topic(
+    body: CreateSavedTopicRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Create or dedupe a user-saved free-practice prompt.
+
+    Accepts: { prompt_text: str, category?: str }
+    Derives title from first non-empty line of prompt_text and upserts via upsert_saved_topic.
+    Defaults category to 'general'. Response indicates created vs deduped.
+    """
+    prompt = (body.prompt_text or "").strip()
+    if not prompt:
+        raise HTTPException(status_code=400, detail="prompt_text is required")
+
+    category = (body.category or "general").strip() or "general"
+
+    # derive title from first line, truncated to 255 chars
+    first_line = prompt.splitlines()[0].strip() if prompt.splitlines() else prompt
+    title = (first_line[:255]) or "Untitled"
+
+    # determine whether this will be a new row (dedupe by normalized_prompt scoped to user)
+    normalized = normalize_saved_topic_prompt(prompt)
+    result = await db.execute(
+        select(SavedTopic).where(SavedTopic.user_id == current_user.id, SavedTopic.normalized_prompt == normalized)
+    )
+    existing = result.scalars().first()
+
+    topic = await upsert_saved_topic(
+        db,
+        current_user.id,
+        title=title,
+        prompt_text=prompt,
+        category=category,
+        source="user",
+    )
+    # ensure DB assigns id
+    await db.flush()
+
+    created = existing is None
+
+    resp = {
+        "created": created,
+        "topic": {
+            "id": topic.id,
+            "title": topic.title,
+            "prompt_text": topic.prompt_text,
+            "category": topic.category,
+            "source": topic.source,
+            "use_count": topic.use_count,
+            "last_used_at": topic.last_used_at.isoformat() if topic.last_used_at else None,
+        },
+    }
+    return resp
+
+
 class CreateSessionRequest(BaseModel):
     topic_id: int | None = None
+    saved_topic_id: int | None = None
     custom_topic: str = ""
 
 
@@ -113,23 +217,54 @@ async def create_session(
 ):
     """Start a new practice session for Part 2."""
     custom_topic = request.custom_topic.strip()
+    # Determine which source was provided. Exactly one of topic_id, saved_topic_id, custom_topic is required.
+    provided = 0
+    if request.topic_id is not None:
+        provided += 1
+    if request.saved_topic_id is not None:
+        provided += 1
+    if custom_topic:
+        provided += 1
 
-    if request.topic_id is None and not custom_topic:
-        raise HTTPException(status_code=400, detail="Either topic_id or custom_topic is required")
+    if provided != 1:
+        raise HTTPException(status_code=400, detail="Provide exactly one of topic_id, saved_topic_id, or custom_topic")
 
+    # Official topic path
+    topic = None
     if request.topic_id is not None:
         topic = await db.get(Topic, request.topic_id)
         if not topic:
             raise HTTPException(status_code=404, detail="Topic not found")
 
-    session = PracticeSession(topic_id=request.topic_id, status="in_progress", user_id=current_user.id)
+    # Saved-topic path: must belong to current user and not be archived
+    saved_topic = None
+    if request.saved_topic_id is not None:
+        saved_topic = await db.get(SavedTopic, request.saved_topic_id)
+        if not saved_topic or saved_topic.user_id != current_user.id or saved_topic.is_archived:
+            raise HTTPException(status_code=404, detail="Saved topic not found")
+        # update usage metrics
+        saved_topic.use_count = (saved_topic.use_count or 0) + 1
+        saved_topic.last_used_at = datetime.utcnow()
+        db.add(saved_topic)
+
+    # Create session: we store official topic_id for official topics, otherwise leave topic_id NULL
+    session_topic_id = request.topic_id if request.topic_id is not None else None
+    session = PracticeSession(topic_id=session_topic_id, status="in_progress", user_id=current_user.id)
     db.add(session)
     await db.flush()
 
+    # If a saved topic was provided, surface its prompt_text in the response as the active question source
+    resolved_custom_topic = None
+    if saved_topic is not None:
+        resolved_custom_topic = saved_topic.prompt_text or None
+    elif custom_topic:
+        resolved_custom_topic = custom_topic
+
     return {
         "session_id": session.id,
-        "topic_id": request.topic_id,
-        "custom_topic": custom_topic or None,
+        "topic_id": session_topic_id,
+        "saved_topic_id": request.saved_topic_id,
+        "custom_topic": resolved_custom_topic,
         "status": "in_progress",
     }
 
@@ -141,6 +276,9 @@ async def upload_audio(
     notes: str = Form(default=""),
     question_text: str = Form(default=""),
     client_transcript: str = Form(default=""),  # text from browser Web Speech API
+    practice_source: str = Form(...),
+    saved_topic_id: int | None = Form(default=None),
+    custom_category: str = Form(default="general"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -202,6 +340,50 @@ async def upload_audio(
 
     db.add(recording)
     await db.flush()
+
+    # Autosave logic for custom prompts (only when session.topic_id is NULL)
+    # - practice_source distinguishes 'custom' vs 'saved'
+    # - only autosave when transcript is non-empty
+    # - do NOT autosave official topics (topic is not None)
+    # - for 'saved' source: validate ownership and update usage but do not create duplicates
+    try:
+        if session.topic_id is None:
+            # saved-topic path: respect existing saved topic and increment usage
+            if practice_source == "saved" and saved_topic_id is not None:
+                saved = await db.get(SavedTopic, saved_topic_id)
+                if not saved or saved.user_id != current_user.id or saved.is_archived:
+                    raise HTTPException(status_code=404, detail="Saved topic not found")
+                saved.use_count = (saved.use_count or 0) + 1
+                saved.last_used_at = datetime.utcnow()
+                db.add(saved)
+
+            # custom prompt path: upsert only when transcript present
+            elif practice_source == "custom":
+                transcript_text = (asr_result.get("text") or "").strip()
+                if transcript_text:
+                    # derive title from first non-empty line of the question_text
+                    first_line = question_text.splitlines()[0].strip() if question_text.splitlines() else question_text
+                    title = (first_line[:255]) or "Untitled"
+                    # use upsert_saved_topic to dedupe per user
+                    topic_row = await upsert_saved_topic(
+                        db,
+                        current_user.id,
+                        title=title,
+                        prompt_text=question_text,
+                        category=(custom_category or "general").strip() or "general",
+                        source="user",
+                    )
+                    db.add(topic_row)
+                    # ensure DB assigns id
+                    await db.flush()
+
+            # official topics: do nothing
+    except HTTPException:
+        # Re-raise HTTPExceptions for proper API response
+        raise
+    except Exception:
+        # Silently ignore autosave failures (do not block upload)
+        pass
 
     return {
         "recording_id": recording.id,
