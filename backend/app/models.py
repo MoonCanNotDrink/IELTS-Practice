@@ -21,6 +21,8 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     sessions = relationship("PracticeSession", back_populates="user", cascade="all, delete-orphan")
+    # User-scoped saved topics created by the user (not the official Topic table)
+    saved_topics = relationship("SavedTopic", back_populates="user", cascade="all, delete-orphan")
 
 
 class Topic(Base):
@@ -92,3 +94,27 @@ class Recording(Base):
 
     # Relationships
     session = relationship("PracticeSession", back_populates="recordings")
+
+
+class SavedTopic(Base):
+    """User-scoped saved/custom topics.
+
+    Separate table from `topics` to keep official library unchanged.
+    """
+    __tablename__ = "saved_topics"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    title = Column(String(255), nullable=False)
+    prompt_text = Column(Text, nullable=True)
+    normalized_prompt = Column(Text, nullable=True)
+    category = Column(String(100), default="general")
+    source = Column(String(100), nullable=True)  # e.g., 'user', 'import', 'ai'
+    use_count = Column(Integer, default=0)
+    last_used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_archived = Column(Boolean, default=False)
+
+    # Relationships
+    user = relationship("User", back_populates="saved_topics")
