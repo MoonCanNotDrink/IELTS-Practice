@@ -1485,7 +1485,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     loadHistory();
-    console.log('IELTS Speaking Practice v0.2.8 initialized');
+    console.log('IELTS Speaking Practice v0.2.9 initialized');
 });
 
 
