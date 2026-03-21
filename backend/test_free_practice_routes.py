@@ -9,10 +9,10 @@ import wave
 from pathlib import Path
 from unittest.mock import patch
 
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from fastapi import FastAPI  # type: ignore
+from fastapi.testclient import TestClient  # type: ignore
+from sqlalchemy import select  # type: ignore
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine  # type: ignore
 
 from app.config import settings
 from app.models import Base, PracticeSession
@@ -52,6 +52,20 @@ class FreePracticeRouteTests(unittest.TestCase):
         self.original_recordings_dir = settings.RECORDINGS_DIR
         settings.RECORDINGS_DIR = os.path.relpath(self.recordings_dir, settings.BASE_DIR)
         self._run_async(self._create_tables())
+
+        # Ensure a real user row exists matching FakeUser.id so saved-topic ownership
+        # and session ownership checks operate against an actual DB row.
+        async def _create_fake_user_row():
+            from app.models import User
+
+            async with self.session_factory() as session:
+                # set id explicitly to match FakeUser.id for tests
+                u = User(id=FakeUser.id, username=FakeUser.username, hashed_password="x")
+                session.add(u)
+                await session.flush()
+                await session.commit()
+
+        self._run_async(_create_fake_user_row())
 
         app = FastAPI()
         app.include_router(part2_router)
@@ -146,6 +160,8 @@ class FreePracticeRouteTests(unittest.TestCase):
                     "notes": "free practice notes",
                     "question_text": prompt,
                     "client_transcript": "I learned this skill by practicing online every day.",
+                    # backend contract requires practice_source on uploads
+                    "practice_source": "custom",
                 },
                 files={"audio": ("free-practice.wav", build_demo_wav_bytes(), "audio/wav")},
             )
@@ -219,12 +235,304 @@ class FreePracticeRouteTests(unittest.TestCase):
             upload_res = self.client.post(
                 f"/api/part2/sessions/{session_id}/upload-audio",
                 headers=self._auth_headers(),
-                data={"notes": "missing question text"},
+                data={"notes": "missing question text", "practice_source": "custom"},
                 files={"audio": ("free-practice.wav", build_demo_wav_bytes(), "audio/wav")},
             )
 
         self.assertEqual(upload_res.status_code, 400)
         self.assertEqual(upload_res.json()["detail"], "question_text is required for custom-topic sessions")
+
+    def test_free_practice_topics_grouped_and_saved_topic_dedupe(self):
+        # Create one official topic row directly
+        async def _insert_topic():
+            from app.models import Topic, User, SavedTopic
+
+            async with self.session_factory() as session:
+                user = User(username="other", hashed_password="x")
+                session.add(user)
+                topic = Topic(title="Official topic", points=["a", "b"], category="people")
+                session.add(topic)
+                await session.flush()
+                await session.commit()
+                return topic.id, user.id
+
+        topic_id, other_user_id = self._run_async(_insert_topic())
+
+        # Initially no saved topics for FakeUser; ensure the response shape is correct
+        res = self.client.get("/api/part2/free-practice-topics", headers=self._auth_headers())
+        self.assertEqual(res.status_code, 200)
+        payload = res.json()
+        self.assertIn("official_topics", payload)
+        self.assertIn("saved_topics", payload)
+        # official_topics should be a list of objects with id/title/category
+        self.assertIsInstance(payload["official_topics"], list)
+        self.assertTrue(any(isinstance(t, dict) and all(k in t for k in ("id", "title", "category")) for t in payload["official_topics"]))
+
+        # Create a saved topic via POST
+        create_res = self.client.post(
+            "/api/part2/free-practice-topics",
+            json={"prompt_text": "My custom prompt\nMore"},
+            headers=self._auth_headers(),
+        )
+        self.assertEqual(create_res.status_code, 200)
+        created = create_res.json()
+        self.assertTrue(created["created"])
+
+        # Creating same prompt again should dedupe (created==False)
+        create_res2 = self.client.post(
+            "/api/part2/free-practice-topics",
+            json={"prompt_text": "  My   custom prompt\nMore  "},
+            headers=self._auth_headers(),
+        )
+        self.assertEqual(create_res2.status_code, 200)
+        self.assertFalse(create_res2.json()["created"])
+
+        # Ensure saved_topics listing includes the saved topic we just created (by id)
+        list_res = self.client.get("/api/part2/free-practice-topics", headers=self._auth_headers())
+        self.assertEqual(list_res.status_code, 200)
+        saved = list_res.json()["saved_topics"]
+        created_topic_id = created["topic"]["id"]
+        self.assertTrue(any(s["id"] == created_topic_id for s in saved))
+
+        # Insert a saved topic for OTHER user and ensure it does not appear
+        async def _insert_other_saved():
+            from app.models import SavedTopic
+            async with self.session_factory() as session:
+                st = SavedTopic(user_id=other_user_id, title="Other", prompt_text="x", normalized_prompt="x")
+                session.add(st)
+                await session.flush()
+                await session.commit()
+
+        self._run_async(_insert_other_saved())
+
+        list_res2 = self.client.get("/api/part2/free-practice-topics", headers=self._auth_headers())
+        saved2 = list_res2.json()["saved_topics"]
+        # still only our user's saved topics
+        self.assertTrue(all(s["title"] != "Other" for s in saved2))
+
+    def test_saved_topic_session_start_and_mixed_source_rejection(self):
+        # Create a saved topic for FakeUser via the public endpoint so ownership semantics match
+        create_resp = self.client.post(
+            "/api/part2/free-practice-topics",
+            json={"prompt_text": "hello"},
+            headers=self._auth_headers(),
+        )
+        self.assertEqual(create_resp.status_code, 200)
+        saved_id = create_resp.json()["topic"]["id"]
+
+        # Start session referencing saved_topic_id
+        res = self.client.post(
+            "/api/part2/sessions",
+            json={"saved_topic_id": saved_id},
+            headers=self._auth_headers(),
+        )
+        self.assertEqual(res.status_code, 200)
+        payload = res.json()
+        self.assertEqual(payload["saved_topic_id"], saved_id)
+
+        # Mixed source: providing both saved_topic_id and custom_topic should be rejected
+        bad = self.client.post(
+            "/api/part2/sessions",
+            json={"saved_topic_id": saved_id, "custom_topic": "x"},
+            headers=self._auth_headers(),
+        )
+        self.assertEqual(bad.status_code, 400)
+
+    def test_custom_upload_autosaves_and_no_duplicate_or_cross_user_leak(self):
+        # Create a session with custom topic
+        create_res = self.client.post(
+            "/api/part2/sessions",
+            json={"custom_topic": "Describe a skill you learned online"},
+            headers=self._auth_headers(),
+        )
+        self.assertEqual(create_res.status_code, 200)
+        session_id = create_res.json()["session_id"]
+
+        # Patch transcribe to return non-empty transcript and score_speaking to noop
+        async def fake_transcribe_audio(*_args, **_kwargs):
+            return {"text": "I like testing", "words": [{"start": 0.0, "end": 0.5}]}
+
+        async def fake_score_speaking(**kwargs):
+            return {"fluency_score": 6.0}
+
+        # Upload with practice_source=custom should autosave since transcript non-empty
+        with patch("app.routes.part2.transcribe_audio", fake_transcribe_audio), patch(
+            "app.routes.part2.score_speaking", fake_score_speaking
+        ):
+            upload_res = self.client.post(
+                f"/api/part2/sessions/{session_id}/upload-audio",
+                headers=self._auth_headers(),
+                data={"notes": "notes", "question_text": "Describe a skill you learned online", "client_transcript": "", "practice_source": "custom"},
+                files={"audio": ("a.wav", build_demo_wav_bytes(), "audio/wav")},
+            )
+            self.assertEqual(upload_res.status_code, 200)
+
+        # Check saved topics - there should be exactly one saved topic for FakeUser with normalized prompt
+        list_res = self.client.get("/api/part2/free-practice-topics", headers=self._auth_headers())
+        saved = list_res.json()["saved_topics"]
+        matches = [s for s in saved if s["prompt_text"].startswith("Describe a skill")]
+        self.assertEqual(len(matches), 1)
+
+        # Upload again the same prompt - autosave should not create duplicate
+        create_res2 = self.client.post(
+            "/api/part2/sessions",
+            json={"custom_topic": "Describe a skill you learned online"},
+            headers=self._auth_headers(),
+        )
+        sid2 = create_res2.json()["session_id"]
+        with patch("app.routes.part2.transcribe_audio", fake_transcribe_audio), patch(
+            "app.routes.part2.score_speaking", fake_score_speaking
+        ):
+            upload_res2 = self.client.post(
+                f"/api/part2/sessions/{sid2}/upload-audio",
+                headers=self._auth_headers(),
+                data={"notes": "notes", "question_text": "Describe a skill you learned online", "client_transcript": "", "practice_source": "custom"},
+                files={"audio": ("a.wav", build_demo_wav_bytes(), "audio/wav")},
+            )
+            self.assertEqual(upload_res2.status_code, 200)
+
+        # Ensure still only one saved topic for this user with that prompt
+        list_res3 = self.client.get("/api/part2/free-practice-topics", headers=self._auth_headers())
+        saved3 = list_res3.json()["saved_topics"]
+        matches3 = [s for s in saved3 if s["prompt_text"].startswith("Describe a skill")]
+        self.assertEqual(len(matches3), 1)
+
+        # Now ensure another user does not see this saved topic
+        async def _create_other_user_and_list():
+            from app.models import User
+            async with self.session_factory() as session:
+                u = User(username="u2", hashed_password="x")
+                session.add(u)
+                await session.flush()
+                return u.id
+
+        other_id = self._run_async(_create_other_user_and_list())
+
+        # Override dependency to simulate other user for a raw request
+        app = FastAPI()
+        app.include_router(part2_router)
+        app.dependency_overrides = {
+            part2_module.get_current_user: lambda: types.SimpleNamespace(id=other_id),
+            part2_module.get_db: self._override_get_db,
+        }
+        other_client = TestClient(app)
+        other_client.__enter__()
+        try:
+            other_list = other_client.get("/api/part2/free-practice-topics")
+            self.assertEqual(other_list.status_code, 200)
+            other_saved = other_list.json()["saved_topics"]
+            # other user should not see our saved prompt
+            self.assertTrue(all(not s["prompt_text"].startswith("Describe a skill") for s in other_saved))
+        finally:
+            other_client.__exit__(None, None, None)
+
+    def test_saved_topic_session_rejects_foreign_saved_topic(self):
+        # Insert a saved topic belonging to a different user
+        async def _create_other_user_and_saved():
+            from app.models import User, SavedTopic
+            async with self.session_factory() as session:
+                u = User(username="foreign", hashed_password="x")
+                session.add(u)
+                await session.flush()
+                st = SavedTopic(user_id=u.id, title="F", prompt_text="foreign", normalized_prompt="foreign")
+                session.add(st)
+                await session.flush()
+                await session.commit()
+                return st.id
+
+        foreign_saved_id = self._run_async(_create_other_user_and_saved())
+
+        # Attempt to start a session using that saved_topic_id as the test user should be rejected (404)
+        res = self.client.post(
+            "/api/part2/sessions",
+            json={"saved_topic_id": foreign_saved_id},
+            headers=self._auth_headers(),
+        )
+        self.assertEqual(res.status_code, 404)
+
+    def test_saved_practice_source_upload_respects_saved_topic_and_no_duplicate(self):
+        # Create a saved topic for current user via public endpoint
+        create_resp = self.client.post(
+            "/api/part2/free-practice-topics",
+            json={"prompt_text": "Saved source prompt"},
+            headers=self._auth_headers(),
+        )
+        self.assertEqual(create_resp.status_code, 200)
+        created_topic = create_resp.json()["topic"]
+        saved_topic_id = created_topic["id"]
+
+        # Start a custom session (topic_id should be NULL so autosave logic for practice_source applies)
+        create_session = self.client.post(
+            "/api/part2/sessions",
+            json={"custom_topic": "Saved source prompt"},
+            headers=self._auth_headers(),
+        )
+        self.assertEqual(create_session.status_code, 200)
+        session_id = create_session.json()["session_id"]
+
+        # Patch transcribe to return non-empty transcript and score to noop
+        async def fake_transcribe_audio(*_args, **_kwargs):
+            return {"text": "spoken words", "words": [{"start": 0.0, "end": 0.5}]}
+
+        async def fake_score_speaking(**kwargs):
+            return {"fluency_score": 6.0}
+
+        with patch("app.routes.part2.transcribe_audio", fake_transcribe_audio), patch(
+            "app.routes.part2.score_speaking", fake_score_speaking
+        ):
+            upload_res = self.client.post(
+                f"/api/part2/sessions/{session_id}/upload-audio",
+                headers=self._auth_headers(),
+                data={
+                    "notes": "notes",
+                    "question_text": "Saved source prompt",
+                    "client_transcript": "",
+                    "practice_source": "saved",
+                    "saved_topic_id": saved_topic_id,
+                },
+                files={"audio": ("a.wav", build_demo_wav_bytes(), "audio/wav")},
+            )
+            self.assertEqual(upload_res.status_code, 200)
+
+        # Ensure no duplicate saved topic created and that use_count has been incremented
+        list_res = self.client.get("/api/part2/free-practice-topics", headers=self._auth_headers())
+        self.assertEqual(list_res.status_code, 200)
+        saved = list_res.json()["saved_topics"]
+        matches = [s for s in saved if s["id"] == saved_topic_id]
+        self.assertEqual(len(matches), 1)
+        # use_count should be at least 1 after the upload increment
+        self.assertTrue(matches[0].get("use_count", 0) >= 1)
+
+    def test_empty_transcript_does_not_autosave(self):
+        # Create a custom session
+        create_res = self.client.post(
+            "/api/part2/sessions",
+            json={"custom_topic": "Silent topic"},
+            headers=self._auth_headers(),
+        )
+        session_id = create_res.json()["session_id"]
+
+        async def fake_transcribe_empty(*_args, **_kwargs):
+            return {"text": "", "words": []}
+
+        async def fake_score(**kwargs):
+            return {"fluency_score": 0.0}
+
+        with patch("app.routes.part2.transcribe_audio", fake_transcribe_empty), patch(
+            "app.routes.part2.score_speaking", fake_score
+        ):
+            upload_res = self.client.post(
+                f"/api/part2/sessions/{session_id}/upload-audio",
+                headers=self._auth_headers(),
+                data={"notes": "notes", "question_text": "Silent topic", "client_transcript": "", "practice_source": "custom"},
+                files={"audio": ("a.wav", build_demo_wav_bytes(), "audio/wav")},
+            )
+            # Upload should still succeed, but autosave must not create a saved topic
+            self.assertEqual(upload_res.status_code, 200)
+
+        list_res = self.client.get("/api/part2/free-practice-topics", headers=self._auth_headers())
+        saved = list_res.json()["saved_topics"]
+        self.assertTrue(all(not s["prompt_text"].startswith("Silent topic") for s in saved))
 
 
 if __name__ == "__main__":
