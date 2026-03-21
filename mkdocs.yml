@@ -1,0 +1,54 @@
+site_name: IELTS Speaking AI Docs
+site_description: Bilingual documentation for IELTS Speaking AI
+site_dir: ../IELTS-Practice-site
+docs_dir: .
+use_directory_urls: false
+theme:
+  name: mkdocs
+exclude_docs: |
+  .git/**
+  .sisyphus/**
+  node_modules/**
+  backend/**
+  frontend/**
+  tests/**
+  .local-docs-tools/**
+  *.deb
+  AGENTS.md
+  package.json
+  pnpm-lock.yaml
+nav:
+  - Chinese:
+      - 首页: documentation/README.md
+      - 仓库入口: README.md
+      - 文档目录: docs/README.md
+      - 项目简介: docs/项目简介.md
+      - 文档风格指南: docs/style-guide.md
+      - 计划文档:
+          - 自由练习实现计划: docs/plans/自由练习实现计划.md
+      - 报告文档:
+          - 自由练习界面优化报告: docs/reports/自由练习界面优化报告.md
+          - 自由练习-产品设计摘要: docs/reports/自由练习-产品设计摘要.md
+          - 全阶段开发总结: docs/reports/全阶段开发总结.md
+      - 对外文档:
+          - 快速开始: documentation/user-guide/getting-started.md
+          - 完整模考指南: documentation/user-guide/mock-exam.md
+          - 自由练习指南: documentation/user-guide/free-practice.md
+          - 常见问题: documentation/user-guide/faq.md
+  - English:
+      - Home: documentation/README.en.md
+      - Repository Entry: README.en.md
+      - Documentation Index: docs/README.en.md
+      - Project Overview: docs/项目简介.en.md
+      - Documentation Style Guide: docs/style-guide.en.md
+      - Plans:
+          - Free Practice Implementation Plan: docs/plans/自由练习实现计划.en.md
+      - Reports:
+          - Free Practice UI Optimization Report: docs/reports/自由练习界面优化报告.en.md
+          - Free Practice Product and Design Summary: docs/reports/自由练习-产品设计摘要.en.md
+          - Project Development Summary: docs/reports/全阶段开发总结.en.md
+      - External Documentation:
+          - Getting Started: documentation/user-guide/getting-started.en.md
+          - Mock Exam Guide: documentation/user-guide/mock-exam.en.md
+          - Free Practice Guide: documentation/user-guide/free-practice.en.md
+          - FAQ: documentation/user-guide/faq.en.md
