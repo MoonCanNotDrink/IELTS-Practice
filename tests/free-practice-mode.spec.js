@@ -93,6 +93,7 @@ test('free practice reuses the part2 speaking and scoring flow', async ({ page }
     await page.locator('#btnFreePractice').click();
     await expect(page.locator('#freePracticePanel')).toBeVisible();
 
+    await page.locator('#fpTypeToggle .btn[data-target="custom"]').click();
     await page.locator('#freePracticePrompt').fill('Describe a skill you learned online.');
     await page.locator('#freePracticeCustomSeconds').fill('90');
     await page.locator('#btnStartFreePractice').click();
