@@ -6,6 +6,7 @@
 // ========== Config ==========
 const API_BASE = '';  // Same-origin - FastAPI serves both
 const DEFAULT_PART2_SPEAKING_SECONDS = 120;
+const THEME_MODE_STORAGE_KEY = 'ielts_theme_mode';
 
 const UI_TEXT = {
     topicIcon: '&#127922;',
@@ -23,6 +24,12 @@ const UI_TEXT = {
     tryAgain: '&#127908; Try Again',
     examinerThinking: '&#129300; Examiner is thinking...',
     startFreePractice: '&#127908; Start Answering',
+};
+
+const THEME_MODE_LABELS = {
+    system: 'System',
+    light: 'Light',
+    dark: 'Dark',
 };
 
 function setHtml(id, html) {
@@ -74,6 +81,85 @@ function buildFreePracticeTopic(prompt, speakingSeconds) {
             'Give reasons, examples, and a clear structure in your answer.',
         ],
     };
+}
+
+function getSystemTheme() {
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function getStoredThemeMode() {
+    const storedMode = localStorage.getItem(THEME_MODE_STORAGE_KEY);
+    return storedMode === 'light' || storedMode === 'dark' || storedMode === 'system'
+        ? storedMode
+        : 'system';
+}
+
+function closeThemeMenu() {
+    const menu = document.getElementById('themeMenu');
+    const trigger = document.getElementById('btnThemeToggle');
+    if (!menu || !trigger) return;
+    menu.classList.add('hidden');
+    trigger.setAttribute('aria-expanded', 'false');
+}
+
+function syncThemeMenuState(mode) {
+    const currentLabel = document.getElementById('currentThemeLabel');
+    if (currentLabel) currentLabel.textContent = THEME_MODE_LABELS[mode] || THEME_MODE_LABELS.system;
+
+    document.querySelectorAll('#themeMenu .theme-option').forEach((option) => {
+        const isActive = option.dataset.themeMode === mode;
+        option.classList.toggle('active', isActive);
+        option.setAttribute('aria-checked', isActive ? 'true' : 'false');
+    });
+}
+
+function applyThemeMode(mode, { persist = true } = {}) {
+    const normalizedMode = mode === 'light' || mode === 'dark' ? mode : 'system';
+    const resolvedTheme = normalizedMode === 'system' ? getSystemTheme() : normalizedMode;
+
+    document.documentElement.dataset.themeMode = normalizedMode;
+    document.documentElement.dataset.theme = resolvedTheme;
+
+    syncThemeMenuState(normalizedMode);
+    if (persist) localStorage.setItem(THEME_MODE_STORAGE_KEY, normalizedMode);
+}
+
+function initThemeMode() {
+    const trigger = document.getElementById('btnThemeToggle');
+    const menu = document.getElementById('themeMenu');
+    if (!trigger || !menu) return;
+
+    applyThemeMode(getStoredThemeMode(), { persist: false });
+
+    trigger.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const isHidden = menu.classList.contains('hidden');
+        menu.classList.toggle('hidden', !isHidden);
+        trigger.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
+    });
+
+    menu.addEventListener('click', (event) => {
+        const option = event.target.closest('.theme-option');
+        if (!option) return;
+        applyThemeMode(option.dataset.themeMode || 'system');
+        closeThemeMenu();
+        trigger.focus();
+    });
+
+    const mediaQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+    if (mediaQuery) {
+        const handleChange = () => {
+            if ((document.documentElement.dataset.themeMode || 'system') === 'system') {
+                applyThemeMode('system', { persist: false });
+            }
+        };
+
+        if (typeof mediaQuery.addEventListener === 'function') {
+            mediaQuery.addEventListener('change', handleChange);
+        } else if (typeof mediaQuery.addListener === 'function') {
+            mediaQuery.addListener(handleChange);
+        }
+    }
 }
 
 // ========== State ==========
@@ -1387,6 +1473,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // ========== Init ==========
 document.addEventListener('DOMContentLoaded', () => {
     setPhase('home');
+    initThemeMode();
     resetFreePracticeSetup();
     const audioToggle = document.getElementById('audioModeToggle');
     if (audioToggle) {
@@ -1475,6 +1562,11 @@ document.addEventListener('click', (e) => {
         dropdown.classList.add('hidden');
         container.classList.remove('open');
         if (btn) btn.setAttribute('aria-expanded', 'false');
+    }
+
+    const themeSwitcher = document.getElementById('themeSwitcher');
+    if (themeSwitcher && !themeSwitcher.contains(e.target)) {
+        closeThemeMenu();
     }
 });
 
