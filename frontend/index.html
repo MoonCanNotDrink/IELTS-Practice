@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="IELTS Speaking Practice - Full Mock Exam with AI Scoring">
     <title>IELTS Speaking Practice - AI Examiner</title>
-    <link rel="stylesheet" href="/static/index.css?v=15">
+    <link rel="stylesheet" href="/static/index.css?v=17">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='35' y='18' width='30' height='44' rx='15' fill='%234f8cff'/><rect x='47' y='62' width='6' height='18' fill='%234f8cff'/><rect x='38' y='80' width='24' height='6' rx='3' fill='%234f8cff'/></svg>">
 </head>
 <body>
@@ -23,7 +23,17 @@
             </div>
             <div class="form-group">
                 <label for="authPassword">Password</label>
-                <input type="password" id="authPassword" placeholder="Enter password" autocomplete="current-password">
+                <div class="password-input-wrap">
+                    <input type="password" id="authPassword" placeholder="Enter password" autocomplete="current-password">
+                    <button type="button" class="password-toggle hidden" id="authPasswordToggle" onclick="togglePasswordVisibility('authPassword', 'authPasswordToggle')" aria-label="Show password" aria-pressed="false">Show</button>
+                </div>
+            </div>
+            <div class="form-group hidden" id="confirmPasswordGroup">
+                <label for="authConfirmPassword">Confirm Password</label>
+                <div class="password-input-wrap">
+                    <input type="password" id="authConfirmPassword" placeholder="Re-enter password" autocomplete="new-password">
+                    <button type="button" class="password-toggle" id="authConfirmPasswordToggle" onclick="togglePasswordVisibility('authConfirmPassword', 'authConfirmPasswordToggle')" aria-label="Show password confirmation" aria-pressed="false">Show</button>
+                </div>
             </div>
             <div class="form-group" id="inviteCodeGroup" style="display: none;">
                 <label for="authInviteCode">Invite Code</label>
@@ -39,8 +49,19 @@
     <div class="app-container">
 
         <!-- Header -->
-        <header class="app-header" style="position: relative;">
-            <div style="position: absolute; right: 0; top: 20px; display: flex; gap: 10px;">
+        <header class="app-header">
+            <div class="header-controls">
+                <div class="theme-switcher" id="themeSwitcher">
+                    <button type="button" id="btnThemeToggle" class="btn btn-ghost theme-toggle" aria-haspopup="menu" aria-expanded="false" aria-controls="themeMenu">
+                        <span aria-hidden="true">🎨</span>
+                        <span id="currentThemeLabel">System</span>
+                    </button>
+                    <div id="themeMenu" class="theme-menu hidden" role="menu" aria-label="Theme mode">
+                        <button type="button" class="theme-option" data-theme-mode="system" role="menuitemradio" aria-checked="true">Follow System</button>
+                        <button type="button" class="theme-option" data-theme-mode="light" role="menuitemradio" aria-checked="false">Light Mode</button>
+                        <button type="button" class="theme-option" data-theme-mode="dark" role="menuitemradio" aria-checked="false">Dark Mode</button>
+                    </div>
+                </div>
                 <button type="button" id="btnLogin" class="btn btn-primary" style="font-size: 0.8rem; padding: 4px 10px;" onclick="showAuth()">Log In</button>
                 <button type="button" id="btnLogout" class="btn btn-ghost" style="font-size: 0.8rem; padding: 4px 10px; display: none;" onclick="logout()">Log Out</button>
             </div>
@@ -78,13 +99,45 @@
                 <div class="practice-form hidden" id="freePracticePanel" data-duration-source="preset" data-duration-seconds="120">
                     <div class="practice-form-header">
                         <div class="practice-form-title">Free Practice</div>
-                        <p class="practice-form-subtitle">Start speaking right away with your own prompt and timer.</p>
+                        <p class="practice-form-subtitle">Choose a topic from the library, or write your own prompt and start speaking right away.</p>
                     </div>
                     <div class="inline-error hidden" id="freePracticeError"></div>
-                    <div class="form-group">
-                        <label for="freePracticePrompt">Custom prompt</label>
-                        <textarea id="freePracticePrompt" placeholder="Describe a challenge you overcame recently."></textarea>
+                    
+                    <div class="topic-selection-group">
+                        <div class="fp-type-toggle" id="fpTypeToggle">
+                            <button type="button" class="btn btn-ghost active" data-target="library" onclick="setFpType('library')">Topic Library</button>
+                            <button type="button" class="btn btn-ghost" data-target="custom" onclick="setFpType('custom')">Write My Own</button>
+                        </div>
+                        
+                        <div id="library-view" class="view-panel active">
+                            <div class="form-group" id="fpLibrarySelectGroup">
+                                <label id="fpTopicSelectLabel">Select a topic</label>
+                                <input type="hidden" id="freePracticeTopicSelect" value="">
+                                <div class="custom-select-container" id="fpTopicSelectContainer">
+                                    <button type="button" class="custom-select-button" id="fpTopicSelectBtn" onclick="toggleFpTopicDropdown(event)" aria-haspopup="listbox" aria-expanded="false" aria-controls="fpTopicOptions" aria-labelledby="fpTopicSelectLabel fpTopicSelectText">
+                                        <span class="custom-select-text" id="fpTopicSelectText">Select a topic...</span>
+                                        <span class="custom-select-icon">▼</span>
+                                    </button>
+                                    <div class="custom-select-dropdown hidden" id="fpTopicDropdown">
+                                        <div class="custom-select-search">
+                                            <input type="text" id="fpTopicSearchInput" placeholder="Search topics..." aria-label="Search topics" oninput="filterFpTopics(event)" onclick="event.stopPropagation()">
+                                        </div>
+                                        <div class="custom-select-options" id="fpTopicOptions" role="listbox" aria-labelledby="fpTopicSelectLabel">
+                                            <!-- Populated by JS -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="custom-view" class="view-panel hidden">
+                            <div class="form-group">
+                                <label for="freePracticePrompt">Custom prompt</label>
+                                <textarea id="freePracticePrompt" placeholder="Describe a challenge you overcame recently."></textarea>
+                            </div>
+                        </div>
                     </div>
+
                     <div class="form-group">
                         <label>Speaking countdown</label>
                         <div class="duration-presets">
@@ -280,6 +333,6 @@
         </div><!-- /examFlow -->
     </div>
 
-    <script src="/static/app.js?v=21" charset="utf-8"></script>
+    <script src="/static/app.js?v=23" charset="utf-8"></script>
 </body>
 </html>

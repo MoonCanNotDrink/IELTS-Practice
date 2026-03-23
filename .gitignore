@@ -31,6 +31,12 @@ logs.txt
 .python-*.exe
 .python*.zip
 
+# Local workspace artifacts
+/.docker-tmp/
+/.local-docs-tools/
+/.sisyphus/
+/*.deb
+
 # Large local model binaries (use Git LFS if you want to version them)
 backend/whisper_base_model/model.bin
 
