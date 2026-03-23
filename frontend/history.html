@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Progress History - IELTS Speaking Practice</title>
-    <link rel="stylesheet" href="/static/index.css?v=16">
+    <link rel="stylesheet" href="/static/index.css?v=17">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
@@ -23,7 +23,17 @@
             </div>
             <div class="form-group">
                 <label for="authPassword">Password</label>
-                <input type="password" id="authPassword" placeholder="Enter password" autocomplete="current-password">
+                <div class="password-input-wrap">
+                    <input type="password" id="authPassword" placeholder="Enter password" autocomplete="current-password">
+                    <button type="button" class="password-toggle hidden" id="authPasswordToggle" onclick="togglePasswordVisibility('authPassword', 'authPasswordToggle')" aria-label="Show password" aria-pressed="false">Show</button>
+                </div>
+            </div>
+            <div class="form-group hidden" id="confirmPasswordGroup">
+                <label for="authConfirmPassword">Confirm Password</label>
+                <div class="password-input-wrap">
+                    <input type="password" id="authConfirmPassword" placeholder="Re-enter password" autocomplete="new-password">
+                    <button type="button" class="password-toggle" id="authConfirmPasswordToggle" onclick="togglePasswordVisibility('authConfirmPassword', 'authConfirmPasswordToggle')" aria-label="Show password confirmation" aria-pressed="false">Show</button>
+                </div>
             </div>
             <div class="form-group" id="inviteCodeGroup" style="display: none;">
                 <label for="authInviteCode">Invite Code</label>
@@ -281,12 +291,42 @@
     // ── Fetch & Render ──────────────────────────────────────────────
     let isAuthModeLogin = true;
 
+    function setPasswordVisibility(inputId, buttonId, visible) {
+        const input = document.getElementById(inputId);
+        const button = document.getElementById(buttonId);
+        if (!input || !button) return;
+
+        const isVisible = Boolean(visible);
+        input.type = isVisible ? 'text' : 'password';
+        button.textContent = isVisible ? 'Hide' : 'Show';
+        button.setAttribute('aria-pressed', isVisible ? 'true' : 'false');
+        button.setAttribute('aria-label', isVisible
+            ? `Hide ${inputId === 'authConfirmPassword' ? 'password confirmation' : 'password'}`
+            : `Show ${inputId === 'authConfirmPassword' ? 'password confirmation' : 'password'}`);
+    }
+
+    function resetAuthPasswordVisibility() {
+        setPasswordVisibility('authPassword', 'authPasswordToggle', false);
+        setPasswordVisibility('authConfirmPassword', 'authConfirmPasswordToggle', false);
+    }
+
+    function togglePasswordVisibility(inputId, buttonId) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        setPasswordVisibility(inputId, buttonId, input.type === 'password');
+    }
+
     function toggleAuthMode() {
         isAuthModeLogin = !isAuthModeLogin;
+        document.getElementById('authPassword').setAttribute('autocomplete', isAuthModeLogin ? 'current-password' : 'new-password');
         document.getElementById('authSubtitle').textContent = isAuthModeLogin ? "Please log in to view your history." : "Create an account to track your progress.";
         document.getElementById('btnSubmitAuth').textContent = isAuthModeLogin ? "Log In" : "Register";
         document.getElementById('authToggleText').innerHTML = isAuthModeLogin ? 'No account? <a onclick="toggleAuthMode()">Register here</a>' : 'Have an account? <a onclick="toggleAuthMode()">Log in</a>';
         document.getElementById('inviteCodeGroup').style.display = isAuthModeLogin ? 'none' : 'block';
+        document.getElementById('confirmPasswordGroup').classList.toggle('hidden', isAuthModeLogin);
+        document.getElementById('authPasswordToggle').classList.toggle('hidden', isAuthModeLogin);
+        document.getElementById('authConfirmPassword').value = '';
+        resetAuthPasswordVisibility();
         document.getElementById('authError').style.display = 'none';
     }
 
@@ -301,6 +341,7 @@
     async function submitAuth() {
         const user = document.getElementById('authUsername').value.trim();
         const pass = document.getElementById('authPassword').value;
+        const confirmPass = document.getElementById('authConfirmPassword').value;
         const errEl = document.getElementById('authError');
         errEl.style.display = 'none';
 
@@ -308,6 +349,20 @@
             errEl.textContent = 'Please enter username and password.';
             errEl.style.display = 'block';
             return;
+        }
+
+        if (!isAuthModeLogin) {
+            if (!confirmPass) {
+                errEl.textContent = 'Please confirm your password.';
+                errEl.style.display = 'block';
+                return;
+            }
+
+            if (pass !== confirmPass) {
+                errEl.textContent = 'Passwords do not match.';
+                errEl.style.display = 'block';
+                return;
+            }
         }
 
         try {
