@@ -1039,6 +1039,37 @@ body::before {
     transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
+.password-input-wrap {
+    position: relative;
+}
+
+.password-input-wrap input {
+    padding-right: 72px;
+}
+
+.password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    transform: translateY(-50%);
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 6px;
+}
+
+.password-toggle:hover {
+    color: var(--text-primary);
+}
+
+.password-toggle:focus-visible {
+    outline: none;
+    color: var(--accent-blue);
+}
+
 .form-group textarea {
     min-height: 100px;
     resize: vertical;
