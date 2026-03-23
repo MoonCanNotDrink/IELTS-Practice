@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="IELTS Speaking Practice - Full Mock Exam with AI Scoring">
     <title>IELTS Speaking Practice - AI Examiner</title>
-    <link rel="stylesheet" href="/static/index.css?v=16">
+    <link rel="stylesheet" href="/static/index.css?v=17">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='35' y='18' width='30' height='44' rx='15' fill='%234f8cff'/><rect x='47' y='62' width='6' height='18' fill='%234f8cff'/><rect x='38' y='80' width='24' height='6' rx='3' fill='%234f8cff'/></svg>">
 </head>
 <body>
@@ -23,7 +23,17 @@
             </div>
             <div class="form-group">
                 <label for="authPassword">Password</label>
-                <input type="password" id="authPassword" placeholder="Enter password" autocomplete="current-password">
+                <div class="password-input-wrap">
+                    <input type="password" id="authPassword" placeholder="Enter password" autocomplete="current-password">
+                    <button type="button" class="password-toggle hidden" id="authPasswordToggle" onclick="togglePasswordVisibility('authPassword', 'authPasswordToggle')" aria-label="Show password" aria-pressed="false">Show</button>
+                </div>
+            </div>
+            <div class="form-group hidden" id="confirmPasswordGroup">
+                <label for="authConfirmPassword">Confirm Password</label>
+                <div class="password-input-wrap">
+                    <input type="password" id="authConfirmPassword" placeholder="Re-enter password" autocomplete="new-password">
+                    <button type="button" class="password-toggle" id="authConfirmPasswordToggle" onclick="togglePasswordVisibility('authConfirmPassword', 'authConfirmPasswordToggle')" aria-label="Show password confirmation" aria-pressed="false">Show</button>
+                </div>
             </div>
             <div class="form-group" id="inviteCodeGroup" style="display: none;">
                 <label for="authInviteCode">Invite Code</label>
@@ -323,6 +333,6 @@
         </div><!-- /examFlow -->
     </div>
 
-    <script src="/static/app.js?v=22" charset="utf-8"></script>
+    <script src="/static/app.js?v=23" charset="utf-8"></script>
 </body>
 </html>

@@ -233,12 +233,42 @@ async function api(endpoint, options = {}) {
 
 let isAuthModeLogin = true;
 
+function setPasswordVisibility(inputId, buttonId, visible) {
+    const input = document.getElementById(inputId);
+    const button = document.getElementById(buttonId);
+    if (!input || !button) return;
+
+    const isVisible = Boolean(visible);
+    input.type = isVisible ? 'text' : 'password';
+    button.textContent = isVisible ? 'Hide' : 'Show';
+    button.setAttribute('aria-pressed', isVisible ? 'true' : 'false');
+    button.setAttribute('aria-label', isVisible
+        ? `Hide ${inputId === 'authConfirmPassword' ? 'password confirmation' : 'password'}`
+        : `Show ${inputId === 'authConfirmPassword' ? 'password confirmation' : 'password'}`);
+}
+
+function resetAuthPasswordVisibility() {
+    setPasswordVisibility('authPassword', 'authPasswordToggle', false);
+    setPasswordVisibility('authConfirmPassword', 'authConfirmPasswordToggle', false);
+}
+
+function togglePasswordVisibility(inputId, buttonId) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    setPasswordVisibility(inputId, buttonId, input.type === 'password');
+}
+
 function toggleAuthMode() {
     isAuthModeLogin = !isAuthModeLogin;
+    document.getElementById('authPassword').setAttribute('autocomplete', isAuthModeLogin ? 'current-password' : 'new-password');
     document.getElementById('authSubtitle').textContent = isAuthModeLogin ? "Please log in to save your practice history." : "Create an account to track your progress.";
     document.getElementById('btnSubmitAuth').textContent = isAuthModeLogin ? "Log In" : "Register";
     document.getElementById('authToggleText').innerHTML = isAuthModeLogin ? 'No account? <a onclick="toggleAuthMode()">Register here</a>' : 'Have an account? <a onclick="toggleAuthMode()">Log in</a>';
     document.getElementById('inviteCodeGroup').style.display = isAuthModeLogin ? 'none' : 'block';
+    document.getElementById('confirmPasswordGroup').classList.toggle('hidden', isAuthModeLogin);
+    document.getElementById('authPasswordToggle').classList.toggle('hidden', isAuthModeLogin);
+    document.getElementById('authConfirmPassword').value = '';
+    resetAuthPasswordVisibility();
     document.getElementById('authError').style.display = 'none';
 }
 
@@ -253,6 +283,7 @@ function hideAuth() {
 async function submitAuth() {
     const user = document.getElementById('authUsername').value.trim();
     const pass = document.getElementById('authPassword').value;
+    const confirmPass = document.getElementById('authConfirmPassword').value;
     const errEl = document.getElementById('authError');
     errEl.style.display = 'none';
 
@@ -260,6 +291,20 @@ async function submitAuth() {
         errEl.textContent = 'Please enter username and password.';
         errEl.style.display = 'block';
         return;
+    }
+
+    if (!isAuthModeLogin) {
+        if (!confirmPass) {
+            errEl.textContent = 'Please confirm your password.';
+            errEl.style.display = 'block';
+            return;
+        }
+
+        if (pass !== confirmPass) {
+            errEl.textContent = 'Passwords do not match.';
+            errEl.style.display = 'block';
+            return;
+        }
     }
 
     try {
