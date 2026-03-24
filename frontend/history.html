@@ -75,8 +75,8 @@
             <p class="subtitle">Your IELTS Speaking Journey</p>
         </header>
 
-        <div style="text-align:center; margin-bottom: 24px;">
-            <a href="/" class="btn btn-ghost" style="text-decoration:none; display:inline-flex;">
+        <div style="text-align:center; margin-bottom: 32px;">
+            <a href="/" class="btn btn-ghost" style="text-decoration:none; display:inline-flex; padding: 10px 20px;">
                 &larr; Back to Practice
             </a>
         </div>
@@ -116,7 +116,7 @@
             <div style="position:relative; height: 280px; padding: 8px 0;">
                 <canvas id="trendChart"></canvas>
             </div>
-            <div style="display:flex; gap:16px; justify-content:center; margin-top:12px; flex-wrap:wrap;">
+            <div id="trendLegend" style="display:flex; gap:16px; justify-content:center; margin-top:12px; flex-wrap:wrap;">
                 <span class="legend-item" style="color:var(--accent-blue)">● Overall</span>
                 <span class="legend-item" style="color:var(--accent-green)">● Fluency</span>
                 <span class="legend-item" style="color:var(--accent-amber)">● Vocabulary</span>
@@ -141,6 +141,26 @@
             <div class="card-header">
                 <span class="icon">📋</span>
                 <h2>Session History</h2>
+            </div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+                <label style="display:flex;flex-direction:column;gap:6px;font-size:0.78rem;color:var(--text-secondary);min-width:180px;">
+                    Module
+                    <select id="moduleFilter" style="background:var(--bg-glass);border:1px solid var(--border-subtle);border-radius:var(--radius-sm);padding:10px 12px;color:var(--text-primary);">
+                        <option value="all">All modules</option>
+                        <option value="speaking">Speaking</option>
+                        <option value="writing">Writing</option>
+                    </select>
+                </label>
+                <label style="display:flex;flex-direction:column;gap:6px;font-size:0.78rem;color:var(--text-secondary);min-width:180px;">
+                    Task type
+                    <select id="taskFilter" style="background:var(--bg-glass);border:1px solid var(--border-subtle);border-radius:var(--radius-sm);padding:10px 12px;color:var(--text-primary);">
+                        <option value="all">All task types</option>
+                        <option value="full_exam">Speaking · Full exam</option>
+                        <option value="part2_only">Speaking · Part 2 only</option>
+                        <option value="task1">Writing · Task 1</option>
+                        <option value="task2">Writing · Task 2</option>
+                    </select>
+                </label>
             </div>
             <div id="historyList">
                 <div class="loading-overlay">
@@ -174,6 +194,16 @@
 
     const BLUE = '#3b82f6', GREEN = '#10b981', AMBER = '#f59e0b',
           PURPLE = '#8b5cf6', PINK = '#ec4899';
+
+    function escapeText(value) {
+        return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;',
+        }[char]));
+    }
 
     function getCssVar(name, fallback = '') {
         const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -433,8 +463,14 @@
             showAuth();
             return;
         }
+
+        const moduleValue = document.getElementById('moduleFilter')?.value || 'all';
+        const taskValue = document.getElementById('taskFilter')?.value || 'all';
+        const query = new URLSearchParams({ limit: '20' });
+        if (moduleValue !== 'all') query.set('module_type', moduleValue);
+        if (taskValue !== 'all') query.set('task_type', taskValue);
         
-        const res = await fetch('/api/scoring/history?limit=20', {
+        const res = await fetch(`/api/dashboard/history?${query.toString()}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -483,41 +519,91 @@
             const d = s.date ? new Date(s.date) : null;
             return d ? `${d.getMonth()+1}/${d.getDate()}` : `#${i+1}`;
         });
-
+        const modules = new Set(data.map((item) => item.module_type));
+        const speakingOnly = modules.size === 1 && modules.has('speaking');
+        const writingOnly = modules.size === 1 && modules.has('writing');
+        const legend = document.getElementById('trendLegend');
+        if (legend) {
+            const legendItems = speakingOnly
+                ? [
+                    ['var(--accent-blue)', 'Overall'],
+                    ['var(--accent-green)', 'Fluency'],
+                    ['var(--accent-amber)', 'Vocabulary'],
+                    ['var(--accent-purple)', 'Grammar'],
+                    ['#ec4899', 'Pronunciation'],
+                ]
+                : writingOnly
+                    ? [
+                        ['var(--accent-blue)', 'Overall'],
+                        ['var(--accent-green)', 'Task'],
+                        ['var(--accent-amber)', 'Coherence'],
+                        ['var(--accent-purple)', 'Lexical'],
+                        ['#ec4899', 'Grammar'],
+                    ]
+                    : [['var(--accent-blue)', 'Overall']];
+            legend.innerHTML = legendItems.map(([color, label]) => `<span class="legend-item" style="color:${color}">● ${label}</span>`).join('');
+        }
         const ctx = document.getElementById('trendChart').getContext('2d');
+        const datasets = [
+            {
+                label: 'Overall', data: data.map(s => s.scores?.overall ?? null),
+                borderColor: BLUE, backgroundColor: makeGradient(ctx, BLUE),
+                tension: 0.4, fill: true, pointRadius: 5, pointHoverRadius: 7,
+                borderWidth: 2.5,
+            }
+        ];
+
+        if (speakingOnly) {
+            datasets.push(
+                {
+                    label: 'Fluency', data: data.map(s => s.scores?.fluency ?? null),
+                    borderColor: GREEN, tension: 0.4, fill: false,
+                    pointRadius: 3, borderWidth: 1.5, borderDash: [4,4],
+                },
+                {
+                    label: 'Vocabulary', data: data.map(s => s.scores?.vocabulary ?? null),
+                    borderColor: AMBER, tension: 0.4, fill: false,
+                    pointRadius: 3, borderWidth: 1.5, borderDash: [4,4],
+                },
+                {
+                    label: 'Grammar', data: data.map(s => s.scores?.grammar ?? null),
+                    borderColor: PURPLE, tension: 0.4, fill: false,
+                    pointRadius: 3, borderWidth: 1.5, borderDash: [4,4],
+                },
+                {
+                    label: 'Pronunciation', data: data.map(s => s.scores?.pronunciation ?? null),
+                    borderColor: PINK, tension: 0.4, fill: false,
+                    pointRadius: 3, borderWidth: 1.5, borderDash: [4,4],
+                },
+            );
+        } else if (writingOnly) {
+            datasets.push(
+                {
+                    label: 'Task', data: data.map(s => s.scores?.task ?? null),
+                    borderColor: GREEN, tension: 0.4, fill: false,
+                    pointRadius: 3, borderWidth: 1.5, borderDash: [4,4],
+                },
+                {
+                    label: 'Coherence', data: data.map(s => s.scores?.coherence ?? null),
+                    borderColor: AMBER, tension: 0.4, fill: false,
+                    pointRadius: 3, borderWidth: 1.5, borderDash: [4,4],
+                },
+                {
+                    label: 'Lexical', data: data.map(s => s.scores?.lexical ?? null),
+                    borderColor: PURPLE, tension: 0.4, fill: false,
+                    pointRadius: 3, borderWidth: 1.5, borderDash: [4,4],
+                },
+                {
+                    label: 'Grammar', data: data.map(s => s.scores?.grammar ?? null),
+                    borderColor: PINK, tension: 0.4, fill: false,
+                    pointRadius: 3, borderWidth: 1.5, borderDash: [4,4],
+                },
+            );
+        }
+
         trendChartInstance = new Chart(ctx, {
             type: 'line',
-            data: {
-                labels,
-                datasets: [
-                    {
-                        label: 'Overall', data: data.map(s => s.scores?.overall ?? null),
-                        borderColor: BLUE, backgroundColor: makeGradient(ctx, BLUE),
-                        tension: 0.4, fill: true, pointRadius: 5, pointHoverRadius: 7,
-                        borderWidth: 2.5,
-                    },
-                    {
-                        label: 'Fluency', data: data.map(s => s.scores?.fluency ?? null),
-                        borderColor: GREEN, tension: 0.4, fill: false,
-                        pointRadius: 3, borderWidth: 1.5, borderDash: [4,4],
-                    },
-                    {
-                        label: 'Vocabulary', data: data.map(s => s.scores?.vocabulary ?? null),
-                        borderColor: AMBER, tension: 0.4, fill: false,
-                        pointRadius: 3, borderWidth: 1.5, borderDash: [4,4],
-                    },
-                    {
-                        label: 'Grammar', data: data.map(s => s.scores?.grammar ?? null),
-                        borderColor: PURPLE, tension: 0.4, fill: false,
-                        pointRadius: 3, borderWidth: 1.5, borderDash: [4,4],
-                    },
-                    {
-                        label: 'Pronunciation', data: data.map(s => s.scores?.pronunciation ?? null),
-                        borderColor: PINK, tension: 0.4, fill: false,
-                        pointRadius: 3, borderWidth: 1.5, borderDash: [4,4],
-                    },
-                ]
-            },
+            data: { labels, datasets },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { display: false }, tooltip: {
@@ -544,19 +630,35 @@
         }
 
         const recent = getScoredHistory(history).slice(0, 5);
+        const radarCard = document.getElementById('radarCard');
+        const modules = new Set(recent.map((item) => item.module_type));
+        if (!recent.length || modules.size > 1) {
+            radarCard.style.display = recent.length ? 'none' : '';
+            return;
+        }
+        radarCard.style.display = '';
+
         const avg = key => {
             const vals = recent.map(s => s.scores?.[key]).filter(hasScore);
             return vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length) : 0;
         };
 
+        const writingOnly = modules.has('writing');
+        const labels = writingOnly
+            ? ['Task', 'Coherence', 'Lexical', 'Grammar']
+            : ['Fluency', 'Vocabulary', 'Grammar', 'Pronunciation'];
+        const keys = writingOnly
+            ? ['task', 'coherence', 'lexical', 'grammar']
+            : ['fluency', 'vocabulary', 'grammar', 'pronunciation'];
+
         const ctx = document.getElementById('radarChart').getContext('2d');
         radarChartInstance = new Chart(ctx, {
             type: 'radar',
             data: {
-                labels: ['Fluency', 'Vocabulary', 'Grammar', 'Pronunciation'],
+                labels,
                 datasets: [{
                     label: 'Average (last 5)',
-                    data: [avg('fluency'), avg('vocabulary'), avg('grammar'), avg('pronunciation')],
+                    data: keys.map(avg),
                     backgroundColor: 'rgba(59,130,246,0.15)',
                     borderColor: BLUE, borderWidth: 2,
                     pointBackgroundColor: BLUE, pointRadius: 4,
@@ -594,26 +696,45 @@
             const scores = s.scores || {};
             const statusText = s.scoring_status === 'error'
                 ? 'Scoring fallback used'
-                : '';
+                : (s.scoring_status === 'pending' ? 'Scoring pending' : '');
+
+            let icon = '🗣️';
+            if (s.module_type === 'writing') {
+                icon = s.task_type === 'task1' ? '📊' : '✍️';
+            } else {
+                icon = s.task_type === 'full_exam' ? '🎓' : (s.task_type === 'part2_only' ? '📝' : '🗣️');
+            }
+            
+            let dimsHtml = '';
+            if (s.module_type === 'writing') {
+                const writingDims = ['task', 'coherence', 'lexical', 'grammar'];
+                dimsHtml = writingDims.map(k => `
+                    <span style="font-size:0.72rem;color:var(--text-secondary);">
+                        ${k.slice(0,4).toUpperCase()} <b style="color:${scoreReady ? getScoreColor(scores[k]) : '#64748b'}">${scoreReady ? formatScore(scores[k]) : '\u2014'}</b>
+                    </span>`).join('');
+            } else {
+                dimsHtml = ['fluency','vocabulary','grammar','pronunciation'].map(k => `
+                    <span style="font-size:0.72rem;color:var(--text-secondary);">
+                        ${k.slice(0,4).toUpperCase()} <b style="color:${scoreReady ? getScoreColor(scores[k]) : '#64748b'}">${scoreReady ? formatScore(scores[k]) : '\u2014'}</b>
+                    </span>`).join('');
+            }
 
             return `
-            <div onclick="viewSessionDetail(${s.session_id})" style="padding:14px;border-radius:var(--radius-md);background:var(--bg-glass);
+            <div onclick="viewSessionDetail('${s.detail_api_path}', '${s.module_type}')" style="padding:14px;border-radius:var(--radius-md);background:var(--bg-glass);
                 border:1px solid var(--border-subtle);margin-bottom:10px;
                 cursor:pointer;transition:border-color 0.2s,background 0.15s;"
                 onmouseenter="this.style.borderColor='var(--border-accent)';this.style.background='rgba(255,255,255,0.06)'"
                 onmouseleave="this.style.borderColor='var(--border-subtle)';this.style.background='var(--bg-glass)'">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+                    <div style="font-size:1.4rem;flex-shrink:0;">${icon}</div>
                     <div style="flex:1;min-width:0;">
                         <div style="font-size:0.875rem;font-weight:600;color:var(--text-primary);
                             margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                            ${s.topic_title || 'Practice Session'}</div>
+                            ${escapeText(s.title || 'Practice Session')}</div>
                         <div style="font-size:0.75rem;color:var(--text-muted);">${date}</div>
                         ${statusText ? `<div style="font-size:0.72rem;color:var(--accent-amber);margin-top:6px;">${statusText}</div>` : ''}
                         <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap;">
-                            ${['fluency','vocabulary','grammar','pronunciation'].map(k => `
-                                <span style="font-size:0.72rem;color:var(--text-secondary);">
-                                    ${k.slice(0,4).toUpperCase()} <b style="color:${scoreReady ? getScoreColor(scores[k]) : '#64748b'}">${scoreReady ? formatScore(scores[k]) : '\u2014'}</b>
-                                </span>`).join('')}
+                            ${dimsHtml}
                         </div>
                     </div>
                     <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
@@ -626,7 +747,8 @@
         }).join('');
     }
 
-    async function viewSessionDetail(sessionId) {
+    async function viewSessionDetail(apiPath, moduleType) {
+        if (!apiPath) return;
         const overlay = document.getElementById('detailOverlay');
         const content = document.getElementById('detailContent');
         content.innerHTML = '<div style="text-align:center;padding:32px;"><div class="spinner"></div><p style="color:var(--text-muted);margin-top:12px;">Loading...</p></div>';
@@ -635,7 +757,7 @@
 
         try {
             const token = localStorage.getItem('ielts_token');
-            const res = await fetch(`/api/scoring/sessions/${sessionId}/detail`, {
+            const res = await fetch(apiPath, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const r = await res.json();
@@ -649,17 +771,28 @@
             const detailScore = (value) => hasScoringError ? '\u2014' : formatScore(value);
             const detailColor = (value) => hasScoringError ? '#64748b' : getScoreColor(value);
 
-            const dimLabels = [
-                ['fluency','🗣️ Fluency & Coherence'],
-                ['vocabulary','📚 Vocabulary'],
-                ['grammar','✍️ Grammar Accuracy'],
-                ['pronunciation','🔊 Pronunciation'],
-            ];
+            let dimLabels = [];
+            if (moduleType === 'writing') {
+                const taLabel = r.task_type === 'task1' ? 'Task Achievement' : 'Task Response';
+                dimLabels = [
+                    ['task', `📝 ${taLabel}`],
+                    ['coherence', '🔗 Coherence & Cohesion'],
+                    ['lexical', '📚 Lexical Resource'],
+                    ['grammar', '✍️ Grammatical Range']
+                ];
+            } else {
+                dimLabels = [
+                    ['fluency','🗣️ Fluency & Coherence'],
+                    ['vocabulary','📚 Vocabulary'],
+                    ['grammar','✍️ Grammar Accuracy'],
+                    ['pronunciation','🔊 Pronunciation'],
+                ];
+            }
 
             const getColor = getScoreColor;
 
             let html = `
-                <h2 style="font-size:1.1rem;margin:0 0 4px;padding-right:40px;color:var(--text-primary);">${r.topic_title || 'Practice Session'}</h2>
+                <h2 style="font-size:1.1rem;margin:0 0 4px;padding-right:40px;color:var(--text-primary);">${r.title || r.topic_title || 'Practice Session'}</h2>
                 <p style="font-size:0.78rem;color:var(--text-muted);margin:0 0 20px;">${date}</p>
                 ${hasScoringError ? `<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.24);border-radius:var(--radius-md);padding:12px 14px;margin-bottom:16px;"><div style="font-size:0.82rem;color:var(--accent-amber);font-weight:600;margin-bottom:4px;">Scoring fallback used</div><div style="font-size:0.8rem;color:var(--text-secondary);">${r.scoring_error_detail || r.scoring_error || 'The model could not produce a normal score for this session.'}</div></div>` : ''}
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:20px;">
@@ -674,44 +807,77 @@
                     </div>
                 </div>`;
 
-            // Feedback
-            for (const [k, label] of dimLabels) {
-                if (feedback[k]) html += `
+            if (moduleType === 'writing') {
+                if (r.prompt) {
+                    const promptText = typeof r.prompt === 'object' ? r.prompt.prompt_text : r.prompt;
+                    html += `<div style="margin-bottom:14px;">
+                        <h3 style="font-size:0.85rem;color:var(--text-secondary);margin:0 0 6px;">Prompt</h3>
+                        <div style="font-size:0.875rem;color:var(--text-primary);line-height:1.6;background:var(--bg-glass);border-radius:var(--radius-sm);padding:10px;white-space:pre-wrap;">${escapeText(promptText)}</div>
+                    </div>`;
+                }
+                if (r.essay_text) {
+                    html += `<div style="margin-bottom:14px;">
+                        <h3 style="font-size:0.85rem;color:var(--text-secondary);margin:0 0 6px;">Your Essay (${r.word_count || 0} words)</h3>
+                        <div style="font-size:0.875rem;color:var(--text-primary);line-height:1.6;background:var(--bg-glass);border-radius:var(--radius-sm);padding:10px;white-space:pre-wrap;">${escapeText(r.essay_text)}</div>
+                    </div>`;
+                }
+                
+                for (const [k, label] of dimLabels) {
+                    if (feedback[k]) html += `
+                        <div style="margin-bottom:14px;">
+                            <h3 style="font-size:0.85rem;color:var(--text-secondary);margin:0 0 6px;">${label}</h3>
+                            <p style="font-size:0.875rem;color:var(--text-primary);margin:0;line-height:1.6;">${escapeText(feedback[k])}</p>
+                        </div>`;
+                }
+                
+                if (feedback.overall) {
+                    html += `
                     <div style="margin-bottom:14px;">
-                        <h3 style="font-size:0.85rem;color:var(--text-secondary);margin:0 0 6px;">${label}</h3>
-                        <p style="font-size:0.875rem;color:var(--text-primary);margin:0;line-height:1.6;">${feedback[k]}</p>
+                        <h3 style="font-size:0.85rem;color:var(--text-secondary);margin:0 0 6px;">📋 Overall Feedback</h3>
+                        <p style="font-size:0.875rem;color:var(--text-primary);margin:0;line-height:1.6;">${escapeText(feedback.overall)}</p>
+                    </div>`;
+                }
+            } else {
+                for (const [k, label] of dimLabels) {
+                    if (feedback[k]) html += `
+                        <div style="margin-bottom:14px;">
+                            <h3 style="font-size:0.85rem;color:var(--text-secondary);margin:0 0 6px;">${label}</h3>
+                            <p style="font-size:0.875rem;color:var(--text-primary);margin:0;line-height:1.6;">${escapeText(feedback[k])}</p>
+                        </div>`;
+                }
+                if (feedback.overall) html += `
+                    <div style="margin-bottom:14px;">
+                        <h3 style="font-size:0.85rem;color:var(--text-secondary);margin:0 0 6px;">📋 Overall Feedback</h3>
+                        <p style="font-size:0.875rem;color:var(--text-primary);margin:0;line-height:1.6;">${escapeText(feedback.overall)}</p>
                     </div>`;
             }
-            if (feedback.overall) html += `
-                <div style="margin-bottom:14px;">
-                    <h3 style="font-size:0.85rem;color:var(--text-secondary);margin:0 0 6px;">📋 Overall Feedback</h3>
-                    <p style="font-size:0.875rem;color:var(--text-primary);margin:0;line-height:1.6;">${feedback.overall}</p>
-                </div>`;
 
             if (improvements.length) {
                 html += `<div style="margin-bottom:14px;">
                     <h3 style="font-size:0.85rem;color:var(--accent-amber);margin:0 0 8px;">💡 Suggestions</h3>
                     <ul style="margin:0;padding-left:20px;">
-                        ${improvements.map(i => `<li style="font-size:0.875rem;color:var(--text-primary);margin-bottom:4px;line-height:1.5;">${i}</li>`).join('')}
+                        ${improvements.map(i => `<li style="font-size:0.875rem;color:var(--text-primary);margin-bottom:4px;line-height:1.5;">${escapeText(i)}</li>`).join('')}
                     </ul></div>`;
             }
             if (sample) {
                 html += `<div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:var(--radius-md);padding:16px;margin-bottom:8px;">
                     <h3 style="font-size:0.85rem;color:var(--accent-blue);margin:0 0 8px;">✨ Sample Answer</h3>
-                    <p style="font-size:0.875rem;color:var(--text-primary);margin:0;line-height:1.7;white-space:pre-wrap;">${sample}</p>
+                    <p style="font-size:0.875rem;color:var(--text-primary);margin:0;line-height:1.7;white-space:pre-wrap;">${escapeText(sample)}</p>
                 </div>`;
             }
 
             // Transcripts
-            const transcripts = r.transcripts || {};
-            const tParts = Object.entries(transcripts).filter(([,v]) => v?.trim());
-            if (tParts.length) {
-                html += `<div style="margin-top:16px;"><h3 style="font-size:0.85rem;color:var(--text-secondary);margin:0 0 8px;">🎙️ Your Response</h3>`;
-                for (const [part, text] of tParts) {
-                    html += `<div style="margin-bottom:10px;"><div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:4px;">${part.toUpperCase()}</div>
-                        <p style="font-size:0.825rem;color:var(--text-primary);line-height:1.6;margin:0;background:var(--bg-glass);border-radius:var(--radius-sm);padding:10px;">${text}</p></div>`;
+            if (moduleType === 'speaking') {
+                const transcripts = r.transcripts || {};
+                const tParts = Object.entries(transcripts).filter(([,v]) => v?.trim());
+                if (tParts.length) {
+                    html += `<div style="margin-top:16px;"><h3 style="font-size:0.85rem;color:var(--text-secondary);margin:0 0 8px;">🎙️ Your Response</h3>`;
+                    for (const [part, text] of tParts) {
+                        html += `<div style="margin-bottom:10px;"><div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:4px;">${part.toUpperCase()}</div>
+                            <p style="font-size:0.825rem;color:var(--text-primary);line-height:1.6;margin:0;background:var(--bg-glass);border-radius:var(--radius-sm);padding:10px;">${escapeText(text)}</p></div>`;
+                    }
+                    html += '</div>';
                 }
-                html += '</div>';
             }
 
             content.innerHTML = html;
@@ -732,6 +898,8 @@
         document.getElementById('detailOverlay').addEventListener('click', e => {
             if (e.target === document.getElementById('detailOverlay')) closeDetail();
         });
+        document.getElementById('moduleFilter').addEventListener('change', loadHistory);
+        document.getElementById('taskFilter').addEventListener('change', loadHistory);
 
         loadHistory();
     });

@@ -8,7 +8,7 @@ test.describe('history page theme mode', () => {
             window.alert = () => {};
         });
 
-        await page.route('**/api/scoring/history?limit=20', (route) =>
+        await page.route('**/api/dashboard/history?limit=20', (route) =>
             route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
         );
 

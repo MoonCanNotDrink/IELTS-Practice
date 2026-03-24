@@ -8,7 +8,7 @@ test.describe('theme mode switch', () => {
             window.alert = () => {};
         });
 
-        await page.route('**/api/scoring/history?limit=5', (route) =>
+        await page.route('**/api/dashboard/history?limit=5', (route) =>
             route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
         );
 

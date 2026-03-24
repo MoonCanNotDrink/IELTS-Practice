@@ -31,7 +31,7 @@ const server = http.createServer((request, response) => {
         return sendFile(response, path.join(FRONTEND_DIR, 'app.js'), 'application/javascript');
     }
 
-    if (pathname === '/api/scoring/history') {
+    if (pathname === '/api/dashboard/history') {
         response.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         response.end('[]');
         return;

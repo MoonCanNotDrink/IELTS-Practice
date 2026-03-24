@@ -9,12 +9,14 @@ from pathlib import Path
 
 from app.config import settings
 from app.database import init_db, async_session
-from app.seed_data import seed_topics
+from app.seed_data import seed_topics, seed_writing_prompts
 from app.routes.part2 import router as part2_router
 from app.routes.exam import router as exam_router
 from app.routes.scoring import router as scoring_router
 from app.routes.dev import router as dev_router
 from app.routes.auth import router as auth_router
+from app.routes.writing import router as writing_router
+from app.routes.dashboard import router as dashboard_router
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend"
 
@@ -37,6 +39,7 @@ async def lifespan(app: FastAPI):
     await init_db()
     async with async_session() as db:
         await seed_topics(db)
+        await seed_writing_prompts(db)
     yield
 
 
@@ -57,6 +60,8 @@ app.include_router(part2_router)
 app.include_router(exam_router)
 app.include_router(scoring_router)
 app.include_router(dev_router)
+app.include_router(writing_router)
+app.include_router(dashboard_router)
 
 
 @app.get("/api/health")

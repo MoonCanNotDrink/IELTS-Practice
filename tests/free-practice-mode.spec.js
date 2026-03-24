@@ -8,7 +8,7 @@ test('free practice reuses the part2 speaking and scoring flow', async ({ page }
         window.alert = () => {};
     });
 
-    await page.route('**/api/scoring/history?limit=5', async (route) => {
+    await page.route('**/api/dashboard/history?limit=5', async (route) => {
         requestOrder.push('history');
         await route.fulfill({
             status: 200,

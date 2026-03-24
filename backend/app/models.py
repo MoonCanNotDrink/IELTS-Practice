@@ -1,4 +1,4 @@
-"""SQLAlchemy database models for IELTS Speaking practice."""
+"""SQLAlchemy database models for IELTS practice."""
 
 from datetime import datetime
 from sqlalchemy import (
@@ -23,6 +23,7 @@ class User(Base):
     sessions = relationship("PracticeSession", back_populates="user", cascade="all, delete-orphan")
     # User-scoped saved topics created by the user (not the official Topic table)
     saved_topics = relationship("SavedTopic", back_populates="user", cascade="all, delete-orphan")
+    writing_attempts = relationship("WritingAttempt", back_populates="user", cascade="all, delete-orphan")
 
 
 class Topic(Base):
@@ -118,3 +119,46 @@ class SavedTopic(Base):
 
     # Relationships
     user = relationship("User", back_populates="saved_topics")
+
+
+class WritingPrompt(Base):
+    __tablename__ = "writing_prompts"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    slug = Column(String(120), unique=True, index=True, nullable=False)
+    task_type = Column(String(20), nullable=False, index=True)
+    title = Column(String(255), nullable=False)
+    prompt_text = Column(Text, nullable=False)
+    prompt_details = Column(JSON, nullable=True)
+    source = Column(String(50), default="seed")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    attempts = relationship("WritingAttempt", back_populates="prompt")
+
+
+class WritingAttempt(Base):
+    __tablename__ = "writing_attempts"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    prompt_id = Column(Integer, ForeignKey("writing_prompts.id"), nullable=True)
+    task_type = Column(String(20), nullable=False, index=True)
+
+    prompt_title = Column(String(255), nullable=False)
+    prompt_text = Column(Text, nullable=False)
+    prompt_details = Column(JSON, nullable=True)
+    essay_text = Column(Text, nullable=False)
+    word_count = Column(Integer, default=0)
+
+    task_score = Column(Float, nullable=True)
+    coherence_score = Column(Float, nullable=True)
+    lexical_score = Column(Float, nullable=True)
+    grammar_score = Column(Float, nullable=True)
+    overall_score = Column(Float, nullable=True)
+
+    feedback = Column(Text, nullable=True)  # JSON string with detailed feedback
+    sample_answer = Column(Text, nullable=True)
+    completed_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    user = relationship("User", back_populates="writing_attempts")
+    prompt = relationship("WritingPrompt", back_populates="attempts")

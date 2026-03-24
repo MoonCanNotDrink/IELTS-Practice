@@ -84,15 +84,31 @@
                     <span class="icon">&#127919;</span>
                     <h2>Choose Practice Mode</h2>
                 </div>
-                <div class="btn-group" style="flex-direction: column; gap: 12px;">
+                <div style="font-weight: 600; margin-bottom: 14px; color: var(--text-secondary); font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 8px;">
+                    <span style="display:inline-block; width: 4px; height: 14px; background: var(--accent-blue); border-radius: 2px;"></span>
+                    Speaking
+                </div>
+                <div class="btn-grid" style="margin-bottom: 28px;">
                     <button type="button" class="btn btn-primary btn-full" id="btnFullExam" onclick="startMode('full')">
-                        &#127891; Full Mock Exam (Part 1 + 2 + 3)
+                        &#127891; Full Mock Exam
                     </button>
                     <button type="button" class="btn btn-ghost btn-full" id="btnPart2Only" onclick="startMode('part2')">
-                        &#128203; Part 2 Only (Quick Practice)
+                        &#128203; Part 2 Only
                     </button>
-                    <button type="button" class="btn btn-ghost btn-full" id="btnFreePractice" onclick="showFreePracticeSetup()">
-                        &#127908; Free Practice (Custom Prompt)
+                    <button type="button" class="btn btn-ghost btn-full" id="btnFreePractice" onclick="showFreePracticeSetup()" style="grid-column: 1 / -1;">
+                        &#127908; Free Practice (Custom)
+                    </button>
+                </div>
+                <div style="font-weight: 600; margin-bottom: 14px; color: var(--text-secondary); font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 8px;">
+                    <span style="display:inline-block; width: 4px; height: 14px; background: var(--accent-purple); border-radius: 2px;"></span>
+                    Writing
+                </div>
+                <div class="btn-grid">
+                    <button type="button" class="btn btn-ghost btn-full" id="btnWritingTask1" onclick="startWritingMode('task1')" style="border-color: rgba(139, 92, 246, 0.3);">
+                        &#128202; Writing Task 1
+                    </button>
+                    <button type="button" class="btn btn-ghost btn-full" id="btnWritingTask2" onclick="startWritingMode('task2')" style="border-color: rgba(139, 92, 246, 0.3);">
+                        &#9997;&#65039; Writing Task 2
                     </button>
                 </div>
 
@@ -184,6 +200,71 @@
                     <p style="color: var(--text-muted); font-size: 0.875rem; text-align: center; padding: 16px 0;">
                         No sessions yet. Complete a practice to see your progress.
                     </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- WRITING FLOW -->
+        <div id="writingFlow" class="hidden">
+            <div class="session-actions" id="writingSessionActions" style="margin-bottom: 16px;">
+                <button type="button" class="btn btn-ghost" onclick="interruptPractice()">
+                    &#9209; Interrupt & Back Home
+                </button>
+            </div>
+
+            <div class="card" id="writingPromptSection">
+                <div class="card-header">
+                    <span class="icon" id="writingTaskIcon">&#9997;&#65039;</span>
+                    <h2 id="writingTaskTitle">Writing Task</h2>
+                </div>
+                <div class="part-question-display">
+                    <p id="writingPromptText" style="font-size: 1.1rem; color: var(--text-primary); line-height: 1.6; white-space: pre-wrap; margin-bottom: 16px;"></p>
+                </div>
+                <div class="form-group" style="margin-top: 16px;">
+                    <textarea id="writingEssayInput" class="notes-area" style="min-height: 300px; padding: 16px; font-size: 1rem; line-height: 1.5; font-family: inherit;" placeholder="Write your essay here..."></textarea>
+                    <div style="text-align: right; margin-top: 8px; color: var(--text-muted); font-size: 0.85rem;">
+                        Words: <span id="writingWordCount">0</span>
+                    </div>
+                </div>
+                <div class="btn-group" style="margin-top: 20px;">
+                    <button type="button" class="btn btn-primary btn-full" id="btnSubmitWriting" onclick="submitWriting()">
+                        &#128190; Submit for Scoring
+                    </button>
+                </div>
+            </div>
+
+            <!-- Writing Scoring Section -->
+            <div class="card hidden" id="writingScoreSection">
+                <div class="card-header">
+                    <span class="icon">&#128202;</span>
+                    <h2>AI Assessment Results</h2>
+                </div>
+                <div class="loading-overlay" id="writingScoringLoader">
+                    <div class="spinner"></div>
+                    <p class="loading-text">Analyzing your essay...</p>
+                    <p class="loading-text" style="font-size:0.78rem; margin-top:4px;">Grammar &middot; Vocabulary &middot; Coherence &middot; Task Achievement</p>
+                </div>
+                <div class="hidden" id="writingScoreResults">
+                    <!-- Score cards -->
+                    <div class="scores-grid" id="writingScoresGrid"></div>
+                    
+                    <div class="feedback-section" style="margin-top: 24px;">
+                        <h3 style="margin-bottom: 12px; font-size: 1.1rem; color: var(--text-primary);">Your Essay</h3>
+                        <div class="transcript-box" id="writingEssayDisplay" style="white-space: pre-wrap;"></div>
+                    </div>
+
+                    <!-- Feedback -->
+                    <div class="feedback-section" id="writingFeedbackSection"></div>
+                    
+                    <!-- Restart / History -->
+                    <div class="btn-group" style="margin-top: 24px;">
+                        <button type="button" class="btn btn-primary btn-full" onclick="backToHome()">
+                            &#127968; Back to Home
+                        </button>
+                        <a href="/history" class="btn btn-ghost btn-full" style="text-decoration:none;text-align:center;">
+                            &#128200; View Progress Chart
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>

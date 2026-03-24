@@ -40,7 +40,7 @@ function stubRecording(page) {
 
 function routeCommonEndpoints(page, libraryPayload = LIBRARY_RESPONSE) {
     return Promise.all([
-        page.route('**/api/scoring/history?limit=5', (route) =>
+        page.route('**/api/dashboard/history?limit=5', (route) =>
             route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
         ),
         page.route('**/api/part2/free-practice-topics', async (route) => {
@@ -72,7 +72,7 @@ async function selectTopicOption(page, optionText) {
 test.describe('free-practice topic library', () => {
     test('history titles are rendered as plain text instead of HTML markup', async ({ page }) => {
         await addCommonInitScript(page);
-        await page.route('**/api/scoring/history?limit=5', (route) =>
+        await page.route('**/api/dashboard/history?limit=5', (route) =>
             route.fulfill({
                 status: 200,
                 contentType: 'application/json',

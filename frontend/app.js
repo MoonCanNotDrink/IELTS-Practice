@@ -205,6 +205,10 @@ const state = {
     freePracticeMode: 'library', // 'library' or 'custom'
     freePracticeSelectedSource: null, // 'official' or 'saved'
     freePracticeSelectedId: null,
+    
+    // Writing
+    writingTaskType: null,
+    writingPromptId: null,
 };
 
 // ========== API & Auth ==========
@@ -495,6 +499,7 @@ async function startFreePractice() {
         state.topic = buildFreePracticeTopic(promptText, speakingSeconds);
         state.part2QuestionText = promptText;
         state.part2SpeakingSeconds = speakingSeconds;
+        state.practiceSource = state.freePracticeMode === 'library' ? state.freePracticeSelectedSource : 'custom';
         state.transcripts.part2 = '';
         state.clientTranscripts.part2 = '';
         document.getElementById('notesInput').value = '';
@@ -590,6 +595,7 @@ function backToHome() {
 
     document.getElementById('modeSelector').classList.remove('hidden');
     document.getElementById('examFlow').classList.add('hidden');
+    document.getElementById('writingFlow').classList.add('hidden');
 
     // Reset UI elements
     document.getElementById('topicContent').innerHTML = `
@@ -931,6 +937,7 @@ async function uploadPart2(wavBlob, clientTranscript = '') {
     form.append('audio', wavBlob, `part2_${Date.now()}.wav`);
     form.append('notes', document.getElementById('notesInput').value || '');
     if (clientTranscript.trim()) form.append('client_transcript', clientTranscript.trim());
+    form.append('practice_source', state.practiceSource || 'custom');
     if (state.mode === 'free_practice' && state.part2QuestionText.trim()) {
         form.append('question_text', state.part2QuestionText.trim());
     }
@@ -1437,66 +1444,87 @@ function showTranscript(part, btn) {
 // ========== History ==========
 async function loadHistory() {
     try {
-        const history = await api('/api/scoring/history?limit=5');
+        const history = await api('/api/dashboard/history?limit=5');
         const el = document.getElementById('historyContent');
         if (!history.length) return;
 
         el.innerHTML = history.map(s => {
-            const date = s.date ? new Date(s.date).toLocaleDateString('zh-CN') : '';
-            const overall = s.scores?.overall ?? '--';
+            const dateStr = s.date ? new Date(s.date).toLocaleDateString() : '';
+            const isScoring = s.scoring_status === 'pending';
+            const overall = s.scores?.overall ?? (isScoring ? '...' : '--');
             const scoreColor = (overall >= 7) ? 'var(--accent-green)'
                              : (overall >= 5.5) ? 'var(--accent-amber)'
+                             : (overall === '...') ? 'var(--text-muted)'
                              : 'var(--accent-red)';
+            
+            let icon = '🗣️';
+            if (s.module_type === 'writing') {
+                icon = s.task_type === 'task1' ? '📊' : '✍️';
+            } else {
+                icon = s.task_type === 'full_exam' ? '🎓' : (s.task_type === 'part2_only' ? '📝' : '🗣️');
+            }
+
             return `
-                <div onclick="viewSessionDetail(${s.session_id})"
+                <div onclick="viewHistoryDetail('${s.detail_api_path}', '${s.module_type}')"
                     style="display:flex;justify-content:space-between;align-items:center;
                     padding:10px;border-radius:var(--radius-sm);background:var(--bg-glass);
                     margin-bottom:8px;cursor:pointer;transition:background 0.15s;"
                     onmouseenter="this.style.background='rgba(255,255,255,0.07)'"
                     onmouseleave="this.style.background='var(--bg-glass)'">
-                    <div>
-                        <div style="font-size:0.875rem;font-weight:600;color:var(--text-primary);
-                            white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:250px;">
-                            ${escapeHtml(s.topic_title)}</div>
-                        <div style="font-size:0.75rem;color:var(--text-muted);">${date}</div>
+                    <div style="display:flex;align-items:center;gap:12px;overflow:hidden;">
+                        <div style="font-size:1.2rem;flex-shrink:0;">${icon}</div>
+                        <div style="overflow:hidden;">
+                            <div style="font-size:0.875rem;font-weight:600;color:var(--text-primary);
+                                white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;">
+                                ${escapeHtml(s.title || 'Practice Session')}</div>
+                            <div style="font-size:0.75rem;color:var(--text-muted);">${dateStr}</div>
+                        </div>
                     </div>
-                    <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;margin-left:12px;">
+                    <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;margin-left:8px;">
                         <div style="font-family:var(--font-mono);font-size:1.4rem;font-weight:700;
                             color:${scoreColor};">${overall}</div>
-                        <span style="color:var(--text-muted);font-size:0.9rem;">-</span>
                     </div>
                 </div>`;
         }).join('');
         document.getElementById('btnLogout').style.display = 'block';
     } catch {
-        // Silently fail: history is optional
     }
 }
 
-async function viewSessionDetail(sessionId) {
+async function viewHistoryDetail(apiPath, moduleType) {
+    if (!apiPath) return;
+    
     try {
-        const result = await api(`/api/scoring/sessions/${sessionId}/detail`);
-        // Hide the mode-selector, show the exam flow in scoring phase
+        const result = await api(apiPath);
         document.getElementById('modeSelector').classList.add('hidden');
-        document.getElementById('examFlow').classList.remove('hidden');
-        // Show scoring section only
-        setPhase('scoring');
-        document.getElementById('scoringLoader').classList.add('hidden');
-        document.getElementById('scoreResults').classList.remove('hidden');
-        displayResults(result, result.transcripts || {});
-        // Add a back-to-home button at the top of the scoring area
-        const backBtn = document.createElement('button');
-        backBtn.className = 'btn btn-ghost';
-        backBtn.style = 'margin-bottom:16px;';
-        backBtn.textContent = 'Back to Home';
-        backBtn.onclick = backToHome;
-        const scoreSection = document.getElementById('scoreSection');
-        if (scoreSection && !scoreSection.querySelector('.history-back-btn')) {
-            backBtn.classList.add('history-back-btn');
-            scoreSection.insertBefore(backBtn, scoreSection.firstChild);
+        
+        if (moduleType === 'writing') {
+            document.getElementById('writingFlow').classList.remove('hidden');
+            document.getElementById('writingPromptSection').classList.add('hidden');
+            
+            document.getElementById('writingTaskTitle').innerText = result.task_type === 'task1' ? 'Writing Task 1' : 'Writing Task 2';
+            document.getElementById('writingTaskIcon').innerText = result.task_type === 'task1' ? '📊' : '✍️';
+            
+            renderWritingResult(result);
+        } else {
+            document.getElementById('examFlow').classList.remove('hidden');
+            setPhase('scoring');
+            document.getElementById('scoringLoader').classList.add('hidden');
+            document.getElementById('scoreResults').classList.remove('hidden');
+            displayResults(result, result.transcripts || {});
+            
+            const scoreSection = document.getElementById('scoreSection');
+            if (scoreSection && !scoreSection.querySelector('.history-back-btn')) {
+                const backBtn = document.createElement('button');
+                backBtn.className = 'btn btn-ghost history-back-btn';
+                backBtn.style = 'margin-bottom:16px;';
+                backBtn.textContent = 'Back to Home';
+                backBtn.onclick = backToHome;
+                scoreSection.insertBefore(backBtn, scoreSection.firstChild);
+            }
         }
-    } catch(e) {
-        alert('Failed to load history: ' + e.message);
+    } catch (e) {
+        alert('Failed to load session details: ' + e.message);
     }
 }
 
@@ -1535,6 +1563,169 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
+
+// ========== Writing ==========
+
+async function startWritingMode(taskType) {
+    resetFreePracticeSetup();
+    state.mode = 'writing';
+    state.writingTaskType = taskType;
+    state.writingPromptId = null;
+
+    document.getElementById('modeSelector').classList.add('hidden');
+    document.getElementById('examFlow').classList.add('hidden');
+    document.getElementById('writingFlow').classList.remove('hidden');
+
+    document.getElementById('writingPromptSection').classList.remove('hidden');
+    document.getElementById('writingScoreSection').classList.add('hidden');
+    document.getElementById('writingEssayInput').value = '';
+    document.getElementById('writingWordCount').textContent = '0';
+    
+    document.getElementById('writingTaskTitle').innerText = taskType === 'task1' ? 'Writing Task 1' : 'Writing Task 2';
+    document.getElementById('writingTaskIcon').innerText = taskType === 'task1' ? '📊' : '✍️';
+    document.getElementById('writingPromptText').innerHTML = '<span class="spinner" style="display:inline-block;width:16px;height:16px;border-width:2px;margin-right:8px;"></span>Loading prompt...';
+
+    const btn = document.getElementById('btnSubmitWriting');
+    btn.disabled = true;
+
+    try {
+        const prompt = await api(`/api/writing/prompts/random?task_type=${taskType}`);
+        state.writingPromptId = prompt.id;
+        document.getElementById('writingPromptText').textContent = prompt.prompt_text;
+        btn.disabled = false;
+        
+        document.getElementById('writingEssayInput').addEventListener('input', updateWritingWordCount);
+    } catch (e) {
+        document.getElementById('writingPromptText').textContent = 'Failed to load prompt: ' + e.message;
+    }
+}
+
+function updateWritingWordCount() {
+    const text = document.getElementById('writingEssayInput').value.trim();
+    const count = text ? text.split(/\s+/).length : 0;
+    document.getElementById('writingWordCount').textContent = count;
+}
+
+async function submitWriting() {
+    const essayText = document.getElementById('writingEssayInput').value.trim();
+    if (!essayText) {
+        alert('Please write an essay before submitting.');
+        return;
+    }
+
+    const btn = document.getElementById('btnSubmitWriting');
+    btn.disabled = true;
+    
+    document.getElementById('writingPromptSection').classList.add('hidden');
+    document.getElementById('writingScoreSection').classList.remove('hidden');
+    document.getElementById('writingScoringLoader').classList.remove('hidden');
+    document.getElementById('writingScoreResults').classList.add('hidden');
+
+    try {
+        const payload = {
+            prompt_id: state.writingPromptId,
+            essay_text: essayText
+        };
+        const attempt = await api('/api/writing/attempts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        renderWritingResult(attempt);
+    } catch (e) {
+        document.getElementById('writingScoringLoader').innerHTML = `
+            <div style="text-align:center; color:var(--accent-red);">
+                <p style="font-size:1.5rem; margin-bottom:12px;">X</p>
+                <p style="font-weight:600;">Submission Failed</p>
+                <p style="font-size:0.85rem; color:var(--text-muted); margin-top:8px;">${e.message}</p>
+                <button class="btn btn-ghost" style="margin-top:16px;" onclick="backToHome()">Try Again</button>
+            </div>`;
+    }
+}
+
+function renderWritingResult(result) {
+    document.getElementById('writingScoringLoader').classList.add('hidden');
+    document.getElementById('writingScoreResults').classList.remove('hidden');
+    document.getElementById('writingScoreResults').classList.add('fade-in');
+
+    const scores = result.scores || {};
+    const feedback = result.feedback || {};
+    const improvements = result.key_improvements || [];
+    const sample = result.sample_answer || '';
+    
+    const isTask1 = result.task_type === 'task1';
+    const taLabel = isTask1 ? 'Task Achievement' : 'Task Response';
+
+    const items = [
+        { label: taLabel, key: 'task', icon: '📝' },
+        { label: 'Coherence & Cohesion', key: 'coherence', icon: '🔗' },
+        { label: 'Lexical Resource', key: 'lexical', icon: '📚' },
+        { label: 'Grammar', key: 'grammar', icon: '✍️' },
+    ];
+
+    let grid = '';
+    for (const { label, key, icon } of items) {
+        const val = scores[key] ?? 0;
+        const cls = val >= 7 ? 'high' : val >= 5.5 ? 'mid' : 'low';
+        grid += `<div class="score-item">
+            <div class="score-label">${icon} ${label}</div>
+            <div class="score-value ${cls}">${val.toFixed(1)}</div>
+        </div>`;
+    }
+    const overall = scores.overall ?? 0;
+    grid += `<div class="score-item overall">
+        <div class="score-label">Overall Band Score</div>
+        <div class="score-value ${overall >= 7 ? 'high' : overall >= 5.5 ? 'mid' : 'low'}">${overall.toFixed(1)}</div>
+    </div>`;
+    
+    document.getElementById('writingScoresGrid').innerHTML = grid;
+
+    document.getElementById('writingEssayDisplay').textContent = result.essay_text || '';
+
+    let fbHtml = '';
+    
+    if (result.prompt) {
+        const promptText = typeof result.prompt === 'object' ? result.prompt.prompt_text : result.prompt;
+        fbHtml += `
+            <div class="feedback-item">
+                <h3>Prompt</h3>
+                <p style="white-space: pre-wrap;">${escapeHtml(promptText)}</p>
+            </div>`;
+    }
+
+    const FEEDBACK_LABELS = [
+        ['task', taLabel],
+        ['coherence', 'Coherence & Cohesion'],
+        ['lexical', 'Lexical Resource'],
+        ['grammar', 'Grammatical Range & Accuracy'],
+        ['overall', 'Overall Feedback'],
+    ];
+
+    for (const [key, label] of FEEDBACK_LABELS) {
+        if (feedback[key]) fbHtml += `
+            <div class="feedback-item">
+                <h3>${label}</h3>
+                <p>${escapeHtml(feedback[key])}</p>
+            </div>`;
+    }
+
+    if (improvements.length > 0) fbHtml += `
+        <div class="feedback-item">
+            <h3>Key Improvements</h3>
+            <ul class="improvements-list">
+                ${improvements.map(i => `<li>${escapeHtml(i)}</li>`).join('')}
+            </ul>
+        </div>`;
+        
+    if (sample) fbHtml += `
+        <div class="sample-answer">
+            <h3>Band 7+ Sample Answer</h3>
+            <p style="white-space: pre-wrap;">${escapeHtml(sample)}</p>
+        </div>`;
+
+    document.getElementById('writingFeedbackSection').innerHTML = fbHtml;
+}
 
 // ========== Free Practice Library ==========
 async function loadFpTopics() {
