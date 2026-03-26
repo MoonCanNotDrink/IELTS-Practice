@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 
-const ROUTES = ['/', '/history'];
+const ROUTES = ['/', '/history', '/speaking', '/writing'];
 
 for (const route of ROUTES) {
     test.describe(`auth register modal ${route}`, () => {

@@ -22,7 +22,7 @@ test('audio examiner falls back to browser speech when server tts is unavailable
         });
     });
 
-    await page.goto('/');
+    await page.goto('/speaking');
     await page.evaluate(() => {
         const toggle = document.getElementById('audioModeToggle');
         toggle.checked = true;

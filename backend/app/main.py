@@ -86,6 +86,30 @@ async def serve_history():
     return {"message": "History page not found"}
 
 
+@app.get("/speaking", include_in_schema=False)
+async def serve_speaking():
+    speaking_path = FRONTEND_DIR / "speaking.html"
+    if speaking_path.exists():
+        return FileResponse(
+            str(speaking_path),
+            media_type="text/html; charset=utf-8",
+            headers={"Cache-Control": "no-store, max-age=0"},
+        )
+    return {"message": "Speaking page not found"}
+
+
+@app.get("/writing", include_in_schema=False)
+async def serve_writing():
+    writing_path = FRONTEND_DIR / "writing.html"
+    if writing_path.exists():
+        return FileResponse(
+            str(writing_path),
+            media_type="text/html; charset=utf-8",
+            headers={"Cache-Control": "no-store, max-age=0"},
+        )
+    return {"message": "Writing page not found"}
+
+
 @app.get("/", include_in_schema=False)
 async def serve_index():
     index_path = FRONTEND_DIR / "index.html"

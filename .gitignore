@@ -56,3 +56,4 @@ Thumbs.db
 
 # Old tkinter app (archived)
 ielts_app.py
+.tmp/

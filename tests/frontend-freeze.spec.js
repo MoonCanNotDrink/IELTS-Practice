@@ -1,54 +1,34 @@
 const { test, expect } = require('@playwright/test');
 
-test('homepage remains interactive after a DOM mutation', async ({ page }) => {
-    const consoleErrors = [];
+test('landing page shows speaking and writing entry links without SPA controls', async ({ page }) => {
     const pageErrors = [];
     const failedRequests = [];
 
-    page.on('console', (message) => {
-        if (message.type() === 'error') {
-            if (message.text().includes('fonts.googleapis.com') || message.text().includes('ERR_CONNECTION_CLOSED')) {
-                return;
-            }
-            consoleErrors.push(message.text());
-        }
-    });
     page.on('pageerror', (error) => {
         pageErrors.push(error.message);
     });
     page.on('requestfailed', (request) => {
-        if (request.url().startsWith('https://fonts.googleapis.com/')) {
-            return;
-        }
-        failedRequests.push({
-            url: request.url(),
-            errorText: request.failure()?.errorText || 'unknown',
-        });
+        if (request.url().startsWith('https://fonts.googleapis.com/')) return;
+        failedRequests.push({ url: request.url(), errorText: request.failure()?.errorText || 'unknown' });
     });
 
     await page.goto('/');
 
-    await expect(page.locator('#modeSelector')).toBeVisible();
+    await expect(page.locator('a[href="/speaking"]')).toBeVisible();
+    await expect(page.locator('a[href="/writing"]')).toBeVisible();
 
-    await page.evaluate(() => {
-        const marker = document.createElement('span');
-        marker.id = 'dom-mutation-marker';
-        marker.textContent = 'mutated';
-        document.getElementById('historyContent').appendChild(marker);
-    });
+    await expect(page.locator('#btnFullExam')).toHaveCount(0);
+    await expect(page.locator('#modeSelector')).toHaveCount(0);
+    await expect(page.locator('#examFlow')).toHaveCount(0);
+    await expect(page.locator('#writingFlow')).toHaveCount(0);
 
-    await page.evaluate(() => {
-        document.body.dataset.afterMutation = 'ok';
-    });
-
-    await expect(page.locator('body')).toHaveAttribute('data-after-mutation', 'ok');
-    await expect(page.locator('#dom-mutation-marker')).toHaveText('mutated');
-
-    await page.locator('#btnFullExam').click();
-
-    await expect(page.locator('#examFlow')).toBeVisible();
-    await expect(page.locator('#modeSelector')).toHaveClass(/hidden/);
     expect(pageErrors).toEqual([]);
     expect(failedRequests).toEqual([]);
-    expect(consoleErrors).toEqual([]);
+
+    await page.locator('a[href="/speaking"]').click();
+    await expect(page).toHaveURL(/\/speaking/);
+
+    await page.goto('/');
+    await page.locator('a[href="/writing"]').click();
+    await expect(page).toHaveURL(/\/writing/);
 });

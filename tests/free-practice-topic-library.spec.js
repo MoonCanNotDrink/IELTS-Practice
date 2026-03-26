@@ -40,9 +40,6 @@ function stubRecording(page) {
 
 function routeCommonEndpoints(page, libraryPayload = LIBRARY_RESPONSE) {
     return Promise.all([
-        page.route('**/api/dashboard/history?limit=5', (route) =>
-            route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
-        ),
         page.route('**/api/part2/free-practice-topics', async (route) => {
             await route.fulfill({
                 status: 200,
@@ -54,7 +51,7 @@ function routeCommonEndpoints(page, libraryPayload = LIBRARY_RESPONSE) {
 }
 
 async function openFreePracticePanel(page) {
-    await page.goto('/');
+    await page.goto('/speaking');
     await page.locator('#btnFreePractice').click();
     await expect(page.locator('#freePracticePanel')).toBeVisible();
 }
@@ -72,15 +69,17 @@ async function selectTopicOption(page, optionText) {
 test.describe('free-practice topic library', () => {
     test('history titles are rendered as plain text instead of HTML markup', async ({ page }) => {
         await addCommonInitScript(page);
-        await page.route('**/api/dashboard/history?limit=5', (route) =>
+        await page.route('**/api/dashboard/history**', (route) =>
             route.fulfill({
                 status: 200,
                 contentType: 'application/json',
                 body: JSON.stringify([
                     {
                         session_id: 1,
-                        topic_title: '<strong>Unsafe history title</strong>',
+                        title: '<strong>Unsafe history title</strong>',
                         date: '2026-03-19T10:00:00Z',
+                        module_type: 'speaking',
+                        task_type: 'part2_only',
                         scores: { overall: 6.5 },
                     },
                 ]),
@@ -94,11 +93,11 @@ test.describe('free-practice topic library', () => {
             });
         });
 
-        await page.goto('/');
+        await page.goto('/history');
 
-        const historyItem = page.locator('#historyContent > div').first();
+        const historyItem = page.locator('#historyList > div').first();
         await expect(historyItem).toContainText('<strong>Unsafe history title</strong>');
-        await expect(page.locator('#historyContent strong')).toHaveCount(0);
+        await expect(page.locator('#historyList strong')).toHaveCount(0);
     });
 
     test('grouped custom dropdown renders official and saved topic sections', async ({ page }) => {

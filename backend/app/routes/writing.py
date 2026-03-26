@@ -1,5 +1,6 @@
 import json
 from datetime import datetime
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -25,7 +26,7 @@ def normalize_task_type(task_type: str) -> str:
 
 
 def assert_attempt_access(attempt: WritingAttempt, current_user: User) -> None:
-    if attempt.user_id != current_user.id:
+    if cast(Any, attempt.user_id) != current_user.id:
         raise HTTPException(status_code=403, detail="You do not have access to this writing attempt")
 
 
@@ -58,14 +59,14 @@ def serialize_prompt(prompt: WritingPrompt) -> dict:
 
 
 def serialize_attempt_detail(attempt: WritingAttempt) -> dict:
-    feedback = parse_feedback_blob(attempt.feedback) or {}
-    scoring_status, scoring_error, scoring_error_detail = feedback_error_info(attempt.feedback)
+    feedback = parse_feedback_blob(cast(str | None, attempt.feedback)) or {}
+    scoring_status, scoring_error, scoring_error_detail = feedback_error_info(cast(str | None, attempt.feedback))
     return {
         "attempt_id": attempt.id,
         "module_type": "writing",
         "task_type": attempt.task_type,
         "title": attempt.prompt_title,
-        "date": attempt.completed_at.isoformat() if attempt.completed_at else None,
+        "date": (lambda dt: dt.isoformat() if dt else None)(cast(Any, attempt.completed_at)),
         "status": "completed",
         "scoring_status": scoring_status,
         "scoring_error": scoring_error,
@@ -97,7 +98,9 @@ def serialize_attempt_detail(attempt: WritingAttempt) -> dict:
 
 
 class CreateWritingAttemptRequest(BaseModel):
-    prompt_id: int
+    prompt_id: int | None = None
+    custom_prompt: str | None = None
+    custom_task_type: str | None = None
     essay_text: str
 
 
@@ -120,6 +123,21 @@ async def get_random_prompt(
     return serialize_prompt(prompt)
 
 
+@router.get("/prompts")
+async def list_prompts(
+    task_type: str | None = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if task_type:
+        normalized = normalize_task_type(task_type)
+        result = await db.execute(select(WritingPrompt).where(WritingPrompt.task_type == normalized))
+    else:
+        result = await db.execute(select(WritingPrompt))
+    prompts = result.scalars().all()
+    return [serialize_prompt(p) for p in prompts]
+
+
 @router.post("/attempts")
 async def create_writing_attempt(
     body: CreateWritingAttemptRequest,
@@ -132,15 +150,38 @@ async def create_writing_attempt(
     if len(essay_text) > MAX_ESSAY_CHARACTERS:
         raise HTTPException(status_code=400, detail=f"essay_text exceeds the {MAX_ESSAY_CHARACTERS} character limit")
 
-    prompt = await db.get(WritingPrompt, body.prompt_id)
-    if not prompt:
-        raise HTTPException(status_code=404, detail="Writing prompt not found")
+    prompt = None
+    prompt_title = None
+    prompt_text = None
+    prompt_task_type = None
+    prompt_details = None
+
+    if body.prompt_id is not None:
+        prompt = await db.get(WritingPrompt, body.prompt_id)
+        if not prompt:
+            raise HTTPException(status_code=404, detail="Writing prompt not found")
+        prompt_title = prompt.title
+        prompt_text = prompt.prompt_text
+        prompt_task_type = prompt.task_type
+        prompt_details = prompt.prompt_details
+    elif body.custom_prompt:
+        if not body.custom_task_type:
+            raise HTTPException(status_code=400, detail="custom_task_type is required for custom prompts")
+        prompt_task_type = normalize_task_type(body.custom_task_type)
+        prompt_title = body.custom_prompt
+        prompt_text = body.custom_prompt
+        prompt_details = {}
+    else:
+        raise HTTPException(status_code=400, detail="Either prompt_id or custom_prompt must be provided")
 
     word_count = len([token for token in essay_text.split() if token.strip()])
+    task_type_arg = cast(str, prompt_task_type)
+    prompt_title_arg = cast(str, prompt_title)
+    prompt_text_arg = cast(str, prompt_text)
     score_result = await score_writing(
-        task_type=prompt.task_type,
-        prompt_title=prompt.title,
-        prompt_text=prompt.prompt_text,
+        task_type=task_type_arg,
+        prompt_title=prompt_title_arg,
+        prompt_text=prompt_text_arg,
         essay_text=essay_text,
     )
 
@@ -164,11 +205,11 @@ async def create_writing_attempt(
 
     attempt = WritingAttempt(
         user_id=current_user.id,
-        prompt_id=prompt.id,
-        task_type=prompt.task_type,
-        prompt_title=prompt.title,
-        prompt_text=prompt.prompt_text,
-        prompt_details=prompt.prompt_details,
+        prompt_id=(prompt.id if prompt else None),
+        task_type=prompt_task_type,
+        prompt_title=prompt_title,
+        prompt_text=prompt_text,
+        prompt_details=prompt_details,
         essay_text=essay_text,
         word_count=word_count,
         task_score=score_result.get("task_score", 0.0),

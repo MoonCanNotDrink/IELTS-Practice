@@ -19,7 +19,7 @@ test('completes a Writing Task 1 flow', async ({ page }) => {
                 task_type: 'task1',
                 prompt: 'The chart below shows the number of men and women in further education in Britain...',
                 essay_text: 'This is a test essay for Task 1. It has a few words.',
-                word_count: 12,
+                word_count: 13,
                 scores: {
                     task: 6.5,
                     coherence: 7.0,
@@ -40,28 +40,23 @@ test('completes a Writing Task 1 flow', async ({ page }) => {
         });
     });
 
-    await page.route('/api/dashboard/history?limit=5', async route => {
-        await route.fulfill({ json: [] });
-    });
-
     await page.addInitScript(() => {
         localStorage.setItem('ielts_token', 'fake-token');
     });
 
-    await page.goto('/');
+    await page.goto('/writing');
 
-    await expect(page.locator('#modeSelector')).toBeVisible();
+    await expect(page.locator('#btnWritingTask1')).toBeVisible();
     
     await page.locator('#btnWritingTask1').click();
     
-    await expect(page.locator('#modeSelector')).toHaveClass(/hidden/);
     await expect(page.locator('#writingFlow')).not.toHaveClass(/hidden/);
     await expect(page.locator('#writingPromptSection')).not.toHaveClass(/hidden/);
 
     await expect(page.locator('#writingPromptText')).toHaveText('The chart below shows the number of men and women in further education in Britain...');
 
     await page.locator('#writingEssayInput').fill('This is a test essay for Task 1. It has a few words.');
-    await expect(page.locator('#writingWordCount')).toHaveText('12');
+    await expect(page.locator('#writingWordCount')).toHaveText('13');
 
     await page.locator('#btnSubmitWriting').click();
 

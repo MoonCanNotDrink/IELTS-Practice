@@ -209,6 +209,13 @@ const state = {
     // Writing
     writingTaskType: null,
     writingPromptId: null,
+    writingFpMode: 'library',
+    writingFpCustomTaskType: 'task2',
+    writingFpTopicLibrary: { prompts: [], loaded: false, loading: false },
+    writingFpSelectedPromptId: null,
+    writingFpTimerMinutes: 0,
+    writingTimerInterval: null,
+    writingFpCustomPrompt: null,
 };
 
 // ========== API & Auth ==========
@@ -573,60 +580,18 @@ function stopActiveCapture() {
 }
 
 function interruptPractice() {
-    if (state.phase === 'home') return;
+    if (state.phase === 'home' && state.mode !== 'writing') return;
     const confirmed = window.confirm('Stop current practice and return to home? Current progress will be discarded.');
     if (!confirmed) return;
+    stopWritingTimer();
     backToHome();
 }
 function backToHome() {
     clearTimer();
     stopActiveCapture();
     stopExaminerAudio();
-    Object.assign(state, {
-        mode: null, sessionId: null, topic: null, phase: 'home',
-        part1Questions: [], part1Topic: '', part1Index: 0,
-        part3Questions: [], part3Category: '', part3Index: 0,
-        part2SpeakingSeconds: DEFAULT_PART2_SPEAKING_SECONDS,
-        part2QuestionText: '',
-        audioChunks: [], isRecording: false,
-        clientTranscripts: { part1: '', part2: '', part3: '' },
-        transcripts: { part1: '', part2: '', part3: '' },
-    });
-
-    document.getElementById('modeSelector').classList.remove('hidden');
-    document.getElementById('examFlow').classList.add('hidden');
-    document.getElementById('writingFlow').classList.add('hidden');
-
-    // Reset UI elements
-    document.getElementById('topicContent').innerHTML = `
-        <div class="empty-state"><span class="big-icon">${UI_TEXT.topicIcon}</span>
-        <p>Draw a random Part 2 topic to begin your mock exam</p></div>`;
-    setHtml('btnDrawTopic', UI_TEXT.drawTopicStart);
-    document.getElementById('btnDrawTopic').disabled = false;
-    document.getElementById('notesInput').value = '';
-    document.getElementById('part2Timer').textContent = '01:00';
-    document.getElementById('part2Timer').classList.remove('warning', 'danger');
-    document.getElementById('part2CueTitle').textContent = 'Part 2 - Cue Card';
-    document.getElementById('part1Transcript').classList.add('hidden');
-    document.getElementById('part3Transcript').classList.add('hidden');
-    document.getElementById('p1RecordingIndicator').classList.add('hidden');
-    document.getElementById('p2RecordingIndicator').classList.add('hidden');
-    document.getElementById('p3RecordingIndicator').classList.add('hidden');
-    document.getElementById('btnP1Record').disabled = false;
-    setHtml('btnP1Record', UI_TEXT.answerQuestion);
-    document.getElementById('btnP3Record').disabled = false;
-    setHtml('btnP3Record', UI_TEXT.answerQuestion);
-    document.querySelectorAll('#scoreSection .history-back-btn').forEach((btn) => {
-        btn.remove();
-    });
-    const flowBanner = document.getElementById('flowStatusBanner');
-    if (flowBanner) {
-        flowBanner.classList.add('hidden');
-        flowBanner.innerHTML = '';
-    }
-
-    resetFreePracticeSetup();
-    loadHistory();
+    stopWritingTimer();
+    window.location.href = '/';
 }
 
 // ========== Phase Management ==========
@@ -1545,9 +1510,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ========== Init ==========
 document.addEventListener('DOMContentLoaded', () => {
-    setPhase('home');
+    if (document.getElementById('examFlow')) {
+        setPhase('home');
+    }
     initThemeMode();
-    resetFreePracticeSetup();
+    if (document.getElementById('freePracticePanel')) {
+        resetFreePracticeSetup();
+    }
     const audioToggle = document.getElementById('audioModeToggle');
     if (audioToggle) {
         audioToggle.checked = false;
@@ -1557,7 +1526,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-    loadHistory();
+    if (document.getElementById('historyContent')) {
+        loadHistory();
+    }
     console.log('IELTS Speaking Practice v0.2.9 initialized');
 });
 
@@ -1573,7 +1544,7 @@ async function startWritingMode(taskType) {
     state.writingPromptId = null;
 
     document.getElementById('modeSelector').classList.add('hidden');
-    document.getElementById('examFlow').classList.add('hidden');
+    document.getElementById('examFlow')?.classList.add('hidden');
     document.getElementById('writingFlow').classList.remove('hidden');
 
     document.getElementById('writingPromptSection').classList.remove('hidden');
@@ -1615,6 +1586,7 @@ async function submitWriting() {
 
     const btn = document.getElementById('btnSubmitWriting');
     btn.disabled = true;
+    stopWritingTimer();
     
     document.getElementById('writingPromptSection').classList.add('hidden');
     document.getElementById('writingScoreSection').classList.remove('hidden');
@@ -1622,10 +1594,17 @@ async function submitWriting() {
     document.getElementById('writingScoreResults').classList.add('hidden');
 
     try {
-        const payload = {
-            prompt_id: state.writingPromptId,
-            essay_text: essayText
-        };
+        const payload = { essay_text: essayText };
+        if (state.writingPromptId) {
+            payload.prompt_id = state.writingPromptId;
+        } else if (state.writingFpCustomPrompt) {
+            payload.custom_prompt = state.writingFpCustomPrompt;
+            payload.custom_task_type = state.writingFpCustomTaskType;
+        } else if (state.writingPromptId === null && !state.writingFpCustomPrompt) {
+            // Fallback: shouldn't happen, but handle gracefully
+            payload.prompt_id = state.writingPromptId;
+        }
+
         const attempt = await api('/api/writing/attempts', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1725,6 +1704,213 @@ function renderWritingResult(result) {
         </div>`;
 
     document.getElementById('writingFeedbackSection').innerHTML = fbHtml;
+}
+
+// ========== Writing Free Practice ==========
+
+function showWritingFreePracticeSetup() {
+    const panel = document.getElementById('writingFreePracticePanel');
+    if (!panel) return;
+    panel.classList.remove('hidden');
+    clearWritingFpError();
+    loadWritingFpTopics();
+    setWfpType('library');
+}
+
+function hideWritingFreePracticeSetup() {
+    const panel = document.getElementById('writingFreePracticePanel');
+    if (panel) panel.classList.add('hidden');
+    clearWritingFpError();
+}
+
+function clearWritingFpError() {
+    const el = document.getElementById('writingFpError');
+    if (el) { el.textContent = ''; el.classList.add('hidden'); }
+}
+
+function showWritingFpError(msg) {
+    const el = document.getElementById('writingFpError');
+    if (el) { el.textContent = msg; el.classList.remove('hidden'); }
+}
+
+function setWfpType(type) {
+    state.writingFpMode = type;
+    document.querySelectorAll('#wfpTypeToggle .btn').forEach(b => b.classList.remove('active'));
+    const active = document.querySelector(`#wfpTypeToggle .btn[data-target="${type}"]`);
+    if (active) active.classList.add('active');
+    
+    const libView = document.getElementById('wfp-library-view');
+    const customView = document.getElementById('wfp-custom-view');
+    if (libView) { libView.classList.toggle('hidden', type !== 'library'); libView.classList.toggle('active', type === 'library'); }
+    if (customView) { customView.classList.toggle('hidden', type !== 'custom'); customView.classList.toggle('active', type === 'custom'); }
+}
+
+function setWfpCustomTaskType(taskType) {
+    state.writingFpCustomTaskType = taskType;
+    const btn1 = document.getElementById('wfpCustomTask1Btn');
+    const btn2 = document.getElementById('wfpCustomTask2Btn');
+    if (btn1) btn1.classList.toggle('is-selected', taskType === 'task1');
+    if (btn2) btn2.classList.toggle('is-selected', taskType === 'task2');
+}
+
+function setWfpTimer(minutes) {
+    state.writingFpTimerMinutes = minutes;
+    document.querySelectorAll('[data-wfp-timer]').forEach(btn => {
+        btn.classList.toggle('is-selected', Number(btn.dataset.minutes) === minutes);
+    });
+}
+
+async function loadWritingFpTopics() {
+    const lib = state.writingFpTopicLibrary;
+    if (lib.loaded || lib.loading) return;
+    lib.loading = true;
+    
+    const select = document.getElementById('writingFpTopicSelect');
+    if (select) select.innerHTML = '<option value="">Loading prompts...</option>';
+    
+    try {
+        const prompts = await api('/api/writing/prompts');
+        lib.prompts = prompts || [];
+        lib.loaded = true;
+        renderWritingFpTopicOptions();
+    } catch (err) {
+        console.error('Failed to load writing prompts', err);
+        if (select) select.innerHTML = '<option value="">Failed to load prompts</option>';
+    } finally {
+        lib.loading = false;
+    }
+}
+
+function renderWritingFpTopicOptions() {
+    const select = document.getElementById('writingFpTopicSelect');
+    if (!select) return;
+    const prompts = state.writingFpTopicLibrary.prompts;
+    if (prompts.length === 0) {
+        select.innerHTML = '<option value="">No prompts available</option>';
+        return;
+    }
+    let html = '<option value="">Select a prompt...</option>';
+    const task1 = prompts.filter(p => p.task_type === 'task1');
+    const task2 = prompts.filter(p => p.task_type === 'task2');
+    if (task1.length) {
+        html += '<optgroup label="Task 1">';
+        for (const p of task1) html += `<option value="${p.id}">${escapeHtml(p.title || p.prompt_text)}</option>`;
+        html += '</optgroup>';
+    }
+    if (task2.length) {
+        html += '<optgroup label="Task 2">';
+        for (const p of task2) html += `<option value="${p.id}">${escapeHtml(p.title || p.prompt_text)}</option>`;
+        html += '</optgroup>';
+    }
+    select.innerHTML = html;
+}
+
+async function startWritingFreePractice() {
+    clearWritingFpError();
+    const startBtn = document.getElementById('btnStartWritingFreePractice');
+
+    let promptText = '';
+    let promptId = null;
+    let customPrompt = null;
+    let customTaskType = null;
+    let taskType = null;
+
+    if (state.writingFpMode === 'library') {
+        const select = document.getElementById('writingFpTopicSelect');
+        const selectedId = select ? Number(select.value) : null;
+        if (!selectedId) {
+            showWritingFpError('Please select a prompt from the library, or switch to "Write My Own".');
+            return;
+        }
+        promptId = selectedId;
+        const prompt = state.writingFpTopicLibrary.prompts.find(p => p.id === selectedId);
+        promptText = prompt ? prompt.prompt_text : '';
+        taskType = prompt ? prompt.task_type : 'task2';
+    } else {
+        const textarea = document.getElementById('writingFpCustomPrompt');
+        const text = textarea ? textarea.value.trim() : '';
+        if (!text) {
+            showWritingFpError('Enter a custom prompt to start free practice.');
+            return;
+        }
+        customPrompt = text;
+        customTaskType = state.writingFpCustomTaskType;
+        taskType = customTaskType;
+        promptText = text;
+    }
+
+    // Set up the writing flow UI
+    state.mode = 'writing';
+    state.writingTaskType = taskType;
+    state.writingPromptId = promptId;
+
+    document.getElementById('modeSelector').classList.add('hidden');
+    document.getElementById('writingFlow').classList.remove('hidden');
+    document.getElementById('writingPromptSection').classList.remove('hidden');
+    document.getElementById('writingScoreSection').classList.add('hidden');
+    document.getElementById('writingEssayInput').value = '';
+    document.getElementById('writingWordCount').textContent = '0';
+
+    const isTask1 = taskType === 'task1';
+    document.getElementById('writingTaskTitle').innerText = isTask1 ? 'Writing Task 1' : 'Writing Task 2';
+    document.getElementById('writingTaskIcon').innerText = isTask1 ? '📊' : '✍️';
+
+    if (promptId) {
+        // Library prompt — show the prompt text directly
+        document.getElementById('writingPromptText').textContent = promptText;
+    } else {
+        // Custom prompt — show user's own prompt
+        document.getElementById('writingPromptText').textContent = promptText;
+    }
+
+    // Store custom prompt info for submission
+    state.writingFpCustomPrompt = customPrompt;
+    state.writingFpCustomTaskType = customTaskType || taskType;
+
+    document.getElementById('btnSubmitWriting').disabled = false;
+    document.getElementById('writingEssayInput').addEventListener('input', updateWritingWordCount);
+
+    // Timer setup
+    if (state.writingFpTimerMinutes > 0) {
+        startWritingTimer(state.writingFpTimerMinutes * 60);
+    }
+}
+
+function startWritingTimer(totalSeconds) {
+    const existing = document.getElementById('writingTimerDisplay');
+    if (existing) existing.remove();
+    
+    const timerDiv = document.createElement('div');
+    timerDiv.id = 'writingTimerDisplay';
+    timerDiv.style.cssText = 'text-align:center; font-size:1.5rem; font-weight:700; color:var(--accent-blue); margin-bottom:16px; font-variant-numeric:tabular-nums;';
+    
+    const promptSection = document.getElementById('writingPromptSection');
+    if (promptSection) promptSection.parentNode.insertBefore(timerDiv, promptSection);
+
+    let remaining = totalSeconds;
+    function tick() {
+        const m = Math.floor(remaining / 60);
+        const s = remaining % 60;
+        timerDiv.textContent = `⏱ ${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        if (remaining <= 0) {
+            timerDiv.textContent = '⏱ Time is up!';
+            timerDiv.style.color = 'var(--accent-red)';
+            clearInterval(state.writingTimerInterval);
+            return;
+        }
+        remaining--;
+    }
+    tick();
+    state.writingTimerInterval = setInterval(tick, 1000);
+}
+
+function stopWritingTimer() {
+    if (state.writingTimerInterval) {
+        clearInterval(state.writingTimerInterval);
+        state.writingTimerInterval = null;
+    }
+    const el = document.getElementById('writingTimerDisplay');
+    if (el) el.remove();
 }
 
 // ========== Free Practice Library ==========

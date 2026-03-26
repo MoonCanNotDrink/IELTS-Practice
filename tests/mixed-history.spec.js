@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 
-test('renders mixed speaking and writing history on homepage and history page', async ({ page }) => {
+test('renders mixed speaking and writing history on history page', async ({ page }) => {
     const mockHistory = [
         {
             id: 1,
@@ -24,24 +24,13 @@ test('renders mixed speaking and writing history on homepage and history page', 
         }
     ];
 
-    await page.route('/api/dashboard/history?limit=5', async route => {
-        await route.fulfill({ json: mockHistory });
-    });
-
-    await page.route('/api/dashboard/history?limit=20', async route => {
+    await page.route('**/api/dashboard/history**', async route => {
         await route.fulfill({ json: mockHistory });
     });
 
     await page.addInitScript(() => {
         localStorage.setItem('ielts_token', 'fake-token');
     });
-
-    await page.goto('/');
-
-    await expect(page.locator('#historyContent')).toContainText('Writing Task 1 - Bar Chart');
-    await expect(page.locator('#historyContent')).toContainText('6.5');
-    await expect(page.locator('#historyContent')).toContainText('Speaking Full Exam');
-    await expect(page.locator('#historyContent')).toContainText('7.0');
 
     await page.goto('/history');
 
