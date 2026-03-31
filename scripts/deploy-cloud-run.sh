@@ -116,3 +116,43 @@ gcloud run deploy "$SERVICE_NAME" \
   --update-env-vars="$ENV_VARS" \
   --update-secrets="$SECRET_VARS" \
   --quiet
+
+echo ""
+echo "Running post-deploy smoke checks..."
+SMOKE_MAX_RETRIES=15
+SMOKE_RETRY_INTERVAL=4
+
+smoke_check() {
+  local url="$1"
+  local label="$2"
+
+  for i in $(seq 1 "$SMOKE_MAX_RETRIES"); do
+    HTTP_CODE="$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$url" 2>/dev/null || echo "000")"
+    if [[ "$HTTP_CODE" == "200" ]]; then
+      printf '  [OK] %s (%s) - HTTP %s\n' "$label" "$url" "$HTTP_CODE"
+      return 0
+    fi
+
+    if [[ "$i" -eq "$SMOKE_MAX_RETRIES" ]]; then
+      printf '  [FAIL] %s (%s) - HTTP %s after %s attempts\n' "$label" "$url" "$HTTP_CODE" "$SMOKE_MAX_RETRIES" >&2
+      return 1
+    fi
+
+    printf '  ... %s - attempt %s/%s (HTTP %s), retrying in %ss\n' "$label" "$i" "$SMOKE_MAX_RETRIES" "$HTTP_CODE" "$SMOKE_RETRY_INTERVAL"
+    sleep "$SMOKE_RETRY_INTERVAL"
+  done
+}
+
+SMOKE_FAILED=0
+smoke_check "${APP_BASE_URL}/api/health" "Health endpoint" || SMOKE_FAILED=1
+smoke_check "${APP_BASE_URL}/" "Homepage" || SMOKE_FAILED=1
+
+if [[ "$SMOKE_FAILED" -ne 0 ]]; then
+  echo ""
+  echo "ERROR: One or more smoke checks failed. The service may not be healthy." >&2
+  echo "Check Cloud Run logs: gcloud run services logs read $SERVICE_NAME --region=$REGION --limit=50" >&2
+  exit 1
+fi
+
+echo ""
+echo "All smoke checks passed. Deployment complete."
