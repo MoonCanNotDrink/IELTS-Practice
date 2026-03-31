@@ -84,6 +84,14 @@ cd backend
 python -m unittest discover -p 'test*_route*.py' -v
 ```
 
+- Backend smoke test (real app + isolated test DB):
+
+```bash
+corepack pnpm test:backend:smoke
+```
+
+This test boots the real FastAPI app via uvicorn, waits for `/api/health`, then exercises core speaking flow endpoints (register/login, create session, upload audio, score, history/detail). It uses a temporary SQLite DB and recordings directory so local/dev data is not modified.
+
 - Frontend unit tests:
 
 ```bash
