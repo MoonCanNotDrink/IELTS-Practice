@@ -6,7 +6,6 @@
 // ========== Config ==========
 const API_BASE = '';  // Same-origin - FastAPI serves both
 const DEFAULT_PART2_SPEAKING_SECONDS = 120;
-const THEME_MODE_STORAGE_KEY = 'ielts_theme_mode';
 
 const UI_TEXT = {
     topicIcon: '&#127922;',
@@ -26,25 +25,9 @@ const UI_TEXT = {
     startFreePractice: '&#127908; Start Answering',
 };
 
-const THEME_MODE_LABELS = {
-    system: 'System',
-    light: 'Light',
-    dark: 'Dark',
-};
-
 function setHtml(id, html) {
     const el = document.getElementById(id);
     if (el) el.innerHTML = html;
-}
-
-function escapeHtml(value) {
-    return String(value ?? '').replace(/[&<>"']/g, (char) => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#39;',
-    }[char]));
 }
 
 function formatTimerValue(seconds) {
@@ -69,97 +52,6 @@ function formatSpeakingDuration(seconds) {
     if (remainder) parts.push(`${remainder} ${remainder === 1 ? 'second' : 'seconds'}`);
 
     return parts.join(' ');
-}
-
-function buildFreePracticeTopic(prompt, speakingSeconds) {
-    return {
-        title: prompt,
-        categoryLabel: 'Free Practice',
-        introLabel: 'Use this prompt',
-        points: [
-            `Speak for ${formatSpeakingDuration(speakingSeconds)}.`,
-            'Give reasons, examples, and a clear structure in your answer.',
-        ],
-    };
-}
-
-function getSystemTheme() {
-    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-}
-
-function getStoredThemeMode() {
-    const storedMode = localStorage.getItem(THEME_MODE_STORAGE_KEY);
-    return storedMode === 'light' || storedMode === 'dark' || storedMode === 'system'
-        ? storedMode
-        : 'system';
-}
-
-function closeThemeMenu() {
-    const menu = document.getElementById('themeMenu');
-    const trigger = document.getElementById('btnThemeToggle');
-    if (!menu || !trigger) return;
-    menu.classList.add('hidden');
-    trigger.setAttribute('aria-expanded', 'false');
-}
-
-function syncThemeMenuState(mode) {
-    const currentLabel = document.getElementById('currentThemeLabel');
-    if (currentLabel) currentLabel.textContent = THEME_MODE_LABELS[mode] || THEME_MODE_LABELS.system;
-
-    document.querySelectorAll('#themeMenu .theme-option').forEach((option) => {
-        const isActive = option.dataset.themeMode === mode;
-        option.classList.toggle('active', isActive);
-        option.setAttribute('aria-checked', isActive ? 'true' : 'false');
-    });
-}
-
-function applyThemeMode(mode, { persist = true } = {}) {
-    const normalizedMode = mode === 'light' || mode === 'dark' ? mode : 'system';
-    const resolvedTheme = normalizedMode === 'system' ? getSystemTheme() : normalizedMode;
-
-    document.documentElement.dataset.themeMode = normalizedMode;
-    document.documentElement.dataset.theme = resolvedTheme;
-
-    syncThemeMenuState(normalizedMode);
-    if (persist) localStorage.setItem(THEME_MODE_STORAGE_KEY, normalizedMode);
-}
-
-function initThemeMode() {
-    const trigger = document.getElementById('btnThemeToggle');
-    const menu = document.getElementById('themeMenu');
-    if (!trigger || !menu) return;
-
-    applyThemeMode(getStoredThemeMode(), { persist: false });
-
-    trigger.addEventListener('click', (event) => {
-        event.stopPropagation();
-        const isHidden = menu.classList.contains('hidden');
-        menu.classList.toggle('hidden', !isHidden);
-        trigger.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
-    });
-
-    menu.addEventListener('click', (event) => {
-        const option = event.target.closest('.theme-option');
-        if (!option) return;
-        applyThemeMode(option.dataset.themeMode || 'system');
-        closeThemeMenu();
-        trigger.focus();
-    });
-
-    const mediaQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
-    if (mediaQuery) {
-        const handleChange = () => {
-            if ((document.documentElement.dataset.themeMode || 'system') === 'system') {
-                applyThemeMode('system', { persist: false });
-            }
-        };
-
-        if (typeof mediaQuery.addEventListener === 'function') {
-            mediaQuery.addEventListener('change', handleChange);
-        } else if (typeof mediaQuery.addListener === 'function') {
-            mediaQuery.addListener(handleChange);
-        }
-    }
 }
 
 // ========== State ==========
@@ -219,22 +111,72 @@ const state = {
 };
 
 // ========== API & Auth ==========
-async function api(endpoint, options = {}) {
-    const token = localStorage.getItem('ielts_token');
-    if (token) {
-        options.headers = {
-            ...options.headers,
-            'Authorization': `Bearer ${token}`
-        };
+let refreshRequestPromise = null;
+
+async function refreshAccessToken() {
+    if (refreshRequestPromise) return refreshRequestPromise;
+
+    const refreshToken = localStorage.getItem('ielts_refresh_token');
+    if (!refreshToken) {
+        throw new Error('No refresh token available');
     }
 
-    const res = await fetch(endpoint, options);
-    
-    if (res.status === 401 && !endpoint.includes('/auth/')) {
-        showAuth();
-        throw new Error("Please log in to continue.");
+    refreshRequestPromise = (async () => {
+        const res = await fetch('/api/auth/refresh', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refresh_token: refreshToken }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.access_token) {
+            throw new Error(data.detail || 'Token refresh failed');
+        }
+
+        localStorage.setItem('ielts_token', data.access_token);
+        if (data.refresh_token) {
+            localStorage.setItem('ielts_refresh_token', data.refresh_token);
+        }
+
+        return data.access_token;
+    })().finally(() => {
+        refreshRequestPromise = null;
+    });
+
+    return refreshRequestPromise;
+}
+
+async function api(endpoint, options = {}, retryAttempted = false) {
+    const requestOptions = {
+        ...options,
+        headers: {
+            ...(options.headers || {}),
+        },
+    };
+
+    const token = localStorage.getItem('ielts_token');
+    if (token) {
+        requestOptions.headers.Authorization = `Bearer ${token}`;
     }
-    
+
+    const res = await fetch(endpoint, requestOptions);
+
+    if (res.status === 401 && !endpoint.includes('/auth/') && !retryAttempted) {
+        const hasRefreshToken = Boolean(localStorage.getItem('ielts_refresh_token'));
+        if (hasRefreshToken) {
+            try {
+                await refreshAccessToken();
+                return api(endpoint, options, true);
+            } catch {
+                localStorage.removeItem('ielts_token');
+                localStorage.removeItem('ielts_refresh_token');
+            }
+        }
+
+        showAuth();
+        throw new Error('Please log in to continue.');
+    }
+
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.detail || `HTTP ${res.status}`);
@@ -242,289 +184,16 @@ async function api(endpoint, options = {}) {
     return res.json();
 }
 
-let isAuthModeLogin = true;
-
-function setPasswordVisibility(inputId, buttonId, visible) {
-    const input = document.getElementById(inputId);
-    const button = document.getElementById(buttonId);
-    if (!input || !button) return;
-
-    const isVisible = Boolean(visible);
-    input.type = isVisible ? 'text' : 'password';
-    button.textContent = isVisible ? 'Hide' : 'Show';
-    button.setAttribute('aria-pressed', isVisible ? 'true' : 'false');
-    button.setAttribute('aria-label', isVisible
-        ? `Hide ${inputId === 'authConfirmPassword' ? 'password confirmation' : 'password'}`
-        : `Show ${inputId === 'authConfirmPassword' ? 'password confirmation' : 'password'}`);
-}
-
-function resetAuthPasswordVisibility() {
-    setPasswordVisibility('authPassword', 'authPasswordToggle', false);
-    setPasswordVisibility('authConfirmPassword', 'authConfirmPasswordToggle', false);
-}
-
-function togglePasswordVisibility(inputId, buttonId) {
-    const input = document.getElementById(inputId);
-    if (!input) return;
-    setPasswordVisibility(inputId, buttonId, input.type === 'password');
-}
-
-function toggleAuthMode() {
-    isAuthModeLogin = !isAuthModeLogin;
-    document.getElementById('authPassword').setAttribute('autocomplete', isAuthModeLogin ? 'current-password' : 'new-password');
-    document.getElementById('authSubtitle').textContent = isAuthModeLogin ? "Please log in to save your practice history." : "Create an account to track your progress.";
-    document.getElementById('btnSubmitAuth').textContent = isAuthModeLogin ? "Log In" : "Register";
-    document.getElementById('authToggleText').innerHTML = isAuthModeLogin ? 'No account? <a onclick="toggleAuthMode()">Register here</a>' : 'Have an account? <a onclick="toggleAuthMode()">Log in</a>';
-    document.getElementById('inviteCodeGroup').style.display = isAuthModeLogin ? 'none' : 'block';
-    document.getElementById('confirmPasswordGroup').classList.toggle('hidden', isAuthModeLogin);
-    document.getElementById('authPasswordToggle').classList.toggle('hidden', isAuthModeLogin);
-    document.getElementById('authConfirmPassword').value = '';
-    resetAuthPasswordVisibility();
-    document.getElementById('authError').style.display = 'none';
-}
-
-function showAuth() {
-    document.getElementById('authModal').classList.add('show');
-}
-
-function hideAuth() {
-    document.getElementById('authModal').classList.remove('show');
-}
-
-async function submitAuth() {
-    const user = document.getElementById('authUsername').value.trim();
-    const pass = document.getElementById('authPassword').value;
-    const confirmPass = document.getElementById('authConfirmPassword').value;
-    const errEl = document.getElementById('authError');
-    errEl.style.display = 'none';
-
-    if(!user || !pass) {
-        errEl.textContent = 'Please enter username and password.';
-        errEl.style.display = 'block';
-        return;
-    }
-
-    if (!isAuthModeLogin) {
-        if (!confirmPass) {
-            errEl.textContent = 'Please confirm your password.';
-            errEl.style.display = 'block';
-            return;
-        }
-
-        if (pass !== confirmPass) {
-            errEl.textContent = 'Passwords do not match.';
-            errEl.style.display = 'block';
-            return;
-        }
-    }
-
-    try {
-        let res;
-        if (isAuthModeLogin) {
-            const fd = new URLSearchParams();
-            fd.append('username', user);
-            fd.append('password', pass);
-            res = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: fd
-            });
-        } else {
-            const invite = document.getElementById('authInviteCode').value.trim();
-            res = await fetch('/api/auth/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: user, password: pass, invite_code: invite })
-            });
-        }
-        
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || 'Authentication failed');
-
-        localStorage.setItem('ielts_token', data.access_token);
-        hideAuth();
-        document.getElementById('btnLogin').style.display = 'none';
-        document.getElementById('btnLogout').style.display = 'block';
-        // Resume initialization if needed
-        loadHistory();
-    } catch (err) {
-        errEl.textContent = err.message;
-        errEl.style.display = 'block';
-    }
-}
-
-function logout() {
-    localStorage.removeItem('ielts_token');
-    window.location.reload();
-}
+window.state = state;
+window.api = api;
+window.UI_TEXT = UI_TEXT;
+window.DEFAULT_PART2_SPEAKING_SECONDS = DEFAULT_PART2_SPEAKING_SECONDS;
 
 // ========== Home ==========
-function clearFreePracticeError() {
-    const errorEl = document.getElementById('freePracticeError');
-    if (!errorEl) return;
-    errorEl.textContent = '';
-    errorEl.classList.add('hidden');
-}
-
-function showFreePracticeError(message) {
-    const errorEl = document.getElementById('freePracticeError');
-    if (!errorEl) return;
-    errorEl.textContent = message;
-    errorEl.classList.remove('hidden');
-}
-
-function setFreePracticePreset(seconds) {
-    const panel = document.getElementById('freePracticePanel');
-    const customInput = document.getElementById('freePracticeCustomSeconds');
-
-    document.querySelectorAll('[data-free-practice-preset]').forEach((btn) => {
-        btn.classList.toggle('is-selected', Number(btn.dataset.seconds) === seconds);
-    });
-
-    if (panel) {
-        panel.dataset.durationSource = 'preset';
-        panel.dataset.durationSeconds = String(seconds);
-    }
-
-    if (customInput) customInput.value = '';
-    clearFreePracticeError();
-}
-
-function resetFreePracticeSetup() {
-    const panel = document.getElementById('freePracticePanel');
-    const promptInput = document.getElementById('freePracticePrompt');
-    const startButton = document.getElementById('btnStartFreePractice');
-
-    if (panel) {
-        panel.classList.add('hidden');
-        panel.dataset.durationSource = 'preset';
-        panel.dataset.durationSeconds = String(DEFAULT_PART2_SPEAKING_SECONDS);
-    }
-
-    if (promptInput) promptInput.value = '';
-    if (startButton) {
-        startButton.disabled = false;
-        startButton.innerHTML = UI_TEXT.startFreePractice;
-    }
-
-    setFreePracticePreset(DEFAULT_PART2_SPEAKING_SECONDS);
-}
-
-function showFreePracticeSetup() {
-
-    const panel = document.getElementById('freePracticePanel');
-    if (!panel) return;
-    panel.classList.remove('hidden');
-    if (!panel.dataset.durationSeconds) {
-        setFreePracticePreset(DEFAULT_PART2_SPEAKING_SECONDS);
-    }
-    clearFreePracticeError();
-    document.getElementById('freePracticePrompt')?.focus();
-    loadFpTopics();
-    setFpType('library');
-}
-
-function hideFreePracticeSetup() {
-    resetFreePracticeSetup();
-}
-
-function handleFreePracticeCustomDurationInput() {
-    const panel = document.getElementById('freePracticePanel');
-    const customInput = document.getElementById('freePracticeCustomSeconds');
-    if (!panel || !customInput) return;
-
-    if (customInput.value.trim()) {
-        panel.dataset.durationSource = 'custom';
-        panel.dataset.durationSeconds = '';
-        document.querySelectorAll('[data-free-practice-preset]').forEach((btn) => {
-            btn.classList.remove('is-selected');
-        });
-    } else {
-        setFreePracticePreset(DEFAULT_PART2_SPEAKING_SECONDS);
-    }
-
-    clearFreePracticeError();
-}
-
-async function startFreePractice() {
-    const promptInput = document.getElementById('freePracticePrompt');
-    const customInput = document.getElementById('freePracticeCustomSeconds');
-    const startButton = document.getElementById('btnStartFreePractice');
-    const panel = document.getElementById('freePracticePanel');
-    
-    let payload = {};
-    let promptText = '';
-    
-    if (state.freePracticeMode === 'library') {
-        if (!state.freePracticeSelectedSource || !state.freePracticeSelectedId) {
-            showFreePracticeError('Please select a topic from the library, or switch to "Write my own".');
-            return;
-        }
-        if (state.freePracticeSelectedSource === 'official') {
-            payload = { topic_id: state.freePracticeSelectedId };
-            const topic = state.freePracticeTopicLibrary.officialTopics.find(t => t.id === state.freePracticeSelectedId);
-            promptText = topic ? topic.title : 'Official Topic';
-        } else {
-            payload = { saved_topic_id: state.freePracticeSelectedId };
-            const topic = state.freePracticeTopicLibrary.savedTopics.find(t => t.id === state.freePracticeSelectedId);
-            promptText = topic ? (topic.prompt_text || topic.title) : 'Saved Topic';
-        }
-    } else {
-        const prompt = promptInput?.value.trim() || '';
-        if (!prompt) {
-            showFreePracticeError('Enter a custom prompt to start free practice.');
-            return;
-        }
-        payload = { custom_topic: prompt };
-        promptText = prompt;
-    }
-
-    let speakingSeconds = Number(panel?.dataset.durationSeconds || DEFAULT_PART2_SPEAKING_SECONDS);
-    if (customInput?.value.trim()) {
-        speakingSeconds = Number(customInput.value.trim());
-        if (!Number.isFinite(speakingSeconds) || speakingSeconds <= 0) {
-            showFreePracticeError('Enter a positive speaking duration in seconds.');
-            return;
-        }
-        speakingSeconds = Math.round(speakingSeconds);
-    }
-
-    if (startButton) {
-        startButton.disabled = true;
-        startButton.innerHTML = UI_TEXT.loading;
-    }
-
-    try {
-        const session = await api('/api/part2/sessions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-        });
-
-        state.mode = 'free_practice';
-        state.sessionId = session.session_id;
-        state.topic = buildFreePracticeTopic(promptText, speakingSeconds);
-        state.part2QuestionText = promptText;
-        state.part2SpeakingSeconds = speakingSeconds;
-        state.practiceSource = state.freePracticeMode === 'library' ? state.freePracticeSelectedSource : 'custom';
-        state.transcripts.part2 = '';
-        state.clientTranscripts.part2 = '';
-        document.getElementById('notesInput').value = '';
-
-        document.getElementById('modeSelector').classList.add('hidden');
-        document.getElementById('examFlow').classList.remove('hidden');
-        setPhase('part2speak');
-    } catch (e) {
-        showFreePracticeError('Failed to start free practice: ' + e.message);
-        if (startButton) {
-            startButton.disabled = false;
-            startButton.innerHTML = UI_TEXT.startFreePractice;
-        }
-    }
-}
-
 function startMode(mode) {
-    resetFreePracticeSetup();
+    if (typeof window.resetFreePracticeSetup === 'function') {
+        window.resetFreePracticeSetup();
+    }
     state.mode = mode;
     state.part2SpeakingSeconds = DEFAULT_PART2_SPEAKING_SECONDS;
     state.part2QuestionText = '';
@@ -583,14 +252,18 @@ function interruptPractice() {
     if (state.phase === 'home' && state.mode !== 'writing') return;
     const confirmed = window.confirm('Stop current practice and return to home? Current progress will be discarded.');
     if (!confirmed) return;
-    stopWritingTimer();
+    if (typeof window.stopWritingTimer === 'function') {
+        window.stopWritingTimer();
+    }
     backToHome();
 }
 function backToHome() {
     clearTimer();
     stopActiveCapture();
     stopExaminerAudio();
-    stopWritingTimer();
+    if (typeof window.stopWritingTimer === 'function') {
+        window.stopWritingTimer();
+    }
     window.location.href = '/';
 }
 
@@ -1515,7 +1188,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     initThemeMode();
     if (document.getElementById('freePracticePanel')) {
-        resetFreePracticeSetup();
+        if (typeof window.resetFreePracticeSetup === 'function') {
+            window.resetFreePracticeSetup();
+        }
     }
     const audioToggle = document.getElementById('audioModeToggle');
     if (audioToggle) {
@@ -1530,670 +1205,4 @@ document.addEventListener('DOMContentLoaded', () => {
         loadHistory();
     }
     console.log('IELTS Speaking Practice v0.2.9 initialized');
-});
-
-
-
-
-// ========== Writing ==========
-
-async function startWritingMode(taskType) {
-    resetFreePracticeSetup();
-    state.mode = 'writing';
-    state.writingTaskType = taskType;
-    state.writingPromptId = null;
-
-    document.getElementById('modeSelector').classList.add('hidden');
-    document.getElementById('examFlow')?.classList.add('hidden');
-    document.getElementById('writingFlow').classList.remove('hidden');
-
-    document.getElementById('writingPromptSection').classList.remove('hidden');
-    document.getElementById('writingScoreSection').classList.add('hidden');
-    document.getElementById('writingEssayInput').value = '';
-    document.getElementById('writingWordCount').textContent = '0';
-    
-    document.getElementById('writingTaskTitle').innerText = taskType === 'task1' ? 'Writing Task 1' : 'Writing Task 2';
-    document.getElementById('writingTaskIcon').innerText = taskType === 'task1' ? '📊' : '✍️';
-    document.getElementById('writingPromptText').innerHTML = '<span class="spinner" style="display:inline-block;width:16px;height:16px;border-width:2px;margin-right:8px;"></span>Loading prompt...';
-
-    const btn = document.getElementById('btnSubmitWriting');
-    btn.disabled = true;
-
-    try {
-        const prompt = await api(`/api/writing/prompts/random?task_type=${taskType}`);
-        state.writingPromptId = prompt.id;
-        document.getElementById('writingPromptText').textContent = prompt.prompt_text;
-        btn.disabled = false;
-        
-        document.getElementById('writingEssayInput').addEventListener('input', updateWritingWordCount);
-    } catch (e) {
-        document.getElementById('writingPromptText').textContent = 'Failed to load prompt: ' + e.message;
-    }
-}
-
-function updateWritingWordCount() {
-    const text = document.getElementById('writingEssayInput').value.trim();
-    const count = text ? text.split(/\s+/).length : 0;
-    document.getElementById('writingWordCount').textContent = count;
-}
-
-async function submitWriting() {
-    const essayText = document.getElementById('writingEssayInput').value.trim();
-    if (!essayText) {
-        alert('Please write an essay before submitting.');
-        return;
-    }
-
-    const btn = document.getElementById('btnSubmitWriting');
-    btn.disabled = true;
-    stopWritingTimer();
-    
-    document.getElementById('writingPromptSection').classList.add('hidden');
-    document.getElementById('writingScoreSection').classList.remove('hidden');
-    document.getElementById('writingScoringLoader').classList.remove('hidden');
-    document.getElementById('writingScoreResults').classList.add('hidden');
-
-    try {
-        const payload = { essay_text: essayText };
-        if (state.writingPromptId) {
-            payload.prompt_id = state.writingPromptId;
-        } else if (state.writingFpCustomPrompt) {
-            payload.custom_prompt = state.writingFpCustomPrompt;
-            payload.custom_task_type = state.writingFpCustomTaskType;
-        } else if (state.writingPromptId === null && !state.writingFpCustomPrompt) {
-            // Fallback: shouldn't happen, but handle gracefully
-            payload.prompt_id = state.writingPromptId;
-        }
-
-        const attempt = await api('/api/writing/attempts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        
-        renderWritingResult(attempt);
-    } catch (e) {
-        document.getElementById('writingScoringLoader').innerHTML = `
-            <div style="text-align:center; color:var(--accent-red);">
-                <p style="font-size:1.5rem; margin-bottom:12px;">X</p>
-                <p style="font-weight:600;">Submission Failed</p>
-                <p style="font-size:0.85rem; color:var(--text-muted); margin-top:8px;">${e.message}</p>
-                <button class="btn btn-ghost" style="margin-top:16px;" onclick="backToHome()">Try Again</button>
-            </div>`;
-    }
-}
-
-function renderWritingResult(result) {
-    document.getElementById('writingScoringLoader').classList.add('hidden');
-    document.getElementById('writingScoreResults').classList.remove('hidden');
-    document.getElementById('writingScoreResults').classList.add('fade-in');
-
-    const scores = result.scores || {};
-    const feedback = result.feedback || {};
-    const improvements = result.key_improvements || [];
-    const sample = result.sample_answer || '';
-    
-    const isTask1 = result.task_type === 'task1';
-    const taLabel = isTask1 ? 'Task Achievement' : 'Task Response';
-
-    const items = [
-        { label: taLabel, key: 'task', icon: '📝' },
-        { label: 'Coherence & Cohesion', key: 'coherence', icon: '🔗' },
-        { label: 'Lexical Resource', key: 'lexical', icon: '📚' },
-        { label: 'Grammar', key: 'grammar', icon: '✍️' },
-    ];
-
-    let grid = '';
-    for (const { label, key, icon } of items) {
-        const val = scores[key] ?? 0;
-        const cls = val >= 7 ? 'high' : val >= 5.5 ? 'mid' : 'low';
-        grid += `<div class="score-item">
-            <div class="score-label">${icon} ${label}</div>
-            <div class="score-value ${cls}">${val.toFixed(1)}</div>
-        </div>`;
-    }
-    const overall = scores.overall ?? 0;
-    grid += `<div class="score-item overall">
-        <div class="score-label">Overall Band Score</div>
-        <div class="score-value ${overall >= 7 ? 'high' : overall >= 5.5 ? 'mid' : 'low'}">${overall.toFixed(1)}</div>
-    </div>`;
-    
-    document.getElementById('writingScoresGrid').innerHTML = grid;
-
-    document.getElementById('writingEssayDisplay').textContent = result.essay_text || '';
-
-    let fbHtml = '';
-    
-    if (result.prompt) {
-        const promptText = typeof result.prompt === 'object' ? result.prompt.prompt_text : result.prompt;
-        fbHtml += `
-            <div class="feedback-item">
-                <h3>Prompt</h3>
-                <p style="white-space: pre-wrap;">${escapeHtml(promptText)}</p>
-            </div>`;
-    }
-
-    const FEEDBACK_LABELS = [
-        ['task', taLabel],
-        ['coherence', 'Coherence & Cohesion'],
-        ['lexical', 'Lexical Resource'],
-        ['grammar', 'Grammatical Range & Accuracy'],
-        ['overall', 'Overall Feedback'],
-    ];
-
-    for (const [key, label] of FEEDBACK_LABELS) {
-        if (feedback[key]) fbHtml += `
-            <div class="feedback-item">
-                <h3>${label}</h3>
-                <p>${escapeHtml(feedback[key])}</p>
-            </div>`;
-    }
-
-    if (improvements.length > 0) fbHtml += `
-        <div class="feedback-item">
-            <h3>Key Improvements</h3>
-            <ul class="improvements-list">
-                ${improvements.map(i => `<li>${escapeHtml(i)}</li>`).join('')}
-            </ul>
-        </div>`;
-        
-    if (sample) fbHtml += `
-        <div class="sample-answer">
-            <h3>Band 7+ Sample Answer</h3>
-            <p style="white-space: pre-wrap;">${escapeHtml(sample)}</p>
-        </div>`;
-
-    document.getElementById('writingFeedbackSection').innerHTML = fbHtml;
-}
-
-// ========== Writing Free Practice ==========
-
-function showWritingFreePracticeSetup() {
-    const panel = document.getElementById('writingFreePracticePanel');
-    if (!panel) return;
-    panel.classList.remove('hidden');
-    clearWritingFpError();
-    loadWritingFpTopics();
-    setWfpType('library');
-}
-
-function hideWritingFreePracticeSetup() {
-    const panel = document.getElementById('writingFreePracticePanel');
-    if (panel) panel.classList.add('hidden');
-    clearWritingFpError();
-}
-
-function clearWritingFpError() {
-    const el = document.getElementById('writingFpError');
-    if (el) { el.textContent = ''; el.classList.add('hidden'); }
-}
-
-function showWritingFpError(msg) {
-    const el = document.getElementById('writingFpError');
-    if (el) { el.textContent = msg; el.classList.remove('hidden'); }
-}
-
-function setWfpType(type) {
-    state.writingFpMode = type;
-    document.querySelectorAll('#wfpTypeToggle .btn').forEach(b => b.classList.remove('active'));
-    const active = document.querySelector(`#wfpTypeToggle .btn[data-target="${type}"]`);
-    if (active) active.classList.add('active');
-    
-    const libView = document.getElementById('wfp-library-view');
-    const customView = document.getElementById('wfp-custom-view');
-    if (libView) { libView.classList.toggle('hidden', type !== 'library'); libView.classList.toggle('active', type === 'library'); }
-    if (customView) { customView.classList.toggle('hidden', type !== 'custom'); customView.classList.toggle('active', type === 'custom'); }
-}
-
-function setWfpCustomTaskType(taskType) {
-    state.writingFpCustomTaskType = taskType;
-    const btn1 = document.getElementById('wfpCustomTask1Btn');
-    const btn2 = document.getElementById('wfpCustomTask2Btn');
-    if (btn1) btn1.classList.toggle('is-selected', taskType === 'task1');
-    if (btn2) btn2.classList.toggle('is-selected', taskType === 'task2');
-}
-
-function setWfpTimer(minutes) {
-    state.writingFpTimerMinutes = minutes;
-    document.querySelectorAll('[data-wfp-timer]').forEach(btn => {
-        btn.classList.toggle('is-selected', Number(btn.dataset.minutes) === minutes);
-    });
-}
-
-async function loadWritingFpTopics() {
-    const lib = state.writingFpTopicLibrary;
-    if (lib.loaded || lib.loading) return;
-    lib.loading = true;
-    
-    const select = document.getElementById('writingFpTopicSelect');
-    if (select) select.innerHTML = '<option value="">Loading prompts...</option>';
-    
-    try {
-        const prompts = await api('/api/writing/prompts');
-        lib.prompts = prompts || [];
-        lib.loaded = true;
-        renderWritingFpTopicOptions();
-    } catch (err) {
-        console.error('Failed to load writing prompts', err);
-        if (select) select.innerHTML = '<option value="">Failed to load prompts</option>';
-    } finally {
-        lib.loading = false;
-    }
-}
-
-function renderWritingFpTopicOptions() {
-    const select = document.getElementById('writingFpTopicSelect');
-    if (!select) return;
-    const prompts = state.writingFpTopicLibrary.prompts;
-    if (prompts.length === 0) {
-        select.innerHTML = '<option value="">No prompts available</option>';
-        return;
-    }
-    let html = '<option value="">Select a prompt...</option>';
-    const task1 = prompts.filter(p => p.task_type === 'task1');
-    const task2 = prompts.filter(p => p.task_type === 'task2');
-    if (task1.length) {
-        html += '<optgroup label="Task 1">';
-        for (const p of task1) html += `<option value="${p.id}">${escapeHtml(p.title || p.prompt_text)}</option>`;
-        html += '</optgroup>';
-    }
-    if (task2.length) {
-        html += '<optgroup label="Task 2">';
-        for (const p of task2) html += `<option value="${p.id}">${escapeHtml(p.title || p.prompt_text)}</option>`;
-        html += '</optgroup>';
-    }
-    select.innerHTML = html;
-}
-
-async function startWritingFreePractice() {
-    clearWritingFpError();
-    const startBtn = document.getElementById('btnStartWritingFreePractice');
-
-    let promptText = '';
-    let promptId = null;
-    let customPrompt = null;
-    let customTaskType = null;
-    let taskType = null;
-
-    if (state.writingFpMode === 'library') {
-        const select = document.getElementById('writingFpTopicSelect');
-        const selectedId = select ? Number(select.value) : null;
-        if (!selectedId) {
-            showWritingFpError('Please select a prompt from the library, or switch to "Write My Own".');
-            return;
-        }
-        promptId = selectedId;
-        const prompt = state.writingFpTopicLibrary.prompts.find(p => p.id === selectedId);
-        promptText = prompt ? prompt.prompt_text : '';
-        taskType = prompt ? prompt.task_type : 'task2';
-    } else {
-        const textarea = document.getElementById('writingFpCustomPrompt');
-        const text = textarea ? textarea.value.trim() : '';
-        if (!text) {
-            showWritingFpError('Enter a custom prompt to start free practice.');
-            return;
-        }
-        customPrompt = text;
-        customTaskType = state.writingFpCustomTaskType;
-        taskType = customTaskType;
-        promptText = text;
-    }
-
-    // Set up the writing flow UI
-    state.mode = 'writing';
-    state.writingTaskType = taskType;
-    state.writingPromptId = promptId;
-
-    document.getElementById('modeSelector').classList.add('hidden');
-    document.getElementById('writingFlow').classList.remove('hidden');
-    document.getElementById('writingPromptSection').classList.remove('hidden');
-    document.getElementById('writingScoreSection').classList.add('hidden');
-    document.getElementById('writingEssayInput').value = '';
-    document.getElementById('writingWordCount').textContent = '0';
-
-    const isTask1 = taskType === 'task1';
-    document.getElementById('writingTaskTitle').innerText = isTask1 ? 'Writing Task 1' : 'Writing Task 2';
-    document.getElementById('writingTaskIcon').innerText = isTask1 ? '📊' : '✍️';
-
-    if (promptId) {
-        // Library prompt — show the prompt text directly
-        document.getElementById('writingPromptText').textContent = promptText;
-    } else {
-        // Custom prompt — show user's own prompt
-        document.getElementById('writingPromptText').textContent = promptText;
-    }
-
-    // Store custom prompt info for submission
-    state.writingFpCustomPrompt = customPrompt;
-    state.writingFpCustomTaskType = customTaskType || taskType;
-
-    document.getElementById('btnSubmitWriting').disabled = false;
-    document.getElementById('writingEssayInput').addEventListener('input', updateWritingWordCount);
-
-    // Timer setup
-    if (state.writingFpTimerMinutes > 0) {
-        startWritingTimer(state.writingFpTimerMinutes * 60);
-    }
-}
-
-function startWritingTimer(totalSeconds) {
-    const existing = document.getElementById('writingTimerDisplay');
-    if (existing) existing.remove();
-    
-    const timerDiv = document.createElement('div');
-    timerDiv.id = 'writingTimerDisplay';
-    timerDiv.style.cssText = 'text-align:center; font-size:1.5rem; font-weight:700; color:var(--accent-blue); margin-bottom:16px; font-variant-numeric:tabular-nums;';
-    
-    const promptSection = document.getElementById('writingPromptSection');
-    if (promptSection) promptSection.parentNode.insertBefore(timerDiv, promptSection);
-
-    let remaining = totalSeconds;
-    function tick() {
-        const m = Math.floor(remaining / 60);
-        const s = remaining % 60;
-        timerDiv.textContent = `⏱ ${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-        if (remaining <= 0) {
-            timerDiv.textContent = '⏱ Time is up!';
-            timerDiv.style.color = 'var(--accent-red)';
-            clearInterval(state.writingTimerInterval);
-            return;
-        }
-        remaining--;
-    }
-    tick();
-    state.writingTimerInterval = setInterval(tick, 1000);
-}
-
-function stopWritingTimer() {
-    if (state.writingTimerInterval) {
-        clearInterval(state.writingTimerInterval);
-        state.writingTimerInterval = null;
-    }
-    const el = document.getElementById('writingTimerDisplay');
-    if (el) el.remove();
-}
-
-// ========== Free Practice Library ==========
-async function loadFpTopics() {
-    const token = localStorage.getItem('ielts_token');
-    if (!token) return;
-    if (state.freePracticeTopicLibrary.loaded || state.freePracticeTopicLibrary.loading) return;
-    
-    state.freePracticeTopicLibrary.loading = true;
-    renderFpTopicOptions();
-    
-    try {
-        const res = await fetch('/api/part2/free-practice-topics', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-            const data = await res.json();
-            state.freePracticeTopicLibrary.officialTopics = data.official_topics || [];
-            state.freePracticeTopicLibrary.savedTopics = data.saved_topics || [];
-            state.freePracticeTopicLibrary.loaded = true;
-        }
-    } catch (err) {
-        console.error('Failed to load topics', err);
-    } finally {
-        state.freePracticeTopicLibrary.loading = false;
-        renderFpTopicOptions();
-    }
-}
-
-function setFpType(type) {
-    state.freePracticeMode = type;
-    document.querySelectorAll('.fp-type-toggle .btn').forEach((button) => {
-        button.classList.remove('active');
-    });
-    document.querySelector(`.fp-type-toggle .btn[data-target="${type}"]`).classList.add('active');
-    
-    document.getElementById('library-view').classList.toggle('hidden', type !== 'library');
-    document.getElementById('library-view').classList.toggle('active', type === 'library');
-    document.getElementById('custom-view').classList.toggle('hidden', type !== 'custom');
-    document.getElementById('custom-view').classList.toggle('active', type === 'custom');
-}
-
-function toggleFpTopicDropdown(e) {
-    if (e) e.stopPropagation();
-    const container = document.getElementById('fpTopicSelectContainer');
-    const dropdown = document.getElementById('fpTopicDropdown');
-    const btn = document.getElementById('fpTopicSelectBtn');
-    
-    const isOpen = !dropdown.classList.contains('hidden');
-    
-    // Close any other dropdowns here if needed
-    if (isOpen) {
-        dropdown.classList.add('hidden');
-        container.classList.remove('open');
-        btn.setAttribute('aria-expanded', 'false');
-    } else {
-        renderFpTopicOptions(document.getElementById('fpTopicSearchInput')?.value || '');
-        dropdown.classList.remove('hidden');
-        container.classList.add('open');
-        btn.setAttribute('aria-expanded', 'true');
-        document.getElementById('fpTopicSearchInput').focus();
-    }
-}
-
-// Close dropdown on outside click
-document.addEventListener('click', (e) => {
-    const dropdown = document.getElementById('fpTopicDropdown');
-    const container = document.getElementById('fpTopicSelectContainer');
-    const btn = document.getElementById('fpTopicSelectBtn');
-    if (container && !container.contains(e.target) && dropdown && !dropdown.classList.contains('hidden')) {
-        dropdown.classList.add('hidden');
-        container.classList.remove('open');
-        if (btn) btn.setAttribute('aria-expanded', 'false');
-    }
-
-    const themeSwitcher = document.getElementById('themeSwitcher');
-    if (themeSwitcher && !themeSwitcher.contains(e.target)) {
-        closeThemeMenu();
-    }
-});
-
-function selectFpTopic(source, id, title) {
-    state.freePracticeSelectedSource = source;
-    state.freePracticeSelectedId = id;
-    
-    document.getElementById('fpTopicSelectText').textContent = title;
-    document.getElementById('freePracticeTopicSelect').value = `${source}:${id}`;
-    
-    const dropdown = document.getElementById('fpTopicDropdown');
-    const container = document.getElementById('fpTopicSelectContainer');
-    const btn = document.getElementById('fpTopicSelectBtn');
-    dropdown.classList.add('hidden');
-    container.classList.remove('open');
-    if (btn) {
-        btn.setAttribute('aria-expanded', 'false');
-        btn.focus();
-    }
-    clearFreePracticeError();
-}
-
-function renderFpTopicOptions(searchTerm = '') {
-    const list = document.getElementById('fpTopicOptions');
-    if (!list) return;
-    
-    const { loading, officialTopics, savedTopics } = state.freePracticeTopicLibrary;
-    
-    if (loading) {
-        list.innerHTML = `
-            <div class="custom-select-loading">
-                <div style="width:100%">
-                    <div class="shimmer-line"></div>
-                    <div class="shimmer-line medium"></div>
-                    <div class="shimmer-line short"></div>
-                </div>
-            </div>
-        `;
-        return;
-    }
-    
-    const lowerSearch = searchTerm.toLowerCase();
-    const filterFn = t => t.title?.toLowerCase().includes(lowerSearch) || t.prompt_text?.toLowerCase().includes(lowerSearch);
-    
-    const filteredOfficial = officialTopics.filter(filterFn);
-    const filteredSaved = savedTopics.filter(filterFn);
-    
-    let html = '';
-    
-    if (filteredOfficial.length > 0) {
-        const officialCountLabel = `${filteredOfficial.length} ${filteredOfficial.length === 1 ? 'item' : 'items'}`;
-        html += `
-            <div class="custom-select-optgroup" id="fpTopicGroupOfficialLabel">
-                Official Topics
-            </div>
-            <span class="sr-only" id="fpTopicGroupOfficialCount">${officialCountLabel}</span>
-            <div class="custom-select-optgroup-wrap" role="group" aria-labelledby="fpTopicGroupOfficialLabel fpTopicGroupOfficialCount">
-        `;
-        filteredOfficial.forEach(t => {
-            const isSelected = state.freePracticeSelectedSource === 'official' && state.freePracticeSelectedId === t.id;
-            const optionTitle = t.title || '';
-            html += `
-                <div class="custom-select-option ${isSelected ? 'selected' : ''}" 
-                     role="option" 
-                     tabindex="-1" 
-                     aria-selected="${isSelected ? 'true' : 'false'}"
-                     data-source="official"
-                     data-id="${t.id}"
-                     data-title="${escapeHtml(optionTitle)}">
-                    ${escapeHtml(optionTitle)}
-                </div>
-            `;
-        });
-        html += `</div>`;
-    }
-    
-    if (filteredSaved.length > 0) {
-        const savedCountLabel = `${filteredSaved.length} ${filteredSaved.length === 1 ? 'item' : 'items'}`;
-        html += `
-            <div class="custom-select-optgroup" id="fpTopicGroupSavedLabel">
-                Your Saved Topics
-            </div>
-            <span class="sr-only" id="fpTopicGroupSavedCount">${savedCountLabel}</span>
-            <div class="custom-select-optgroup-wrap" role="group" aria-labelledby="fpTopicGroupSavedLabel fpTopicGroupSavedCount">
-        `;
-        filteredSaved.forEach(t => {
-            const isSelected = state.freePracticeSelectedSource === 'saved' && state.freePracticeSelectedId === t.id;
-            const optionTitle = t.title || t.prompt_text || '';
-            html += `
-                <div class="custom-select-option ${isSelected ? 'selected' : ''}" 
-                     role="option" 
-                     tabindex="-1" 
-                     aria-selected="${isSelected ? 'true' : 'false'}"
-                     data-source="saved"
-                     data-id="${t.id}"
-                     data-title="${escapeHtml(optionTitle)}">
-                    ${escapeHtml(optionTitle)}
-                </div>
-            `;
-        });
-        html += `</div>`;
-    }
-    
-    if (!filteredOfficial.length && !filteredSaved.length) {
-        html = `<div class="custom-select-empty">No topics found</div>`;
-    }
-    
-    list.innerHTML = html;
-}
-
-function filterFpTopics(e) {
-    renderFpTopicOptions(e.target.value);
-}
-
-function closeFpTopicDropdown({ focusTrigger = false } = {}) {
-    const dropdown = document.getElementById('fpTopicDropdown');
-    const container = document.getElementById('fpTopicSelectContainer');
-    const btn = document.getElementById('fpTopicSelectBtn');
-    if (!dropdown || !container) return;
-
-    dropdown.classList.add('hidden');
-    container.classList.remove('open');
-    if (btn) {
-        btn.setAttribute('aria-expanded', 'false');
-        if (focusTrigger) btn.focus();
-    }
-}
-
-
-document.addEventListener('DOMContentLoaded', () => {
-    const container = document.getElementById('fpTopicSelectContainer');
-    const optionsList = document.getElementById('fpTopicOptions');
-    if (!container) return;
-
-    if (optionsList) {
-        optionsList.addEventListener('click', (e) => {
-            const option = e.target.closest('.custom-select-option');
-            if (!option) return;
-
-            selectFpTopic(
-                option.dataset.source || '',
-                Number(option.dataset.id),
-                option.dataset.title || '',
-            );
-        });
-    }
-    
-    container.addEventListener('keydown', (e) => {
-        const dropdown = document.getElementById('fpTopicDropdown');
-        const searchInput = document.getElementById('fpTopicSearchInput');
-        const isOpen = !dropdown.classList.contains('hidden');
-
-        if (e.key === 'Escape') {
-            if (isOpen) {
-                closeFpTopicDropdown({ focusTrigger: true });
-                e.preventDefault();
-                e.stopPropagation();
-            }
-            return;
-        }
-
-        if (e.key === 'Tab' && isOpen) {
-            closeFpTopicDropdown();
-            return;
-        }
-
-        if (e.key === 'ArrowDown' && !isOpen) {
-            if (document.activeElement === document.getElementById('fpTopicSelectBtn')) {
-                toggleFpTopicDropdown();
-                e.preventDefault();
-            }
-            return;
-        }
-
-        if (isOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
-            const options = Array.from(document.querySelectorAll('#fpTopicOptions .custom-select-option'));
-            if (options.length === 0) return;
-
-            e.preventDefault();
-
-            const currentFocus = document.activeElement;
-            const currentIndex = options.indexOf(currentFocus);
-
-            if (e.key === 'ArrowDown') {
-                if (currentFocus === searchInput || currentIndex === -1) {
-                    options[0].focus();
-                } else if (currentIndex >= 0 && currentIndex < options.length - 1) {
-                    options[currentIndex + 1].focus();
-                }
-            } else if (e.key === 'ArrowUp') {
-                if (currentFocus === searchInput || currentIndex === -1) {
-                    options[options.length - 1].focus();
-                } else if (currentIndex === 0) {
-                    searchInput.focus();
-                } else if (currentIndex > 0) {
-                    options[currentIndex - 1].focus();
-                }
-            }
-        }
-        
-        if (isOpen && (e.key === 'Enter' || e.key === ' ')) {
-            if (document.activeElement.classList.contains('custom-select-option')) {
-                e.preventDefault();
-                document.activeElement.click();
-            }
-        }
-    });
 });

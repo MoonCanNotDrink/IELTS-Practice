@@ -31,12 +31,56 @@ const server = http.createServer((request, response) => {
         return sendFile(response, path.join(FRONTEND_DIR, 'writing.html'), 'text/html');
     }
 
-    if (pathname === '/static/index.css') {
-        return sendFile(response, path.join(FRONTEND_DIR, 'index.css'), 'text/css');
+    if (pathname === '/reset-password') {
+        return sendFile(response, path.join(FRONTEND_DIR, 'reset-password.html'), 'text/html');
     }
 
-    if (pathname === '/static/app.js') {
-        return sendFile(response, path.join(FRONTEND_DIR, 'app.js'), 'application/javascript');
+    if (pathname.startsWith('/static/')) {
+        const assetName = path.basename(pathname);
+        const assetPath = path.join(FRONTEND_DIR, assetName);
+
+        if (fs.existsSync(assetPath)) {
+            const ext = path.extname(assetName);
+            const contentType = ext === '.css'
+                ? 'text/css'
+                : ext === '.js'
+                    ? 'application/javascript'
+                    : null;
+
+            if (contentType) {
+                return sendFile(response, assetPath, contentType);
+            }
+        }
+    }
+
+    if (pathname === '/api/auth/me') {
+        response.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ username: 'playwright', email: null, email_verified: false }));
+        return;
+    }
+
+    if (pathname === '/api/auth/email' && request.method === 'PUT') {
+        response.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ username: 'playwright', email: 'bound@example.com', email_verified: false }));
+        return;
+    }
+
+    if (pathname === '/api/auth/password-reset/request' && request.method === 'POST') {
+        response.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ message: 'If the email exists, a reset link has been sent.' }));
+        return;
+    }
+
+    if (pathname === '/api/auth/password-reset/validate' && request.method === 'POST') {
+        response.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ valid: true }));
+        return;
+    }
+
+    if (pathname === '/api/auth/password-reset/confirm' && request.method === 'POST') {
+        response.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ message: 'Password has been reset successfully.' }));
+        return;
     }
 
     if (pathname === '/api/dashboard/history') {

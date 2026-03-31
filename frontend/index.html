@@ -5,68 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="IELTS Speaking Practice - Full Mock Exam with AI Scoring">
     <title>IELTS Speaking Practice - AI Examiner</title>
-    <link rel="stylesheet" href="/static/index.css?v=17">
+    <link rel="stylesheet" href="/static/variables.css?v=1">
+    <link rel="stylesheet" href="/static/base.css?v=1">
+    <link rel="stylesheet" href="/static/components.css?v=1">
+    <link rel="stylesheet" href="/static/layout.css?v=1">
+    <link rel="stylesheet" href="/static/pages.css?v=1">
+    <link rel="stylesheet" href="/static/responsive.css?v=1">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='35' y='18' width='30' height='44' rx='15' fill='%234f8cff'/><rect x='47' y='62' width='6' height='18' fill='%234f8cff'/><rect x='38' y='80' width='24' height='6' rx='3' fill='%234f8cff'/></svg>">
 </head>
 <body>
-    <!-- Auth Modal -->
-    <div id="authModal" class="auth-overlay">
-        <div class="auth-card">
-            <div class="auth-header">
-                <h2>Welcome Back</h2>
-                <p id="authSubtitle">Please log in to save your practice history.</p>
-            </div>
-            <div id="authError" class="auth-error"></div>
-            <div class="form-group">
-                <label for="authUsername">Username</label>
-                <input type="text" id="authUsername" placeholder="Enter username" autocomplete="username">
-            </div>
-            <div class="form-group">
-                <label for="authPassword">Password</label>
-                <div class="password-input-wrap">
-                    <input type="password" id="authPassword" placeholder="Enter password" autocomplete="current-password">
-                    <button type="button" class="password-toggle hidden" id="authPasswordToggle" onclick="togglePasswordVisibility('authPassword', 'authPasswordToggle')" aria-label="Show password" aria-pressed="false">Show</button>
-                </div>
-            </div>
-            <div class="form-group hidden" id="confirmPasswordGroup">
-                <label for="authConfirmPassword">Confirm Password</label>
-                <div class="password-input-wrap">
-                    <input type="password" id="authConfirmPassword" placeholder="Re-enter password" autocomplete="new-password">
-                    <button type="button" class="password-toggle" id="authConfirmPasswordToggle" onclick="togglePasswordVisibility('authConfirmPassword', 'authConfirmPasswordToggle')" aria-label="Show password confirmation" aria-pressed="false">Show</button>
-                </div>
-            </div>
-            <div class="form-group" id="inviteCodeGroup" style="display: none;">
-                <label for="authInviteCode">Invite Code</label>
-                <input type="password" id="authInviteCode" placeholder="Required for new accounts">
-            </div>
-            <button type="button" class="btn btn-primary btn-full" id="btnSubmitAuth" style="margin-top:20px;" onclick="submitAuth()">Log In</button>
-            <div class="auth-toggle">
-                <span id="authToggleText">No account? <a onclick="toggleAuthMode()">Register here</a></span>
-            </div>
-        </div>
-    </div>
-
+    <a class="skip-link" href="#mainContent">Skip to main content</a>
     <div class="app-container">
 
         <!-- Header -->
         <header class="app-header">
             <div class="header-controls">
-                <div class="theme-switcher" id="themeSwitcher">
-                    <button type="button" id="btnThemeToggle" class="btn btn-ghost theme-toggle" aria-haspopup="menu" aria-expanded="false" aria-controls="themeMenu">
-                        <span aria-hidden="true">🎨</span>
-                        <span id="currentThemeLabel">System</span>
-                    </button>
-                    <div id="themeMenu" class="theme-menu hidden" role="menu" aria-label="Theme mode">
-                        <button type="button" class="theme-option" data-theme-mode="system" role="menuitemradio" aria-checked="true">Follow System</button>
-                        <button type="button" class="theme-option" data-theme-mode="light" role="menuitemradio" aria-checked="false">Light Mode</button>
-                        <button type="button" class="theme-option" data-theme-mode="dark" role="menuitemradio" aria-checked="false">Dark Mode</button>
-                    </div>
-                </div>
-                <button type="button" id="btnLogin" class="btn btn-primary" style="font-size: 0.8rem; padding: 4px 10px;" onclick="showAuth()">Log In</button>
-                <button type="button" id="btnLogout" class="btn btn-ghost" style="font-size: 0.8rem; padding: 4px 10px; display: none;" onclick="logout()">Log Out</button>
+                <button type="button" id="btnLogin" class="btn btn-primary header-btn-compact" onclick="showAuth()">Log In</button>
+                <button type="button" id="btnLogout" class="btn btn-ghost header-btn-compact auth-logout-hidden" onclick="logout()">Log Out</button>
             </div>
             <h1>
-                <svg style="width:1.15em;height:1.15em;vertical-align:-0.2em;margin-right:0.25em;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="url(#micGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+                <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="url(#micGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
                     <title>Microphone icon</title>
                     <defs><linearGradient id="micGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#60a5fa"/><stop offset="100%" style="stop-color:#a78bfa"/></linearGradient></defs>
                     <rect x="9" y="2" width="6" height="12" rx="3"/>
@@ -78,25 +36,31 @@
         </header>
 
         <!-- Landing -->
+        <main id="mainContent">
         <div class="card">
             <div class="card-header">
                 <span class="icon">&#127919;</span>
                 <h2>Choose a Practice Mode</h2>
             </div>
-            <p style="color: var(--text-secondary); margin-bottom: 24px; font-size: 0.95rem;">
+            <p class="section-intro-text">
                 Select speaking or writing to start a practice session.
             </p>
             <div class="btn-grid">
-                <a href="/speaking" class="btn btn-primary btn-full" style="text-decoration:none;text-align:center;">
+                <a href="/speaking" class="btn btn-primary btn-full btn-link-reset">
                     &#127908; Speaking Practice
                 </a>
-                <a href="/writing" class="btn btn-ghost btn-full" style="border-color: rgba(139, 92, 246, 0.3); text-decoration:none;text-align:center;">
+                <a href="/writing" class="btn btn-ghost btn-full btn-link-reset btn-ghost-accent">
                     &#9997;&#65039; Writing Practice
+                </a>
+                <a href="/history" class="btn btn-ghost btn-full btn-link-reset">
+                    &#128202; Progress History
                 </a>
             </div>
         </div>
+        </main>
     </div>
 
+    <script src="/static/shared.js?v=1" charset="utf-8"></script>
     <script src="/static/app.js?v=23" charset="utf-8"></script>
 </body>
 </html>

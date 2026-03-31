@@ -13,10 +13,14 @@ from app.seed_data import seed_topics, seed_writing_prompts
 from app.routes.part2 import router as part2_router
 from app.routes.exam import router as exam_router
 from app.routes.scoring import router as scoring_router
-from app.routes.dev import router as dev_router
 from app.routes.auth import router as auth_router
 from app.routes.writing import router as writing_router
 from app.routes.dashboard import router as dashboard_router
+from app.limiter import limiter
+
+# slowapi rate limit handler
+from slowapi import _rate_limit_exceeded_handler  # type: ignore
+from slowapi.errors import RateLimitExceeded  # type: ignore
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend"
 
@@ -43,12 +47,18 @@ async def lifespan(app: FastAPI):
     yield
 
 
-APP_VERSION = "0.2.6"
+APP_VERSION = "0.2.9"
 app = FastAPI(title=settings.APP_NAME, version=APP_VERSION, lifespan=lifespan)
+
+# attach limiter instance to app state for route decorators to use
+app.state.limiter = limiter
+
+# register rate limit exceeded handler (returns 429)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.CORS_ORIGINS or (["*"] if settings.DEBUG else []),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -59,9 +69,12 @@ app.include_router(auth_router)
 app.include_router(part2_router)
 app.include_router(exam_router)
 app.include_router(scoring_router)
-app.include_router(dev_router)
 app.include_router(writing_router)
 app.include_router(dashboard_router)
+
+if settings.DEBUG:
+    from app.routes.dev import router as dev_router
+    app.include_router(dev_router)
 
 
 @app.get("/api/health")
@@ -74,49 +87,27 @@ if FRONTEND_DIR.exists():
     app.mount("/static", FrontendStaticFiles(directory=str(FRONTEND_DIR)), name="static")
 
 
-@app.get("/history", include_in_schema=False)
-async def serve_history():
-    history_path = FRONTEND_DIR / "history.html"
-    if history_path.exists():
-        return FileResponse(
-            str(history_path),
-            media_type="text/html; charset=utf-8",
-            headers={"Cache-Control": "no-store, max-age=0"},
-        )
-    return {"message": "History page not found"}
+PAGE_ROUTES = {
+    "/": "index.html",
+    "/speaking": "speaking.html",
+    "/writing": "writing.html",
+    "/history": "history.html",
+    "/reset-password": "reset-password.html",
+}
 
 
-@app.get("/speaking", include_in_schema=False)
-async def serve_speaking():
-    speaking_path = FRONTEND_DIR / "speaking.html"
-    if speaking_path.exists():
-        return FileResponse(
-            str(speaking_path),
-            media_type="text/html; charset=utf-8",
-            headers={"Cache-Control": "no-store, max-age=0"},
-        )
-    return {"message": "Speaking page not found"}
+for _route, _filename in PAGE_ROUTES.items():
+    _page_path = FRONTEND_DIR / _filename
 
+    def _make_handler(page_path: Path = _page_path, name: str = _filename):
+        async def serve_page():
+            if page_path.exists():
+                return FileResponse(
+                    str(page_path),
+                    media_type="text/html; charset=utf-8",
+                    headers={"Cache-Control": "no-store, max-age=0"},
+                )
+            return {"message": f"{name} not found"}
+        return serve_page
 
-@app.get("/writing", include_in_schema=False)
-async def serve_writing():
-    writing_path = FRONTEND_DIR / "writing.html"
-    if writing_path.exists():
-        return FileResponse(
-            str(writing_path),
-            media_type="text/html; charset=utf-8",
-            headers={"Cache-Control": "no-store, max-age=0"},
-        )
-    return {"message": "Writing page not found"}
-
-
-@app.get("/", include_in_schema=False)
-async def serve_index():
-    index_path = FRONTEND_DIR / "index.html"
-    if index_path.exists():
-        return FileResponse(
-            str(index_path),
-            media_type="text/html; charset=utf-8",
-            headers={"Cache-Control": "no-store, max-age=0"},
-        )
-    return {"message": "Frontend not found"}
+    app.get(_route, include_in_schema=False)(_make_handler())

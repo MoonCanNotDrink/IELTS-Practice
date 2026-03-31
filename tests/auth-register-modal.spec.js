@@ -17,16 +17,19 @@ for (const route of ROUTES) {
                 await page.locator('#btnLogin').click();
             }
 
-            await page.locator('#authToggleText a').click();
-
             const passwordInput = page.locator('#authPassword');
             const confirmInput = page.locator('#authConfirmPassword');
             const passwordToggle = page.locator('#authPasswordToggle');
             const confirmToggle = page.locator('#authConfirmPasswordToggle');
             const authError = page.locator('#authError');
+            const forgotPasswordLink = page.getByTestId('forgot-password-link');
+
+            await page.getByTestId('auth-mode-toggle').click();
 
             await expect(page.locator('#confirmPasswordGroup')).toBeVisible();
             await expect(page.locator('#inviteCodeGroup')).toBeVisible();
+            await expect(page.locator('#emailGroup')).toBeVisible();
+            await expect(forgotPasswordLink).toBeHidden();
             await expect(passwordToggle).toBeVisible();
 
             await passwordInput.fill('Secret123');
@@ -40,6 +43,7 @@ for (const route of ROUTES) {
             await expect(confirmInput).toHaveAttribute('type', 'text');
 
             await page.locator('#authUsername').fill('new-user');
+            await page.locator('#authEmail').fill('new-user@example.com');
             await page.locator('#btnSubmitAuth').click();
             await expect(authError).toContainText('Passwords do not match.');
 
@@ -47,10 +51,12 @@ for (const route of ROUTES) {
             await page.locator('#btnSubmitAuth').click();
             await expect(authError).toContainText('Please confirm your password.');
 
-            await page.locator('#authToggleText a').click();
+            await page.getByTestId('auth-mode-toggle').click();
             await expect(page.locator('#confirmPasswordGroup')).toBeHidden();
+            await expect(page.locator('#emailGroup')).toBeHidden();
             await expect(passwordToggle).toBeHidden();
             await expect(passwordInput).toHaveAttribute('type', 'password');
+            await expect(forgotPasswordLink).toBeVisible();
         });
     });
 }

@@ -3,6 +3,7 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import field_validator
 from pathlib import Path
+import warnings
 
 
 class Settings(BaseSettings):
@@ -16,6 +17,7 @@ class Settings(BaseSettings):
 
     # --- Application ---
     APP_NAME: str = "IELTS Speaking Practice"
+    APP_BASE_URL: str = "http://localhost:8000"
     DEBUG: bool = False
 
     # --- Paths ---
@@ -49,10 +51,33 @@ class Settings(BaseSettings):
     ALLOWED_AUDIO_FORMATS: list[str] = ["webm", "wav", "mp3", "ogg"]
 
     # --- Authentication ---
-    JWT_SECRET: str = "change_this_to_a_random_secure_string_in_production"
+    JWT_SECRET: str = ""
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
-    INVITE_CODE: str = "IELTS2025"  # Default invite code if not set in .env
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+    PASSWORD_RESET_EXPIRE_MINUTES: int = 15
+    INVITE_CODE: str = ""
+
+    # --- Email ---
+    EMAIL_FROM: str = "no-reply@example.com"
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_USE_TLS: bool = True
+
+    # --- CORS ---
+    CORS_ORIGINS: list[str] = []
+
+    @field_validator("JWT_SECRET", mode="after")
+    @classmethod
+    def warn_empty_jwt_secret(cls, value):
+        if not value:
+            warnings.warn(
+                "JWT_SECRET is empty — set it in .env before deploying to production",
+                stacklevel=1,
+            )
+        return value
 
     @field_validator("DEBUG", mode="before")
     @classmethod
