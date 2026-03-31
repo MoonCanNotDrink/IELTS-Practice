@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="IELTS Speaking Practice - Full Mock Exam with AI Scoring">
+    <title>IELTS Speaking Practice - AI Examiner</title>
+    <link rel="stylesheet" href="/static/variables.css?v=1">
+    <link rel="stylesheet" href="/static/base.css?v=1">
+    <link rel="stylesheet" href="/static/components.css?v=1">
+    <link rel="stylesheet" href="/static/layout.css?v=1">
+    <link rel="stylesheet" href="/static/pages.css?v=1">
+    <link rel="stylesheet" href="/static/responsive.css?v=1">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='35' y='18' width='30' height='44' rx='15' fill='%234f8cff'/><rect x='47' y='62' width='6' height='18' fill='%234f8cff'/><rect x='38' y='80' width='24' height='6' rx='3' fill='%234f8cff'/></svg>">
+</head>
+<body>
+    <a class="skip-link" href="#mainContent">Skip to main content</a>
+    <div class="app-container">
+
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-controls">
+                <button type="button" id="btnLogin" class="btn btn-primary header-btn-compact" onclick="showAuth()">Log In</button>
+                <button type="button" id="btnLogout" class="btn btn-ghost header-btn-compact auth-logout-hidden" onclick="logout()">Log Out</button>
+            </div>
+            <h1>
+                <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="url(#micGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+                    <title>Microphone icon</title>
+                    <defs><linearGradient id="micGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#60a5fa"/><stop offset="100%" style="stop-color:#a78bfa"/></linearGradient></defs>
+                    <rect x="9" y="2" width="6" height="12" rx="3"/>
+                    <path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/>
+                </svg>
+                IELTS Speaking Practice
+            </h1>
+            <p class="subtitle">AI-Powered Full Mock Exam &middot; Parts 1, 2 & 3</p>
+        </header>
+
+        <nav class="page-nav page-nav-centered" aria-label="Page navigation">
+            <a href="/" class="btn btn-ghost btn-link-inline page-back-link">
+                &larr; Back to Home
+            </a>
+        </nav>
+
+        <main id="mainContent">
+
+        <!-- Mode Selector (shown on start screen) -->
+        <div id="modeSelector">
+            <div class="card">
+                <div class="btn-grid mode-grid-spacing">
+                    <button type="button" class="btn btn-primary btn-full" id="btnFullExam" onclick="startMode('full')">
+                        &#127891; Full Mock Exam
+                    </button>
+                    <button type="button" class="btn btn-ghost btn-full" id="btnPart2Only" onclick="startMode('part2')">
+                        &#128203; Part 2 Only
+                    </button>
+                    <button type="button" class="btn btn-ghost btn-full btn-grid-span-full" id="btnFreePractice" onclick="showFreePracticeSetup()">
+                        &#127908; Free Practice (Custom)
+                    </button>
+                </div>
+
+                <div class="practice-form hidden" id="freePracticePanel" data-duration-source="preset" data-duration-seconds="120">
+                    <div class="practice-form-header">
+                        <div class="practice-form-title">Free Practice</div>
+                        <p class="practice-form-subtitle">Choose a topic from the library, or write your own prompt and start speaking right away.</p>
+                    </div>
+                    <div class="inline-error hidden" id="freePracticeError"></div>
+                    
+                    <div class="topic-selection-group">
+                        <div class="fp-type-toggle" id="fpTypeToggle">
+                            <button type="button" class="btn btn-ghost active" data-target="library" onclick="setFpType('library')">Topic Library</button>
+                            <button type="button" class="btn btn-ghost" data-target="custom" onclick="setFpType('custom')">Write My Own</button>
+                        </div>
+                        
+                        <div id="library-view" class="view-panel active">
+                            <div class="form-group" id="fpLibrarySelectGroup">
+                                <label id="fpTopicSelectLabel">Select a topic</label>
+                                <input type="hidden" id="freePracticeTopicSelect" value="">
+                                <div class="custom-select-container" id="fpTopicSelectContainer">
+                                    <button type="button" class="custom-select-button" id="fpTopicSelectBtn" onclick="toggleFpTopicDropdown(event)" aria-haspopup="listbox" aria-expanded="false" aria-controls="fpTopicOptions" aria-labelledby="fpTopicSelectLabel fpTopicSelectText">
+                                        <span class="custom-select-text" id="fpTopicSelectText">Select a topic...</span>
+                                        <span class="custom-select-icon">▼</span>
+                                    </button>
+                                    <div class="custom-select-dropdown hidden" id="fpTopicDropdown">
+                                        <div class="custom-select-search">
+                                            <input type="text" id="fpTopicSearchInput" placeholder="Search topics..." aria-label="Search topics" oninput="filterFpTopics(event)" onclick="event.stopPropagation()">
+                                        </div>
+                                        <div class="custom-select-options" id="fpTopicOptions" role="listbox" aria-labelledby="fpTopicSelectLabel">
+                                            <!-- Populated by JS -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="custom-view" class="view-panel hidden">
+                            <div class="form-group">
+                                <label for="freePracticePrompt">Custom prompt</label>
+                                <textarea id="freePracticePrompt" placeholder="Describe a challenge you overcame recently."></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Speaking countdown</label>
+                        <div class="duration-presets">
+                            <button class="btn btn-ghost duration-option" type="button" data-free-practice-preset data-seconds="60" onclick="setFreePracticePreset(60)">1 Min</button>
+                            <button class="btn btn-ghost duration-option" type="button" data-free-practice-preset data-seconds="120" onclick="setFreePracticePreset(120)">2 Min</button>
+                            <button class="btn btn-ghost duration-option" type="button" data-free-practice-preset data-seconds="180" onclick="setFreePracticePreset(180)">3 Min</button>
+                        </div>
+                        <div class="custom-duration-row">
+                            <input type="number" id="freePracticeCustomSeconds" min="1" step="1" placeholder="Custom seconds" oninput="handleFreePracticeCustomDurationInput()">
+                        </div>
+                        <p class="form-hint">Use a preset or enter any positive number of seconds.</p>
+                    </div>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-primary" id="btnStartFreePractice" onclick="startFreePractice()">
+                            &#127908; Start Answering
+                        </button>
+                        <button class="btn btn-ghost" type="button" onclick="hideFreePracticeSetup()">Cancel</button>
+                    </div>
+                </div>
+                
+                <div class="audio-mode-banner">
+                    <div>
+                        <div class="audio-mode-title">&#127911; Audio Examiner Mode</div>
+                        <div class="audio-mode-copy">Default is text mode. Turn this on for spoken examiner prompts.</div>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="audioModeToggle">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- FULL EXAM FLOW -->
+        <div id="examFlow" class="hidden">
+
+            <!-- Phase Steps -->
+            <div class="phase-steps" id="phaseSteps">
+                <div class="phase-step" id="step-topic"><span class="step-icon">&#127922;</span> Topic</div>
+                <div class="phase-step" id="step-part1"><span class="step-icon">&#128172;</span> Part 1</div>
+                <div class="phase-step" id="step-part2"><span class="step-icon">&#128203;</span> Part 2</div>
+                <div class="phase-step" id="step-part3"><span class="step-icon">&#128483;&#65039;</span> Part 3</div>
+                <div class="phase-step" id="step-score"><span class="step-icon">&#128202;</span> Score</div>
+            </div>
+
+            <div class="session-actions hidden" id="sessionActions">
+                <button type="button" class="btn btn-ghost" onclick="interruptPractice()">
+                    &#9209; Interrupt & Back Home
+                </button>
+            </div>
+
+            <!-- Topic Draw Card -->
+            <div class="card cue-card" id="topicCard">
+                <div class="card-header">
+                    <span class="icon">&#127922;</span>
+                    <h2>Draw Part 2 Topic</h2>
+                </div>
+                <div id="topicContent">
+                    <div class="empty-state">
+                        <span class="big-icon">&#127922;</span>
+                        <p>Draw a random Part 2 topic to begin your mock exam</p>
+                    </div>
+                </div>
+                <div class="topic-card-actions">
+                    <button type="button" class="btn btn-primary btn-full" id="btnDrawTopic" onclick="drawTopic()">
+                        &#127922; Draw Topic & Start Exam
+                    </button>
+                </div>
+            </div>
+
+            <!-- Part 1 Section -->
+            <div class="card hidden" id="part1Section">
+                <div class="card-header">
+                    <span class="icon">&#128172;</span>
+                    <h2>Part 1 - General Questions</h2>
+                    <span class="status-badge prep" id="part1TopicBadge">Topic</span>
+                </div>
+                <div class="part-question-display" id="part1Question">
+                    <p id="part1QuestionText" class="question-text-primary"></p>
+                    <p class="question-progress-text" id="part1Progress"></p>
+                </div>
+                <div class="recording-indicator hidden" id="p1RecordingIndicator">
+                    <span class="recording-dot"></span> Recording...
+                </div>
+                <div id="part1Transcript" class="transcript-box hidden transcript-block-spacing"></div>
+                <div class="btn-group controls-center-row" id="part1Controls">
+                    <button type="button" class="btn btn-danger btn-full" id="btnP1Record" onclick="toggleP1Recording()">
+                        &#127908; Answer this Question
+                    </button>
+                </div>
+            </div>
+
+            <!-- Part 2 Section -->
+            <div class="card cue-card hidden" id="part2CueCard">
+                <div class="card-header">
+                    <span class="icon">&#128203;</span>
+                    <h2 id="part2CueTitle">Part 2 - Cue Card</h2>
+                </div>
+                <div id="part2TopicDisplay"></div>
+            </div>
+
+            <div class="card hidden" id="part2Section">
+                <div class="card-header">
+                    <span class="icon">&#9201;&#65039;</span>
+                    <h2 id="part2PhaseTitle">Preparation Phase</h2>
+                    <span class="status-badge prep" id="part2Badge">1 Min</span>
+                </div>
+                <div class="timer-display">
+                    <div class="timer-time" id="part2Timer">01:00</div>
+                    <div class="timer-label" id="part2TimerLabel">Preparation Time</div>
+                </div>
+                <textarea class="notes-area hidden" id="notesInput" placeholder="&#128221; Take notes here - keywords, examples, structure..."></textarea>
+                <div class="recording-indicator hidden" id="p2RecordingIndicator">
+                    <span class="recording-dot"></span> Recording Part 2...
+                </div>
+                <div class="btn-group controls-top-spacing" id="part2Controls">
+                    <button type="button" class="btn btn-primary" id="btnStartPrep" onclick="startPrep()">&#9203; Start 1-Min Prep</button>
+                    <button type="button" class="btn btn-ghost" onclick="skipPrep()">&#9197; Skip to Speaking</button>
+                </div>
+            </div>
+
+            <!-- Part 3 Section -->
+            <div class="card hidden" id="part3Section">
+                <div class="card-header">
+                    <span class="icon">&#128483;&#65039;</span>
+                    <h2>Part 3 - Discussion</h2>
+                    <span class="status-badge speaking" id="part3Badge">In-depth</span>
+                </div>
+                <div class="part-question-display">
+                    <p id="part3QuestionText" class="question-text-secondary"></p>
+                    <p class="question-progress-text" id="part3Progress"></p>
+                </div>
+                <div class="recording-indicator hidden" id="p3RecordingIndicator">
+                    <span class="recording-dot"></span> Recording...
+                </div>
+                <div id="part3Transcript" class="transcript-box hidden transcript-block-spacing"></div>
+                <div class="btn-group controls-top-spacing" id="part3Controls">
+                    <button type="button" class="btn btn-danger btn-full" id="btnP3Record" onclick="toggleP3Recording()">
+                        &#127908; Answer this Question
+                    </button>
+                </div>
+            </div>
+
+            <!-- Scoring Section -->
+            <div class="card hidden" id="scoreSection">
+                <div class="card-header">
+                    <span class="icon">&#128202;</span>
+                    <h2>AI Assessment Results</h2>
+                </div>
+                <div class="loading-overlay" id="scoringLoader">
+                    <div class="spinner"></div>
+                    <p class="loading-text">Analyzing your full exam...</p>
+                    <p class="loading-text loading-text-subtle">ASR &middot; Pronunciation &middot; AI Scoring</p>
+                </div>
+                <div class="hidden" id="scoreResults">
+                    <div id="flowStatusBanner" class="flow-status-banner hidden"></div>
+                    <!-- Score cards -->
+                    <div class="scores-grid" id="scoresGrid"></div>
+                    <!-- Transcript tabs -->
+                    <div class="transcript-tabs-row" id="transcriptTabs"></div>
+                    <div class="transcript-box" id="transcriptDisplay"></div>
+                    <!-- Feedback -->
+                    <div class="feedback-section" id="feedbackSection"></div>
+                    <!-- Restart / History -->
+                    <div class="btn-group controls-actions-spacing">
+                        <button type="button" class="btn btn-primary btn-full" onclick="backToHome()">
+                            &#127968; Back to Home
+                        </button>
+                        <a href="/history" class="btn btn-ghost btn-full btn-link-reset">
+                            &#128200; View Progress Chart
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /examFlow -->
+        </main>
+    </div>
+
+    <script src="/static/shared.js?v=1" charset="utf-8"></script>
+    <script src="/static/app.js?v=23" charset="utf-8"></script>
+    <script src="/static/free-practice.js?v=1" charset="utf-8"></script>
+</body>
+</html>

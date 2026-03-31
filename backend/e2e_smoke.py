@@ -57,10 +57,12 @@ async def register_and_login(
     invite_code: str,
 ) -> dict[str, str]:
     username, password = make_user_credentials()
+    email = f"{username}@example.com"
     register_res = await client.post(
         f"{base_url}/api/auth/register",
         json={
             "username": username,
+            "email": email,
             "password": password,
             "invite_code": invite_code,
         },
@@ -78,7 +80,7 @@ async def register_and_login(
 
     token = login_payload["access_token"]
     assert register_payload.get("access_token"), "register did not return access token"
-    return {"username": username, "password": password, "token": token}
+    return {"username": username, "email": email, "password": password, "token": token}
 
 
 async def fetch_random_topic(client: httpx.AsyncClient, base_url: str, headers: dict[str, str]) -> dict:

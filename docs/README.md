@@ -5,15 +5,15 @@
 > 状态：Active
 > 最后更新：2026-03-20
 
-## 导航
+ ## 导航
 
-- [根目录 README（中文）](../README.md)
-- [Root README (English)](../README.en.md)
-- [项目简介（中文）](项目简介.md)
-- [Project Overview (English)](项目简介.en.md)
-- [Documentation Index (English)](README.en.md)
-- [对外文档（中文）](../documentation/README.md)
-- [External Documentation (English)](../documentation/README.en.md)
+ - [根目录 README（中文）](../README.md)
+ - [Root README (English)](../README.en.md)
+ - [项目简介（中文）](项目简介.md)
+ - [Project Overview (English)](项目简介.en.md)
+ - [Documentation Index (English)](README.en.md)
+ - [External documentation (中文)](README.md)  
+ - [External documentation (English)](README.en.md)
 
 ## 目录分类
 
@@ -37,9 +37,12 @@
 - [Free Practice Implementation Plan](plans/自由练习实现计划.en.md)
 
 ### 报告文档
+- [项目全面审计报告](reports/项目全面审计报告.md) ← 最新
+- [全阶段开发总结](reports/全阶段开发总结.md)
 - [自由练习界面优化报告](reports/自由练习界面优化报告.md)
 - [自由练习-产品设计摘要](reports/自由练习-产品设计摘要.md)
-- [全阶段开发总结](reports/全阶段开发总结.md)
+- [UI界面优化方案](reports/UI界面优化方案.md)
+- [UI优化测试报告](reports/UI优化测试报告.md)
 
 ### 英文版报告文档
 
@@ -51,3 +54,11 @@
 
 - [../AGENTS.md](../AGENTS.md)：项目级开发规则，保留在仓库根目录。
 - `.sisyphus/`：内部执行计划、问题记录、决策记录和过程性笔记，保留原位，不作为对外交付文档。
+
+---
+
+<!-- Merged external docs index from /documentation/README.md -->
+
+## External documentation (merged)
+
+The external-facing user guides were previously stored under `documentation/` and have been moved into `docs/user-guide/`. See `docs/user-guide/` for getting started, mock exam, free practice, and FAQ guides.

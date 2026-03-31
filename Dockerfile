@@ -14,7 +14,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # 复制依赖清单并安装
 # 设置缓存目录避免重复下载，加速重新构建
 COPY backend/requirements.txt ./backend/
-RUN pip install --no-cache-dir -r backend/requirements.txt
+ARG PIP_INDEX_URL=https://pypi.org/simple
+ARG PIP_TRUSTED_HOST=pypi.org
+RUN PIP_DISABLE_PIP_VERSION_CHECK=1 PIP_DEFAULT_TIMEOUT=120 PIP_INDEX_URL=${PIP_INDEX_URL} PIP_TRUSTED_HOST=${PIP_TRUSTED_HOST} pip install --prefer-binary --no-cache-dir -r backend/requirements.txt
 
 # 复制代码资源（包含前端和后端）
 # 保持原有的相对目录结构，因为 main.py 强依赖于 ../frontend 静态文件路径

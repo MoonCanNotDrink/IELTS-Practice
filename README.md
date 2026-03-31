@@ -14,16 +14,16 @@
 - [Documentation Index (English)](docs/README.en.md)
 - [项目简介（中文）](docs/项目简介.md)
 - [Project Overview (English)](docs/项目简介.en.md)
-- [对外文档](documentation/README.md)
-- [External Documentation (English)](documentation/README.en.md)
+ - [对外文档 (External docs)](docs/README.md)
+ - [External Documentation (English)](docs/README.en.md)
 
 ## 从这里开始
 
 | 我想做什么 | 入口 |
 |---|---|
 | 快速了解这个项目 | [项目简介](docs/项目简介.md) |
-| 作为普通读者阅读公开文档 | [对外文档](documentation/README.md) |
-| 开始查看用户指南 | [快速开始](documentation/user-guide/getting-started.md) |
+| 作为普通读者阅读公开文档 | [对外文档](docs/README.md) |
+| 开始查看用户指南 | [快速开始](docs/user-guide/getting-started.md) |
 | 查看实现计划和报告 | [文档目录](docs/README.md) |
 
 ## 核心能力
@@ -41,18 +41,18 @@
 ### 安装依赖
 
 ```bash
-pnpm install
+corepack pnpm install
 ```
 
 ### 运行测试
 
 ```bash
-pnpm test
+corepack pnpm test
 ```
 
 ### 本地运行说明
 
-- 当前根目录 `package.json` 提供的脚本是 `pnpm test`。
+- 当前根目录 `package.json` 提供的脚本是 `corepack pnpm test`。
 - 其他本地开发步骤请参考 [AGENTS.md](AGENTS.md) 与 [docs/README.md](docs/README.md) 中的计划 / 报告文档。
 
 ## 项目结构
@@ -68,7 +68,7 @@ pnpm test
 
 - [docs/README.md](docs/README.md)：文档目录
 - [docs/style-guide.md](docs/style-guide.md)：文档风格指南
-- [documentation/README.md](documentation/README.md)：更正式的对外发布文档入口
+- [docs/README.md](docs/README.md)：对外文档与项目文档的统一入口
 - [docs/plans/自由练习实现计划.md](docs/plans/自由练习实现计划.md)：自由练习功能的实现计划
 - [docs/reports/自由练习界面优化报告.md](docs/reports/自由练习界面优化报告.md)：Free Practice 界面优化与可访问性报告
 - [docs/reports/自由练习-产品设计摘要.md](docs/reports/自由练习-产品设计摘要.md)：Free Practice 的产品 / 设计视角摘要
@@ -84,6 +84,41 @@ pnpm test
 - 大模型：Gemini
 - 鉴权：JWT
 - 部署：Docker
+
+## 部署
+
+### 本地 Docker 构建
+
+默认使用官方 PyPI：
+
+```bash
+docker build -t ielts-practice .
+```
+
+如果网络较慢，可临时切换清华镜像：
+
+```bash
+docker build \
+  --build-arg PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple \
+  --build-arg PIP_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn \
+  -t ielts-practice .
+```
+
+### Cloud Run 部署
+
+默认使用官方 PyPI：
+
+```bash
+bash scripts/deploy-cloud-run.sh
+```
+
+需要时可显式切换镜像源：
+
+```bash
+bash scripts/deploy-cloud-run.sh --use-mirror=tsinghua
+```
+
+这个脚本会先执行 `gcloud builds submit --config cloudbuild.yaml` 构建镜像，再将该镜像部署到 Cloud Run。
 
 ## 说明
 

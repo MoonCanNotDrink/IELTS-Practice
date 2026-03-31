@@ -1,8 +1,16 @@
 {
   "scripts": {
-    "test": "cd backend && (python -m unittest test_tts_route test_free_practice_routes -v || python3 -m unittest test_tts_route test_free_practice_routes -v) && cd .. && npx playwright test"
+    "lint": "npx @biomejs/biome lint frontend/",
+    "test": "npx playwright test",
+    "test:unit": "npx vitest run",
+    "test:unit:coverage": "npx vitest run --coverage",
+    "test:all": "cd backend && (python -m unittest discover -p 'test*_route*.py' -v || python3 -m unittest discover -p 'test*_route*.py' -v) && cd .. && npx playwright test"
   },
   "devDependencies": {
-    "@playwright/test": "^1.58.2"
+    "@biomejs/biome": "^2.4.9",
+    "@playwright/test": "^1.58.2",
+    "@vitest/coverage-v8": "^4.1.2",
+    "jsdom": "^29.0.1",
+    "vitest": "^4.1.2"
   }
 }

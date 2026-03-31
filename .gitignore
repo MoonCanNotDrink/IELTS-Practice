@@ -30,12 +30,15 @@ logs.txt
 .python*/
 .python-*.exe
 .python*.zip
+node_modules/
 
 # Local workspace artifacts
 /.docker-tmp/
 /.local-docs-tools/
 /.sisyphus/
 /*.deb
+backend/debug_*.py
+.codex-venv/
 
 # Large local model binaries (use Git LFS if you want to version them)
 backend/whisper_base_model/model.bin
@@ -49,6 +52,7 @@ backend/whisper_base_model/model.bin
 # Playwright
 test-results/
 playwright-report/
+baseline-*.png
 
 # OS
 .DS_Store
@@ -56,3 +60,4 @@ Thumbs.db
 
 # Old tkinter app (archived)
 ielts_app.py
+.tmp/

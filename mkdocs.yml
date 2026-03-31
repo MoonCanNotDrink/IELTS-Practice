@@ -19,7 +19,7 @@ exclude_docs: |
   pnpm-lock.yaml
 nav:
   - Chinese:
-      - 首页: documentation/README.md
+      - 首页: docs/README.md
       - 仓库入口: README.md
       - 文档目录: docs/README.md
       - 项目简介: docs/项目简介.md
@@ -27,16 +27,19 @@ nav:
       - 计划文档:
           - 自由练习实现计划: docs/plans/自由练习实现计划.md
       - 报告文档:
+          - 项目全面审计报告: docs/reports/项目全面审计报告.md
+          - 全阶段开发总结: docs/reports/全阶段开发总结.md
           - 自由练习界面优化报告: docs/reports/自由练习界面优化报告.md
           - 自由练习-产品设计摘要: docs/reports/自由练习-产品设计摘要.md
-          - 全阶段开发总结: docs/reports/全阶段开发总结.md
+          - UI界面优化方案: docs/reports/UI界面优化方案.md
+          - UI优化测试报告: docs/reports/UI优化测试报告.md
       - 对外文档:
-          - 快速开始: documentation/user-guide/getting-started.md
-          - 完整模考指南: documentation/user-guide/mock-exam.md
-          - 自由练习指南: documentation/user-guide/free-practice.md
-          - 常见问题: documentation/user-guide/faq.md
+          - 快速开始: docs/user-guide/getting-started.md
+          - 完整模考指南: docs/user-guide/mock-exam.md
+          - 自由练习指南: docs/user-guide/free-practice.md
+          - 常见问题: docs/user-guide/faq.md
   - English:
-      - Home: documentation/README.en.md
+      - Home: docs/README.en.md
       - Repository Entry: README.en.md
       - Documentation Index: docs/README.en.md
       - Project Overview: docs/项目简介.en.md
@@ -44,11 +47,14 @@ nav:
       - Plans:
           - Free Practice Implementation Plan: docs/plans/自由练习实现计划.en.md
       - Reports:
+          - Project Audit Report: docs/reports/项目全面审计报告.md
+          - Project Development Summary: docs/reports/全阶段开发总结.en.md
           - Free Practice UI Optimization Report: docs/reports/自由练习界面优化报告.en.md
           - Free Practice Product and Design Summary: docs/reports/自由练习-产品设计摘要.en.md
-          - Project Development Summary: docs/reports/全阶段开发总结.en.md
+          - UI Optimization Plan: docs/reports/UI界面优化方案.md
+          - UI Optimization Test Report: docs/reports/UI优化测试报告.md
       - External Documentation:
-          - Getting Started: documentation/user-guide/getting-started.en.md
-          - Mock Exam Guide: documentation/user-guide/mock-exam.en.md
-          - Free Practice Guide: documentation/user-guide/free-practice.en.md
-          - FAQ: documentation/user-guide/faq.en.md
+          - Getting Started: docs/user-guide/getting-started.en.md
+          - Mock Exam Guide: docs/user-guide/mock-exam.en.md
+          - Free Practice Guide: docs/user-guide/free-practice.en.md
+          - FAQ: docs/user-guide/faq.en.md

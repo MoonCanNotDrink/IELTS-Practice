@@ -4,67 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Progress History - IELTS Speaking Practice</title>
-    <link rel="stylesheet" href="/static/index.css?v=17">
+    <link rel="stylesheet" href="/static/variables.css?v=1">
+    <link rel="stylesheet" href="/static/base.css?v=1">
+    <link rel="stylesheet" href="/static/components.css?v=1">
+    <link rel="stylesheet" href="/static/layout.css?v=1">
+    <link rel="stylesheet" href="/static/pages.css?v=1">
+    <link rel="stylesheet" href="/static/responsive.css?v=1">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
-    <!-- Auth Modal -->
-    <div id="authModal" class="auth-overlay">
-        <div class="auth-card">
-            <div class="auth-header">
-                <h2>Welcome Back</h2>
-                <p id="authSubtitle">Please log in to view your history.</p>
-            </div>
-            <div id="authError" class="auth-error"></div>
-            <div class="form-group">
-                <label for="authUsername">Username</label>
-                <input type="text" id="authUsername" placeholder="Enter username" autocomplete="username">
-            </div>
-            <div class="form-group">
-                <label for="authPassword">Password</label>
-                <div class="password-input-wrap">
-                    <input type="password" id="authPassword" placeholder="Enter password" autocomplete="current-password">
-                    <button type="button" class="password-toggle hidden" id="authPasswordToggle" onclick="togglePasswordVisibility('authPassword', 'authPasswordToggle')" aria-label="Show password" aria-pressed="false">Show</button>
-                </div>
-            </div>
-            <div class="form-group hidden" id="confirmPasswordGroup">
-                <label for="authConfirmPassword">Confirm Password</label>
-                <div class="password-input-wrap">
-                    <input type="password" id="authConfirmPassword" placeholder="Re-enter password" autocomplete="new-password">
-                    <button type="button" class="password-toggle" id="authConfirmPasswordToggle" onclick="togglePasswordVisibility('authConfirmPassword', 'authConfirmPasswordToggle')" aria-label="Show password confirmation" aria-pressed="false">Show</button>
-                </div>
-            </div>
-            <div class="form-group" id="inviteCodeGroup" style="display: none;">
-                <label for="authInviteCode">Invite Code</label>
-                <input type="password" id="authInviteCode" placeholder="Required for new accounts">
-            </div>
-            <button type="button" class="btn btn-primary btn-full" id="btnSubmitAuth" style="margin-top:20px;" onclick="submitAuth()">Log In</button>
-            <div class="auth-toggle">
-                <span id="authToggleText">No account? <a onclick="toggleAuthMode()">Register here</a></span>
-            </div>
-        </div>
-    </div>
-
+    <a class="skip-link" href="#mainContent">Skip to main content</a>
     <div class="app-container">
         <header class="app-header">
             <div class="header-controls">
-                <div class="theme-switcher" id="themeSwitcher">
-                    <button type="button" id="btnThemeToggle" class="btn btn-ghost theme-toggle" aria-haspopup="menu" aria-expanded="false" aria-controls="themeMenu">
-                        <span aria-hidden="true">🎨</span>
-                        <span id="currentThemeLabel">System</span>
-                    </button>
-                    <div id="themeMenu" class="theme-menu hidden" role="menu" aria-label="Theme mode">
-                        <button type="button" class="theme-option" data-theme-mode="system" role="menuitemradio" aria-checked="true">Follow System</button>
-                        <button type="button" class="theme-option" data-theme-mode="light" role="menuitemradio" aria-checked="false">Light Mode</button>
-                        <button type="button" class="theme-option" data-theme-mode="dark" role="menuitemradio" aria-checked="false">Dark Mode</button>
-                    </div>
-                </div>
-                <button type="button" id="btnLogin" class="btn btn-primary" style="font-size: 0.8rem; padding: 4px 10px;" onclick="showAuth()">Log In</button>
-                <button type="button" id="btnLogout" class="btn btn-ghost" style="font-size: 0.8rem; padding: 4px 10px; display: none;" onclick="logout()">Log Out</button>
+                <button type="button" id="btnLogin" class="btn btn-primary header-btn-compact" onclick="showAuth()">Log In</button>
+                <button type="button" id="btnLogout" class="btn btn-ghost header-btn-compact auth-logout-hidden" onclick="logout()">Log Out</button>
             </div>
             <h1>
-                <svg aria-hidden="true" focusable="false" style="width:1.1em;height:1.1em;vertical-align:-0.15em;margin-right:0.25em;flex-shrink:0;" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <svg aria-hidden="true" focusable="false" class="brand-icon brand-icon-history" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <defs><linearGradient id="chartGrad" x1="0%" y1="100%" x2="0%" y2="0%"><stop offset="0%" style="stop-color:#3b82f6"/><stop offset="100%" style="stop-color:#8b5cf6"/></linearGradient></defs>
                     <rect x="3" y="12" width="4" height="9" rx="1" fill="url(#chartGrad)" opacity="0.7"/>
                     <rect x="10" y="7" width="4" height="14" rx="1" fill="url(#chartGrad)"/>
@@ -75,11 +33,13 @@
             <p class="subtitle">Your IELTS Speaking Journey</p>
         </header>
 
-        <div style="text-align:center; margin-bottom: 24px;">
-            <a href="/" class="btn btn-ghost" style="text-decoration:none; display:inline-flex;">
+        <nav class="page-nav page-nav-centered" aria-label="Page navigation">
+            <a href="/" class="btn btn-ghost btn-link-inline page-back-link">
                 &larr; Back to Practice
             </a>
-        </div>
+        </nav>
+
+        <main id="mainContent">
 
         <!-- Summary Stats -->
         <div class="card" id="summaryCard">
@@ -90,7 +50,7 @@
             <div class="scores-grid" id="statsGrid">
                 <div class="score-item">
                     <div class="score-label">📝 Total Sessions</div>
-                    <div class="score-value" id="statTotal" style="color:var(--accent-blue)">&mdash;</div>
+                    <div class="score-value score-value-accent-blue" id="statTotal">&mdash;</div>
                 </div>
                 <div class="score-item">
                     <div class="score-label">⭐ Best Score</div>
@@ -102,7 +62,7 @@
                 </div>
                 <div class="score-item">
                     <div class="score-label">🔥 Latest Score</div>
-                    <div class="score-value" id="statLatest" style="color:var(--accent-purple)">&mdash;</div>
+                    <div class="score-value score-value-accent-purple" id="statLatest">&mdash;</div>
                 </div>
             </div>
         </div>
@@ -113,15 +73,15 @@
                 <span class="icon">📈</span>
                 <h2>Score Trend</h2>
             </div>
-            <div style="position:relative; height: 280px; padding: 8px 0;">
+            <div class="history-chart-frame history-chart-frame-lg">
                 <canvas id="trendChart"></canvas>
             </div>
-            <div style="display:flex; gap:16px; justify-content:center; margin-top:12px; flex-wrap:wrap;">
-                <span class="legend-item" style="color:var(--accent-blue)">● Overall</span>
-                <span class="legend-item" style="color:var(--accent-green)">● Fluency</span>
-                <span class="legend-item" style="color:var(--accent-amber)">● Vocabulary</span>
-                <span class="legend-item" style="color:var(--accent-purple)">● Grammar</span>
-                <span class="legend-item" style="color:#ec4899">● Pronunciation</span>
+            <div id="trendLegend" class="history-legend-row">
+                <span class="legend-item legend-blue">● Overall</span>
+                <span class="legend-item legend-green">● Fluency</span>
+                <span class="legend-item legend-amber">● Vocabulary</span>
+                <span class="legend-item legend-purple">● Grammar</span>
+                <span class="legend-item legend-pink">● Pronunciation</span>
             </div>
         </div>
 
@@ -131,7 +91,7 @@
                 <span class="icon">🕸️</span>
                 <h2>Dimension Breakdown (Latest 5)</h2>
             </div>
-            <div style="position:relative; height: 260px;">
+            <div class="history-chart-frame history-chart-frame-md">
                 <canvas id="radarChart"></canvas>
             </div>
         </div>
@@ -142,599 +102,45 @@
                 <span class="icon">📋</span>
                 <h2>Session History</h2>
             </div>
-            <div id="historyList">
+            <div class="history-filter-row">
+                <label class="history-filter-label">
+                    Module
+                    <select id="moduleFilter" data-testid="history-module-filter" class="history-filter-select">
+                        <option value="all">All modules</option>
+                        <option value="speaking">Speaking</option>
+                        <option value="writing">Writing</option>
+                    </select>
+                </label>
+                <label class="history-filter-label">
+                    Task type
+                    <select id="taskFilter" data-testid="history-task-filter" class="history-filter-select">
+                        <option value="all">All task types</option>
+                        <option value="full_exam">Speaking · Full exam</option>
+                        <option value="part2_only">Speaking · Part 2 only</option>
+                        <option value="task1">Writing · Task 1</option>
+                        <option value="task2">Writing · Task 2</option>
+                    </select>
+                </label>
+            </div>
+            <div id="historyList" data-testid="history-list">
                 <div class="loading-overlay">
                     <div class="spinner"></div>
                     <p class="loading-text">Loading history...</p>
                 </div>
             </div>
         </div>
+        </main>
     </div>
 
     <!-- Session Detail Overlay -->
-    <div id="detailOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:1000;overflow-y:auto;padding:24px 16px;">
-        <div style="max-width:680px;margin:0 auto;background:var(--bg-card);border-radius:var(--radius-lg);border:1px solid var(--border-subtle);padding:28px;position:relative;">
-            <button type="button" onclick="closeDetail()" style="position:absolute;top:16px;right:16px;background:none;border:1px solid var(--border-subtle);color:var(--text-muted);border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;">✕</button>
+    <div id="detailOverlay" class="history-detail-overlay">
+        <div class="history-detail-dialog">
+            <button type="button" onclick="closeDetail()" class="history-detail-close">✕</button>
             <div id="detailContent">Loading...</div>
         </div>
     </div>
 
-    <script>
-    // ── Theme + Chart state ─────────────────────────────────────────
-    let trendChartInstance = null;
-    let radarChartInstance = null;
-    let cachedHistoryData = [];
-
-    const THEME_MODE_STORAGE_KEY = 'ielts_theme_mode';
-    const THEME_MODE_LABELS = {
-        system: 'System',
-        light: 'Light',
-        dark: 'Dark',
-    };
-
-    const BLUE = '#3b82f6', GREEN = '#10b981', AMBER = '#f59e0b',
-          PURPLE = '#8b5cf6', PINK = '#ec4899';
-
-    function getCssVar(name, fallback = '') {
-        const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-        return value || fallback;
-    }
-
-    function applyChartThemeDefaults() {
-        Chart.defaults.color = getCssVar('--text-secondary', '#94a3b8');
-        Chart.defaults.borderColor = getCssVar('--border-subtle', 'rgba(255,255,255,0.06)');
-        Chart.defaults.font.family = "'Inter', sans-serif";
-    }
-
-    function getSystemTheme() {
-        return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    }
-
-    function getStoredThemeMode() {
-        const storedMode = localStorage.getItem(THEME_MODE_STORAGE_KEY);
-        return storedMode === 'light' || storedMode === 'dark' || storedMode === 'system'
-            ? storedMode
-            : 'system';
-    }
-
-    function syncThemeMenuState(mode) {
-        const currentLabel = document.getElementById('currentThemeLabel');
-        if (currentLabel) currentLabel.textContent = THEME_MODE_LABELS[mode] || THEME_MODE_LABELS.system;
-
-        document.querySelectorAll('#themeMenu .theme-option').forEach((option) => {
-            const isActive = option.dataset.themeMode === mode;
-            option.classList.toggle('active', isActive);
-            option.setAttribute('aria-checked', isActive ? 'true' : 'false');
-        });
-    }
-
-    function closeThemeMenu() {
-        const menu = document.getElementById('themeMenu');
-        const trigger = document.getElementById('btnThemeToggle');
-        if (!menu || !trigger) return;
-        menu.classList.add('hidden');
-        trigger.setAttribute('aria-expanded', 'false');
-    }
-
-    function renderHistoryData(history) {
-        renderStats(history);
-        renderTrendChart(history);
-        renderRadarChart(history);
-        renderSessionList(history);
-    }
-
-    function applyThemeMode(mode, { persist = true, rerender = true } = {}) {
-        const normalizedMode = mode === 'light' || mode === 'dark' ? mode : 'system';
-        const resolvedTheme = normalizedMode === 'system' ? getSystemTheme() : normalizedMode;
-
-        document.documentElement.dataset.themeMode = normalizedMode;
-        document.documentElement.dataset.theme = resolvedTheme;
-
-        syncThemeMenuState(normalizedMode);
-        applyChartThemeDefaults();
-
-        if (persist) localStorage.setItem(THEME_MODE_STORAGE_KEY, normalizedMode);
-        if (rerender && cachedHistoryData.length) renderHistoryData(cachedHistoryData);
-    }
-
-    function initThemeMode() {
-        const trigger = document.getElementById('btnThemeToggle');
-        const menu = document.getElementById('themeMenu');
-        const themeSwitcher = document.getElementById('themeSwitcher');
-        if (!trigger || !menu || !themeSwitcher) return;
-
-        applyThemeMode(getStoredThemeMode(), { persist: false, rerender: false });
-
-        trigger.addEventListener('click', (event) => {
-            event.stopPropagation();
-            const isHidden = menu.classList.contains('hidden');
-            menu.classList.toggle('hidden', !isHidden);
-            trigger.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
-        });
-
-        menu.addEventListener('click', (event) => {
-            const option = event.target.closest('.theme-option');
-            if (!option) return;
-            applyThemeMode(option.dataset.themeMode || 'system');
-            closeThemeMenu();
-            trigger.focus();
-        });
-
-        document.addEventListener('click', (event) => {
-            if (!themeSwitcher.contains(event.target)) {
-                closeThemeMenu();
-            }
-        });
-
-        const mediaQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
-        if (mediaQuery) {
-            const handleChange = () => {
-                if ((document.documentElement.dataset.themeMode || 'system') === 'system') {
-                    applyThemeMode('system', { persist: false });
-                }
-            };
-            if (typeof mediaQuery.addEventListener === 'function') {
-                mediaQuery.addEventListener('change', handleChange);
-            } else if (typeof mediaQuery.addListener === 'function') {
-                mediaQuery.addListener(handleChange);
-            }
-        }
-    }
-
-    function makeGradient(ctx, color) {
-        const g = ctx.createLinearGradient(0, 0, 0, 280);
-        g.addColorStop(0, color + '40');
-        g.addColorStop(1, color + '00');
-        return g;
-    }
-
-    // ── Fetch & Render ──────────────────────────────────────────────
-    let isAuthModeLogin = true;
-
-    function setPasswordVisibility(inputId, buttonId, visible) {
-        const input = document.getElementById(inputId);
-        const button = document.getElementById(buttonId);
-        if (!input || !button) return;
-
-        const isVisible = Boolean(visible);
-        input.type = isVisible ? 'text' : 'password';
-        button.textContent = isVisible ? 'Hide' : 'Show';
-        button.setAttribute('aria-pressed', isVisible ? 'true' : 'false');
-        button.setAttribute('aria-label', isVisible
-            ? `Hide ${inputId === 'authConfirmPassword' ? 'password confirmation' : 'password'}`
-            : `Show ${inputId === 'authConfirmPassword' ? 'password confirmation' : 'password'}`);
-    }
-
-    function resetAuthPasswordVisibility() {
-        setPasswordVisibility('authPassword', 'authPasswordToggle', false);
-        setPasswordVisibility('authConfirmPassword', 'authConfirmPasswordToggle', false);
-    }
-
-    function togglePasswordVisibility(inputId, buttonId) {
-        const input = document.getElementById(inputId);
-        if (!input) return;
-        setPasswordVisibility(inputId, buttonId, input.type === 'password');
-    }
-
-    function toggleAuthMode() {
-        isAuthModeLogin = !isAuthModeLogin;
-        document.getElementById('authPassword').setAttribute('autocomplete', isAuthModeLogin ? 'current-password' : 'new-password');
-        document.getElementById('authSubtitle').textContent = isAuthModeLogin ? "Please log in to view your history." : "Create an account to track your progress.";
-        document.getElementById('btnSubmitAuth').textContent = isAuthModeLogin ? "Log In" : "Register";
-        document.getElementById('authToggleText').innerHTML = isAuthModeLogin ? 'No account? <a onclick="toggleAuthMode()">Register here</a>' : 'Have an account? <a onclick="toggleAuthMode()">Log in</a>';
-        document.getElementById('inviteCodeGroup').style.display = isAuthModeLogin ? 'none' : 'block';
-        document.getElementById('confirmPasswordGroup').classList.toggle('hidden', isAuthModeLogin);
-        document.getElementById('authPasswordToggle').classList.toggle('hidden', isAuthModeLogin);
-        document.getElementById('authConfirmPassword').value = '';
-        resetAuthPasswordVisibility();
-        document.getElementById('authError').style.display = 'none';
-    }
-
-    function showAuth() {
-        document.getElementById('authModal').classList.add('show');
-    }
-
-    function hideAuth() {
-        document.getElementById('authModal').classList.remove('show');
-    }
-
-    async function submitAuth() {
-        const user = document.getElementById('authUsername').value.trim();
-        const pass = document.getElementById('authPassword').value;
-        const confirmPass = document.getElementById('authConfirmPassword').value;
-        const errEl = document.getElementById('authError');
-        errEl.style.display = 'none';
-
-        if(!user || !pass) {
-            errEl.textContent = 'Please enter username and password.';
-            errEl.style.display = 'block';
-            return;
-        }
-
-        if (!isAuthModeLogin) {
-            if (!confirmPass) {
-                errEl.textContent = 'Please confirm your password.';
-                errEl.style.display = 'block';
-                return;
-            }
-
-            if (pass !== confirmPass) {
-                errEl.textContent = 'Passwords do not match.';
-                errEl.style.display = 'block';
-                return;
-            }
-        }
-
-        try {
-            let res;
-            if (isAuthModeLogin) {
-                const fd = new URLSearchParams();
-                fd.append('username', user);
-                fd.append('password', pass);
-                res = await fetch('/api/auth/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: fd
-                });
-            } else {
-                const invite = document.getElementById('authInviteCode').value.trim();
-                res = await fetch('/api/auth/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: user, password: pass, invite_code: invite })
-                });
-            }
-            
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.detail || 'Authentication failed');
-
-            localStorage.setItem('ielts_token', data.access_token);
-            hideAuth();
-            document.getElementById('btnLogin').style.display = 'none';
-            document.getElementById('btnLogout').style.display = 'block';
-            loadHistory();
-        } catch (err) {
-            errEl.textContent = err.message;
-            errEl.style.display = 'block';
-        }
-    }
-
-    function logout() {
-        localStorage.removeItem('ielts_token');
-        window.location.reload();
-    }
-
-    function hasScore(value) {
-        return value !== null && value !== undefined;
-    }
-
-    function formatScore(value) {
-        return hasScore(value) ? Number(value).toFixed(1) : '\u2014';
-    }
-
-    function getScoreColor(value) {
-        if (!hasScore(value)) return '#64748b';
-        if (value >= 7) return 'var(--accent-green)';
-        if (value >= 5.5) return 'var(--accent-amber)';
-        return 'var(--accent-red)';
-    }
-
-    function isSuccessfulScore(session) {
-        return session?.scoring_status !== 'error' && hasScore(session?.scores?.overall);
-    }
-
-    function getScoredHistory(history) {
-        return history.filter(isSuccessfulScore);
-    }
-
-    async function loadHistory() {
-        const token = localStorage.getItem('ielts_token');
-        if (!token) {
-            showAuth();
-            return;
-        }
-        
-        const res = await fetch('/api/scoring/history?limit=20', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (res.status === 401) {
-            localStorage.removeItem('ielts_token');
-            showAuth();
-            return;
-        }
-        
-        const history = await res.json();
-        cachedHistoryData = Array.isArray(history) ? history : [];
-        renderHistoryData(cachedHistoryData);
-        document.getElementById('btnLogin').style.display = 'none';
-        document.getElementById('btnLogout').style.display = 'block';
-    }
-
-    function renderStats(history) {
-        const complete = getScoredHistory(history);
-        document.getElementById('statTotal').textContent = complete.length || '0';
-
-        if (!complete.length) {
-            ['statBest','statAvg','statLatest'].forEach((id) => {
-                document.getElementById(id).textContent = '\u2014';
-            });
-            return;
-        }
-
-        const scores = complete.map(s => s.scores.overall);
-        document.getElementById('statBest').textContent = formatScore(Math.max(...scores));
-        document.getElementById('statAvg').textContent = formatScore(scores.reduce((a,b)=>a+b,0)/scores.length);
-
-        const latestEl = document.getElementById('statLatest');
-        const latest = scores[0];
-        latestEl.textContent = formatScore(latest);
-        latestEl.className = 'score-value ' + (latest >= 7 ? 'high' : latest >= 5.5 ? 'mid' : 'low');
-    }
-
-    function renderTrendChart(history) {
-        if (trendChartInstance) {
-            trendChartInstance.destroy();
-            trendChartInstance = null;
-        }
-
-        const data = [...getScoredHistory(history)].reverse();
-        const labels = data.map((s, i) => {
-            const d = s.date ? new Date(s.date) : null;
-            return d ? `${d.getMonth()+1}/${d.getDate()}` : `#${i+1}`;
-        });
-
-        const ctx = document.getElementById('trendChart').getContext('2d');
-        trendChartInstance = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels,
-                datasets: [
-                    {
-                        label: 'Overall', data: data.map(s => s.scores?.overall ?? null),
-                        borderColor: BLUE, backgroundColor: makeGradient(ctx, BLUE),
-                        tension: 0.4, fill: true, pointRadius: 5, pointHoverRadius: 7,
-                        borderWidth: 2.5,
-                    },
-                    {
-                        label: 'Fluency', data: data.map(s => s.scores?.fluency ?? null),
-                        borderColor: GREEN, tension: 0.4, fill: false,
-                        pointRadius: 3, borderWidth: 1.5, borderDash: [4,4],
-                    },
-                    {
-                        label: 'Vocabulary', data: data.map(s => s.scores?.vocabulary ?? null),
-                        borderColor: AMBER, tension: 0.4, fill: false,
-                        pointRadius: 3, borderWidth: 1.5, borderDash: [4,4],
-                    },
-                    {
-                        label: 'Grammar', data: data.map(s => s.scores?.grammar ?? null),
-                        borderColor: PURPLE, tension: 0.4, fill: false,
-                        pointRadius: 3, borderWidth: 1.5, borderDash: [4,4],
-                    },
-                    {
-                        label: 'Pronunciation', data: data.map(s => s.scores?.pronunciation ?? null),
-                        borderColor: PINK, tension: 0.4, fill: false,
-                        pointRadius: 3, borderWidth: 1.5, borderDash: [4,4],
-                    },
-                ]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { display: false }, tooltip: {
-                    backgroundColor: getCssVar('--bg-secondary', '#111827'),
-                    padding: 12, cornerRadius: 8,
-                    titleColor: getCssVar('--text-primary', '#f1f5f9'),
-                    bodyColor: getCssVar('--text-secondary', '#94a3b8'),
-                }},
-                scales: {
-                    y: {
-                        min: 0, max: 9, ticks: { stepSize: 1 },
-                        grid: { color: getCssVar('--border-subtle', 'rgba(255,255,255,0.06)') },
-                    },
-                    x: { grid: { display: false } }
-                }
-            }
-        });
-    }
-
-    function renderRadarChart(history) {
-        if (radarChartInstance) {
-            radarChartInstance.destroy();
-            radarChartInstance = null;
-        }
-
-        const recent = getScoredHistory(history).slice(0, 5);
-        const avg = key => {
-            const vals = recent.map(s => s.scores?.[key]).filter(hasScore);
-            return vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length) : 0;
-        };
-
-        const ctx = document.getElementById('radarChart').getContext('2d');
-        radarChartInstance = new Chart(ctx, {
-            type: 'radar',
-            data: {
-                labels: ['Fluency', 'Vocabulary', 'Grammar', 'Pronunciation'],
-                datasets: [{
-                    label: 'Average (last 5)',
-                    data: [avg('fluency'), avg('vocabulary'), avg('grammar'), avg('pronunciation')],
-                    backgroundColor: 'rgba(59,130,246,0.15)',
-                    borderColor: BLUE, borderWidth: 2,
-                    pointBackgroundColor: BLUE, pointRadius: 4,
-                }]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { display: false }},
-                scales: {
-                    r: {
-                        min: 0, max: 9, ticks: { stepSize: 1.5, backdropColor: 'transparent' },
-                        grid: { color: getCssVar('--border-subtle', 'rgba(255,255,255,0.06)') },
-                        angleLines: { color: getCssVar('--border-subtle', 'rgba(255,255,255,0.06)') },
-                        pointLabels: { color: getCssVar('--text-secondary', '#94a3b8'), font: { size: 12 } },
-                    }
-                }
-            }
-        });
-    }
-
-    function renderSessionList(history) {
-        const el = document.getElementById('historyList');
-        if (!history.length) {
-            el.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:24px;">No completed sessions yet. Start practicing!</p>';
-            return;
-        }
-
-        el.innerHTML = history.map(s => {
-            const overall = s.scores?.overall;
-            const scoreReady = isSuccessfulScore(s);
-            const scoreColor = scoreReady ? getScoreColor(overall) : '#64748b';
-            const date = s.date ? new Date(s.date).toLocaleString('zh-CN', {
-                month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'
-            }) : '';
-            const scores = s.scores || {};
-            const statusText = s.scoring_status === 'error'
-                ? 'Scoring fallback used'
-                : '';
-
-            return `
-            <div onclick="viewSessionDetail(${s.session_id})" style="padding:14px;border-radius:var(--radius-md);background:var(--bg-glass);
-                border:1px solid var(--border-subtle);margin-bottom:10px;
-                cursor:pointer;transition:border-color 0.2s,background 0.15s;"
-                onmouseenter="this.style.borderColor='var(--border-accent)';this.style.background='rgba(255,255,255,0.06)'"
-                onmouseleave="this.style.borderColor='var(--border-subtle)';this.style.background='var(--bg-glass)'">
-                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
-                    <div style="flex:1;min-width:0;">
-                        <div style="font-size:0.875rem;font-weight:600;color:var(--text-primary);
-                            margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                            ${s.topic_title || 'Practice Session'}</div>
-                        <div style="font-size:0.75rem;color:var(--text-muted);">${date}</div>
-                        ${statusText ? `<div style="font-size:0.72rem;color:var(--accent-amber);margin-top:6px;">${statusText}</div>` : ''}
-                        <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap;">
-                            ${['fluency','vocabulary','grammar','pronunciation'].map(k => `
-                                <span style="font-size:0.72rem;color:var(--text-secondary);">
-                                    ${k.slice(0,4).toUpperCase()} <b style="color:${scoreReady ? getScoreColor(scores[k]) : '#64748b'}">${scoreReady ? formatScore(scores[k]) : '\u2014'}</b>
-                                </span>`).join('')}
-                        </div>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-                        <div style="font-family:var(--font-mono);font-size:1.8rem;font-weight:700;
-                            color:${scoreColor};">${scoreReady ? formatScore(overall) : '\u2014'}</div>
-                        <span style="color:var(--text-muted);font-size:1rem;">›</span>
-                    </div>
-                </div>
-            </div>`;
-        }).join('');
-    }
-
-    async function viewSessionDetail(sessionId) {
-        const overlay = document.getElementById('detailOverlay');
-        const content = document.getElementById('detailContent');
-        content.innerHTML = '<div style="text-align:center;padding:32px;"><div class="spinner"></div><p style="color:var(--text-muted);margin-top:12px;">Loading...</p></div>';
-        overlay.style.display = 'block';
-        document.body.style.overflow = 'hidden';
-
-        try {
-            const token = localStorage.getItem('ielts_token');
-            const res = await fetch(`/api/scoring/sessions/${sessionId}/detail`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const r = await res.json();
-
-            const scores = r.scores || {};
-            const feedback = r.feedback || {};
-            const improvements = r.key_improvements || [];
-            const sample = r.sample_answer || '';
-            const date = r.date ? new Date(r.date).toLocaleString('zh-CN') : '';
-            const hasScoringError = r.scoring_status === 'error';
-            const detailScore = (value) => hasScoringError ? '\u2014' : formatScore(value);
-            const detailColor = (value) => hasScoringError ? '#64748b' : getScoreColor(value);
-
-            const dimLabels = [
-                ['fluency','🗣️ Fluency & Coherence'],
-                ['vocabulary','📚 Vocabulary'],
-                ['grammar','✍️ Grammar Accuracy'],
-                ['pronunciation','🔊 Pronunciation'],
-            ];
-
-            const getColor = getScoreColor;
-
-            let html = `
-                <h2 style="font-size:1.1rem;margin:0 0 4px;padding-right:40px;color:var(--text-primary);">${r.topic_title || 'Practice Session'}</h2>
-                <p style="font-size:0.78rem;color:var(--text-muted);margin:0 0 20px;">${date}</p>
-                ${hasScoringError ? `<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.24);border-radius:var(--radius-md);padding:12px 14px;margin-bottom:16px;"><div style="font-size:0.82rem;color:var(--accent-amber);font-weight:600;margin-bottom:4px;">Scoring fallback used</div><div style="font-size:0.8rem;color:var(--text-secondary);">${r.scoring_error_detail || r.scoring_error || 'The model could not produce a normal score for this session.'}</div></div>` : ''}
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:20px;">
-                    ${dimLabels.map(([k, label]) => `
-                        <div style="background:var(--bg-glass);border-radius:var(--radius-md);padding:12px;text-align:center;">
-                            <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:6px;">${label}</div>
-                            <div style="font-size:1.6rem;font-weight:700;color:${detailColor(scores[k])};">${detailScore(scores[k])}</div>
-                        </div>`).join('')}
-                    <div style="background:var(--bg-glass);border-radius:var(--radius-md);padding:12px;text-align:center;border:1px solid var(--border-accent);">
-                        <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:6px;">⭐ Overall</div>
-                        <div style="font-size:1.6rem;font-weight:700;color:${detailColor(scores.overall)};">${detailScore(scores.overall)}</div>
-                    </div>
-                </div>`;
-
-            // Feedback
-            for (const [k, label] of dimLabels) {
-                if (feedback[k]) html += `
-                    <div style="margin-bottom:14px;">
-                        <h3 style="font-size:0.85rem;color:var(--text-secondary);margin:0 0 6px;">${label}</h3>
-                        <p style="font-size:0.875rem;color:var(--text-primary);margin:0;line-height:1.6;">${feedback[k]}</p>
-                    </div>`;
-            }
-            if (feedback.overall) html += `
-                <div style="margin-bottom:14px;">
-                    <h3 style="font-size:0.85rem;color:var(--text-secondary);margin:0 0 6px;">📋 Overall Feedback</h3>
-                    <p style="font-size:0.875rem;color:var(--text-primary);margin:0;line-height:1.6;">${feedback.overall}</p>
-                </div>`;
-
-            if (improvements.length) {
-                html += `<div style="margin-bottom:14px;">
-                    <h3 style="font-size:0.85rem;color:var(--accent-amber);margin:0 0 8px;">💡 Suggestions</h3>
-                    <ul style="margin:0;padding-left:20px;">
-                        ${improvements.map(i => `<li style="font-size:0.875rem;color:var(--text-primary);margin-bottom:4px;line-height:1.5;">${i}</li>`).join('')}
-                    </ul></div>`;
-            }
-            if (sample) {
-                html += `<div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:var(--radius-md);padding:16px;margin-bottom:8px;">
-                    <h3 style="font-size:0.85rem;color:var(--accent-blue);margin:0 0 8px;">✨ Sample Answer</h3>
-                    <p style="font-size:0.875rem;color:var(--text-primary);margin:0;line-height:1.7;white-space:pre-wrap;">${sample}</p>
-                </div>`;
-            }
-
-            // Transcripts
-            const transcripts = r.transcripts || {};
-            const tParts = Object.entries(transcripts).filter(([,v]) => v?.trim());
-            if (tParts.length) {
-                html += `<div style="margin-top:16px;"><h3 style="font-size:0.85rem;color:var(--text-secondary);margin:0 0 8px;">🎙️ Your Response</h3>`;
-                for (const [part, text] of tParts) {
-                    html += `<div style="margin-bottom:10px;"><div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:4px;">${part.toUpperCase()}</div>
-                        <p style="font-size:0.825rem;color:var(--text-primary);line-height:1.6;margin:0;background:var(--bg-glass);border-radius:var(--radius-sm);padding:10px;">${text}</p></div>`;
-                }
-                html += '</div>';
-            }
-
-            content.innerHTML = html;
-        } catch(e) {
-            content.innerHTML = `<p style="color:var(--accent-red);text-align:center;padding:32px;">Load failed: ${e.message}</p>`;
-        }
-    }
-
-    function closeDetail() {
-        document.getElementById('detailOverlay').style.display = 'none';
-        document.body.style.overflow = '';
-    }
-
-    // Close overlay on background click
-    document.addEventListener('DOMContentLoaded', () => {
-        initThemeMode();
-
-        document.getElementById('detailOverlay').addEventListener('click', e => {
-            if (e.target === document.getElementById('detailOverlay')) closeDetail();
-        });
-
-        loadHistory();
-    });
-    </script>
+    <script src="/static/shared.js?v=1" charset="utf-8"></script>
+    <script src="/static/history.js?v=1" charset="utf-8"></script>
 </body>
 </html>

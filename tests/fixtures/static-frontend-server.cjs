@@ -23,17 +23,81 @@ const server = http.createServer((request, response) => {
         return sendFile(response, path.join(FRONTEND_DIR, 'history.html'), 'text/html');
     }
 
-    if (pathname === '/static/index.css') {
-        return sendFile(response, path.join(FRONTEND_DIR, 'index.css'), 'text/css');
+    if (pathname === '/speaking') {
+        return sendFile(response, path.join(FRONTEND_DIR, 'speaking.html'), 'text/html');
     }
 
-    if (pathname === '/static/app.js') {
-        return sendFile(response, path.join(FRONTEND_DIR, 'app.js'), 'application/javascript');
+    if (pathname === '/writing') {
+        return sendFile(response, path.join(FRONTEND_DIR, 'writing.html'), 'text/html');
     }
 
-    if (pathname === '/api/scoring/history') {
+    if (pathname === '/reset-password') {
+        return sendFile(response, path.join(FRONTEND_DIR, 'reset-password.html'), 'text/html');
+    }
+
+    if (pathname.startsWith('/static/')) {
+        const assetName = path.basename(pathname);
+        const assetPath = path.join(FRONTEND_DIR, assetName);
+
+        if (fs.existsSync(assetPath)) {
+            const ext = path.extname(assetName);
+            const contentType = ext === '.css'
+                ? 'text/css'
+                : ext === '.js'
+                    ? 'application/javascript'
+                    : null;
+
+            if (contentType) {
+                return sendFile(response, assetPath, contentType);
+            }
+        }
+    }
+
+    if (pathname === '/api/auth/me') {
+        response.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ username: 'playwright', email: null, email_verified: false }));
+        return;
+    }
+
+    if (pathname === '/api/auth/email' && request.method === 'PUT') {
+        response.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ username: 'playwright', email: 'bound@example.com', email_verified: false }));
+        return;
+    }
+
+    if (pathname === '/api/auth/password-reset/request' && request.method === 'POST') {
+        response.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ message: 'If the email exists, a reset link has been sent.' }));
+        return;
+    }
+
+    if (pathname === '/api/auth/password-reset/validate' && request.method === 'POST') {
+        response.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ valid: true }));
+        return;
+    }
+
+    if (pathname === '/api/auth/password-reset/confirm' && request.method === 'POST') {
+        response.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ message: 'Password has been reset successfully.' }));
+        return;
+    }
+
+    if (pathname === '/api/dashboard/history') {
         response.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         response.end('[]');
+        return;
+    }
+
+    if (pathname === '/api/writing/prompts' && request.method === 'GET') {
+        response.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify([
+            { id: 1, slug: 'task1-bar-chart', task_type: 'task1', title: 'Bar Chart Description', prompt_text: 'The bar chart below shows...', prompt_details: null },
+            { id: 2, slug: 'task1-pie-chart', task_type: 'task1', title: 'Pie Chart Description', prompt_text: 'The pie chart illustrates...', prompt_details: null },
+            { id: 3, slug: 'task2-environment', task_type: 'task2', title: 'Environmental Protection', prompt_text: 'Some people believe that environmental problems should be solved on a global scale...', prompt_details: null },
+            { id: 4, slug: 'task2-technology', task_type: 'task2', title: 'Technology in Education', prompt_text: 'Many people think that technology has made our lives easier...', prompt_details: null },
+            { id: 5, slug: 'task2-remote-work', task_type: 'task2', title: 'Remote Work', prompt_text: 'Working from home has become increasingly common...', prompt_details: null }
+        ]));
         return;
     }
 

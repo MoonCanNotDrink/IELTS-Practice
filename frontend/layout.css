@@ -1,0 +1,131 @@
+/* ---------- Layout ---------- */
+.app-container {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 36px 24px 56px;
+    position: relative;
+}
+
+/* ---------- Header ---------- */
+.app-header {
+    text-align: center;
+    margin-bottom: 32px;
+    padding: 12px 0 8px;
+    position: relative;
+}
+
+.app-header h1 {
+    font-size: clamp(2.15rem, 3.5vw, 3.1rem);
+    font-weight: 800;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.03em;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.app-header .subtitle {
+    font-size: 1.02rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    letter-spacing: 0.01em;
+}
+
+.header-controls {
+    display: flex;
+    width: 100%;
+    justify-content: flex-end;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.theme-switcher {
+    position: relative;
+}
+
+.theme-toggle {
+    font-size: 0.8rem;
+    padding: 4px 10px;
+    min-width: 120px;
+}
+
+.theme-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 170px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md);
+    padding: 8px;
+    z-index: 220;
+}
+
+.theme-option {
+    width: 100%;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--text-secondary);
+    text-align: left;
+    font-size: 0.84rem;
+    font-weight: 600;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.theme-option:hover {
+    background: var(--bg-glass-hover);
+    color: var(--text-primary);
+    transform: translateX(2px);
+}
+
+.theme-option:focus-visible {
+    outline: none;
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.theme-option.active {
+    background: rgba(59, 130, 246, 0.14);
+    border-color: var(--border-accent);
+    color: var(--accent-blue);
+}
+
+.brand-icon {
+    width: 1.15em;
+    height: 1.15em;
+    vertical-align: -0.2em;
+    margin-right: 0.25em;
+    flex-shrink: 0;
+}
+
+.brand-icon-history {
+    width: 1.1em;
+    height: 1.1em;
+    vertical-align: -0.15em;
+}
+
+.header-btn-compact {
+    font-size: 0.8rem;
+    padding: 4px 10px;
+}
+
+.page-nav {
+    margin-bottom: 32px;
+}
+
+.page-nav-centered {
+    text-align: center;
+}
+
+.page-back-link {
+    padding: 10px 20px;
+}

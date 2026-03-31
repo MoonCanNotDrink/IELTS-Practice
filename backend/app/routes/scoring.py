@@ -16,14 +16,14 @@ from app.services.scoring_service import score_speaking
 from app.services.pronunciation_service import assess_pronunciation_sync
 from app.services.auth_service import get_current_user, User
 from app.config import settings
+from app.routes.helpers import (
+    assert_session_access as _assert_session_access,
+    parse_feedback_blob as _parse_feedback_blob,
+    feedback_error_info as _feedback_error_info,
+    get_part2_prompt_title as _get_part2_prompt_title,
+)
 
 router = APIRouter(prefix="/api/scoring", tags=["Scoring"])
-
-
-def _assert_session_access(session: PracticeSession, current_user: User) -> None:
-    """Ensure a session can only be accessed by its owner."""
-    if session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="You do not have access to this session")
 
 
 def _determine_exam_scope(recorded_parts: set[str], is_full_flow: bool) -> str:
@@ -32,45 +32,6 @@ def _determine_exam_scope(recorded_parts: set[str], is_full_flow: bool) -> str:
     if recorded_parts == {"part2"}:
         return "part2_only"
     return "partial_exam"
-
-
-def _parse_feedback_blob(raw_feedback: str | None) -> dict | None:
-    if not raw_feedback:
-        return None
-
-    import ast
-
-    try:
-        parsed = json.loads(raw_feedback)
-    except Exception:
-        try:
-            parsed = ast.literal_eval(raw_feedback)
-        except Exception:
-            parsed = None
-
-    return parsed if isinstance(parsed, dict) else None
-
-
-def _feedback_error_info(raw_feedback: str | None) -> tuple[str, str, str]:
-    parsed = _parse_feedback_blob(raw_feedback)
-    if not parsed or not parsed.get("error"):
-        return "ok", "", ""
-    return "error", str(parsed.get("error", "")), str(parsed.get("detail", ""))
-
-
-async def _get_part2_prompt_title(db: AsyncSession, session_id: int) -> str | None:
-    result = await db.execute(
-        select(Recording.question_text)
-        .where(
-            Recording.session_id == session_id,
-            Recording.part == "part2",
-            Recording.question_text.is_not(None),
-            Recording.question_text != "",
-        )
-        .order_by(Recording.question_index, Recording.created_at)
-        .limit(1)
-    )
-    return result.scalar_one_or_none()
 
 
 def _is_valid_wav_payload(audio_filename: str | None, audio_bytes: bytes) -> bool:

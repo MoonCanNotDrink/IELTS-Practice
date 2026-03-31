@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="IELTS Writing Practice - Full Mock Exam with AI Scoring">
+    <title>IELTS Writing Practice - AI Examiner</title>
+    <link rel="stylesheet" href="/static/variables.css?v=1">
+    <link rel="stylesheet" href="/static/base.css?v=1">
+    <link rel="stylesheet" href="/static/components.css?v=1">
+    <link rel="stylesheet" href="/static/layout.css?v=1">
+    <link rel="stylesheet" href="/static/pages.css?v=1">
+    <link rel="stylesheet" href="/static/responsive.css?v=1">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='35' y='18' width='30' height='44' rx='15' fill='%234f8cff'/><rect x='47' y='62' width='6' height='18' fill='%234f8cff'/><rect x='38' y='80' width='24' height='6' rx='3' fill='%234f8cff'/></svg>">
+</head>
+<body>
+    <a class="skip-link" href="#mainContent">Skip to main content</a>
+    <div class="app-container">
+
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-controls">
+                <button type="button" id="btnLogin" class="btn btn-primary header-btn-compact" onclick="showAuth()">Log In</button>
+                <button type="button" id="btnLogout" class="btn btn-ghost header-btn-compact auth-logout-hidden" onclick="logout()">Log Out</button>
+            </div>
+            <h1>
+                <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="url(#micGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+                    <title>Microphone icon</title>
+                    <defs><linearGradient id="micGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#60a5fa"/><stop offset="100%" style="stop-color:#a78bfa"/></linearGradient></defs>
+                    <rect x="9" y="2" width="6" height="12" rx="3"/>
+                    <path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/>
+                </svg>
+                IELTS Writing Practice
+            </h1>
+            <p class="subtitle">AI-Powered Writing Practice &middot; Task 1 & 2</p>
+        </header>
+
+        <nav class="page-nav page-nav-centered" aria-label="Page navigation">
+            <a href="/" class="btn btn-ghost btn-link-inline page-back-link">
+                &larr; Back to Home
+            </a>
+        </nav>
+
+        <main id="mainContent">
+
+        <!-- Mode Selector (shown on start screen) -->
+        <div id="modeSelector">
+            <div class="card">
+                <div class="writing-mode-heading">
+                    <span class="writing-mode-heading-bar"></span>
+                    Writing
+                </div>
+                <div class="btn-grid">
+                    <button type="button" class="btn btn-ghost btn-full btn-ghost-accent" id="btnWritingTask1" onclick="startWritingMode('task1')">
+                        &#128202; Writing Task 1
+                    </button>
+                    <button type="button" class="btn btn-ghost btn-full btn-ghost-accent" id="btnWritingTask2" onclick="startWritingMode('task2')">
+                        &#9997;&#65039; Writing Task 2
+                    </button>
+                    <button type="button" class="btn btn-ghost btn-full btn-grid-span-full btn-ghost-accent" id="btnWritingFreePractice" onclick="showWritingFreePracticeSetup()">
+                        &#9997;&#65039; Writing Free Practice (Custom)
+                    </button>
+                </div>
+                
+                <!-- Writing Free Practice Panel -->
+                <div class="practice-form hidden" id="writingFreePracticePanel" data-timer-minutes="40">
+                    <div class="practice-panel-header">
+                        <h3 class="practice-panel-title">Writing Free Practice</h3>
+                        <p class="practice-panel-copy">Choose a topic from the library, or write your own prompt.</p>
+                    </div>
+
+                    <div class="inline-error hidden" id="writingFpError"></div>
+
+                    <div class="fp-type-toggle" id="wfpTypeToggle">
+                        <button type="button" class="btn btn-ghost active" data-target="library" onclick="setWfpType('library')">Topic Library</button>
+                        <button type="button" class="btn btn-ghost" data-target="custom" onclick="setWfpType('custom')">Write My Own</button>
+                    </div>
+
+                    <div id="wfp-library-view" class="view-panel active">
+                        <div class="form-group" id="wfpLibrarySelectGroup">
+                            <label for="writingFpTopicSelect">Select a prompt</label>
+                            <select id="writingFpTopicSelect" class="form-select writing-topic-select">
+                                <option value="">Loading prompts...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="wfp-custom-view" class="view-panel hidden">
+                        <div class="form-group">
+                            <label>Task Type</label>
+                            <div class="btn-grid compact-grid-gap">
+                                <button type="button" class="btn btn-ghost is-selected" id="wfpCustomTask2Btn" data-task-type="task2" onclick="setWfpCustomTaskType('task2')">Task 2</button>
+                                <button type="button" class="btn btn-ghost" id="wfpCustomTask1Btn" data-task-type="task1" onclick="setWfpCustomTaskType('task1')">Task 1</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="writingFpCustomPrompt">Custom prompt</label>
+                            <textarea id="writingFpCustomPrompt" class="writing-custom-prompt" placeholder="Write about the advantages and disadvantages of remote work."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Writing timer (optional)</label>
+                        <div class="duration-presets">
+                            <button class="btn btn-ghost duration-option" type="button" data-wfp-timer data-minutes="20" onclick="setWfpTimer(20)">20 Min</button>
+                            <button class="btn btn-ghost duration-option" type="button" data-wfp-timer data-minutes="40" onclick="setWfpTimer(40)">40 Min</button>
+                            <button class="btn btn-ghost duration-option" type="button" data-wfp-timer data-minutes="60" onclick="setWfpTimer(60)">60 Min</button>
+                            <button class="btn btn-ghost duration-option is-selected" type="button" data-wfp-timer data-minutes="0" onclick="setWfpTimer(0)">No Timer</button>
+                        </div>
+                    </div>
+
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-primary" id="btnStartWritingFreePractice" onclick="startWritingFreePractice()">
+                            &#9997;&#65039; Start Writing
+                        </button>
+                        <button class="btn btn-ghost" type="button" onclick="hideWritingFreePracticeSetup()">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- WRITING FLOW -->
+        <div id="writingFlow" class="hidden">
+            <div class="session-actions session-actions-spacing" id="writingSessionActions">
+                <button type="button" class="btn btn-ghost" onclick="interruptPractice()">
+                    &#9209; Interrupt & Back Home
+                </button>
+            </div>
+
+            <div class="card" id="writingPromptSection">
+                <div class="card-header">
+                    <span class="icon" id="writingTaskIcon">&#9997;&#65039;</span>
+                    <h2 id="writingTaskTitle">Writing Task</h2>
+                </div>
+                <div class="part-question-display">
+                    <div id="writingChartContainer" class="hidden writing-chart-wrap">
+                        <canvas id="writingChartCanvas"></canvas>
+                        <div id="writingTableContainer"></div>
+                        <div id="writingMultiPieContainer" class="writing-multi-pie"></div>
+                    </div>
+                    <p id="writingPromptText" class="writing-prompt-text"></p>
+                </div>
+                <div class="form-group form-group-top-spacing">
+                    <textarea id="writingEssayInput" class="notes-area writing-essay-input" placeholder="Write your essay here..."></textarea>
+                    <div class="writing-word-count-row">
+                        Words: <span id="writingWordCount">0</span>
+                    </div>
+                </div>
+                <div class="btn-group controls-submit-spacing">
+                    <button type="button" class="btn btn-primary btn-full" id="btnSubmitWriting" onclick="submitWriting()">
+                        &#128190; Submit for Scoring
+                    </button>
+                </div>
+            </div>
+
+            <!-- Writing Scoring Section -->
+            <div class="card hidden" id="writingScoreSection">
+                <div class="card-header">
+                    <span class="icon">&#128202;</span>
+                    <h2>AI Assessment Results</h2>
+                </div>
+                <div class="loading-overlay" id="writingScoringLoader">
+                    <div class="spinner"></div>
+                    <p class="loading-text">Analyzing your essay...</p>
+                    <p class="loading-text loading-text-subtle">Grammar &middot; Vocabulary &middot; Coherence &middot; Task Achievement</p>
+                </div>
+                <div class="hidden" id="writingScoreResults">
+                    <!-- Score cards -->
+                    <div class="scores-grid" id="writingScoresGrid"></div>
+                    
+                    <div class="feedback-section feedback-section-top-spacing">
+                        <h3 class="essay-display-heading">Your Essay</h3>
+                        <div class="transcript-box transcript-prewrap" id="writingEssayDisplay"></div>
+                    </div>
+
+                    <!-- Feedback -->
+                    <div class="feedback-section" id="writingFeedbackSection"></div>
+                    
+                    <!-- Restart / History -->
+                    <div class="btn-group controls-actions-spacing">
+                        <button type="button" class="btn btn-primary btn-full" onclick="backToHome()">
+                            &#127968; Back to Home
+                        </button>
+                        <a href="/history" class="btn btn-ghost btn-full btn-link-reset">
+                            &#128200; View Progress Chart
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </main>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="/static/shared.js?v=1" charset="utf-8"></script>
+    <script src="/static/app.js?v=23" charset="utf-8"></script>
+    <script src="/static/writing.js?v=1" charset="utf-8"></script>
+</body>
+</html>
