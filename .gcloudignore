@@ -5,11 +5,16 @@
 .venv
 venv
 env
+node_modules/
 __pycache__
 *.pyc
 *.pyo
 *.pyd
 backend/data/
 docker-compose.yml
+tests/
+test-results/
+baseline-*.png
+.tmp/
 *.md
 *.log

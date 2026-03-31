@@ -1,0 +1,17 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --build-arg
+      - PIP_INDEX_URL=${_PIP_INDEX_URL}
+      - --build-arg
+      - PIP_TRUSTED_HOST=${_PIP_TRUSTED_HOST}
+      - -t
+      - ${_IMAGE}
+      - .
+images:
+  - ${_IMAGE}
+substitutions:
+  _IMAGE: us-central1-docker.pkg.dev/ethereal-app-482708-i9/cloud-run-source-deploy/ielts-speaking
+  _PIP_INDEX_URL: https://pypi.org/simple
+  _PIP_TRUSTED_HOST: pypi.org

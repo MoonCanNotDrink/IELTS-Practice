@@ -14,16 +14,16 @@ Its goal is not just to demonstrate isolated AI features, but to connect the key
 - [Documentation Index](docs/README.en.md)
 - [Project Overview (Chinese)](docs/项目简介.md)
 - [Project Overview (English)](docs/项目简介.en.md)
-- [对外文档（中文）](documentation/README.md)
-- [External Documentation](documentation/README.en.md)
+- [External documentation (Chinese)](docs/README.md)
+- [External Documentation](docs/README.en.md)
 
 ## Start Here
 
 | I want to... | Go to |
 |---|---|
 | understand the project quickly | [Project Overview](docs/项目简介.en.md) |
-| read the public-facing docs | [External Documentation](documentation/README.en.md) |
-| begin with the user guides | [Getting Started](documentation/user-guide/getting-started.en.md) |
+| read the public-facing docs | [External Documentation](docs/README.en.md) |
+| begin with the user guides | [Getting Started](docs/user-guide/getting-started.en.md) |
 | inspect plans and reports | [Documentation Index](docs/README.en.md) |
 
 ## Core Features
@@ -41,18 +41,18 @@ Its goal is not just to demonstrate isolated AI features, but to connect the key
 ### Install dependencies
 
 ```bash
-pnpm install
+corepack pnpm install
 ```
 
 ### Run tests
 
 ```bash
-pnpm test
+corepack pnpm test
 ```
 
 ### Local development note
 
-- The current root `package.json` exposes `pnpm test`.
+- The current root `package.json` exposes `corepack pnpm test`.
 - For broader local workflow details, see [AGENTS.md](AGENTS.md) and [docs/README.en.md](docs/README.en.md).
 
 ## Project Structure
@@ -68,7 +68,7 @@ pnpm test
 
 - [docs/README.en.md](docs/README.en.md): documentation index
 - [docs/style-guide.en.md](docs/style-guide.en.md): documentation style guide
-- [documentation/README.en.md](documentation/README.en.md): formal external-facing documentation entry
+- [docs/README.en.md](docs/README.en.md): unified documentation entry for project and external docs
 - [docs/plans/自由练习实现计划.en.md](docs/plans/自由练习实现计划.en.md): Free Practice implementation plan
 - [docs/reports/自由练习界面优化报告.en.md](docs/reports/自由练习界面优化报告.en.md): Free Practice UI optimization summary
 - [docs/reports/自由练习-产品设计摘要.en.md](docs/reports/自由练习-产品设计摘要.en.md): product/design summary for Free Practice
@@ -84,6 +84,41 @@ pnpm test
 - LLM: Gemini
 - Auth: JWT
 - Deployment: Docker
+
+## Deployment
+
+### Local Docker build
+
+Default official PyPI:
+
+```bash
+docker build -t ielts-practice .
+```
+
+If your network is slow, you can opt into the Tsinghua mirror for that build only:
+
+```bash
+docker build \
+  --build-arg PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple \
+  --build-arg PIP_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn \
+  -t ielts-practice .
+```
+
+### Cloud Run deployment
+
+Default official PyPI:
+
+```bash
+bash scripts/deploy-cloud-run.sh
+```
+
+Optional mirror mode:
+
+```bash
+bash scripts/deploy-cloud-run.sh --use-mirror=tsinghua
+```
+
+The script runs `gcloud builds submit --config cloudbuild.yaml` first, then deploys the built image to Cloud Run.
 
 ## Notes
 
