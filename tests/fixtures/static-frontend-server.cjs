@@ -36,11 +36,17 @@ const server = http.createServer((request, response) => {
     }
 
     if (pathname.startsWith('/static/')) {
-        const assetName = path.basename(pathname);
-        const assetPath = path.join(FRONTEND_DIR, assetName);
+        const relativeAssetPath = pathname.slice('/static/'.length);
+        const assetPath = path.join(FRONTEND_DIR, relativeAssetPath);
+
+        if (!assetPath.startsWith(FRONTEND_DIR)) {
+            response.writeHead(403, { 'Content-Type': 'application/json; charset=utf-8' });
+            response.end(JSON.stringify({ detail: 'Forbidden' }));
+            return;
+        }
 
         if (fs.existsSync(assetPath)) {
-            const ext = path.extname(assetName);
+            const ext = path.extname(assetPath);
             const contentType = ext === '.css'
                 ? 'text/css'
                 : ext === '.js'
