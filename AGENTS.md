@@ -2,7 +2,7 @@
 
 ## Setup
 - Install dependencies: corepack pnpm install
-- Run dev server: see backend/ and frontend/ for local start instructions (no single pnpm dev)
+- Run dev server: see docs/dev-guide.md (canonical local and deploy paths)
 - Run tests: corepack pnpm test
 - Run lint: corepack pnpm lint
 
