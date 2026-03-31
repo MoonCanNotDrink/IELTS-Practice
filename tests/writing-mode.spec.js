@@ -6,7 +6,13 @@ test('completes a Writing Task 1 flow', async ({ page }) => {
             json: {
                 id: 1,
                 task_type: 'task1',
-                prompt_text: 'The chart below shows the number of men and women in further education in Britain...'
+                prompt_text: 'The chart below shows the number of men and women in further education in Britain...',
+                prompt_details: {
+                    chart_image: {
+                        url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='120'><rect width='240' height='120' fill='%23f4f4f4'/><text x='20' y='65' font-size='18' fill='%23222'>Task 1 Chart</text></svg>",
+                        alt: 'Task 1 chart',
+                    }
+                }
             }
         });
     });
@@ -54,6 +60,7 @@ test('completes a Writing Task 1 flow', async ({ page }) => {
     await expect(page.locator('#writingPromptSection')).not.toHaveClass(/hidden/);
 
     await expect(page.locator('#writingPromptText')).toHaveText('The chart below shows the number of men and women in further education in Britain...');
+    await expect(page.locator('#writingTableContainer img[alt=\"Task 1 chart\"]')).toBeVisible();
 
     await page.locator('#writingEssayInput').fill('This is a test essay for Task 1. It has a few words.');
     await expect(page.locator('#writingWordCount')).toHaveText('13');

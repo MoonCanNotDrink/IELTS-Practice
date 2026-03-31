@@ -1,0 +1,84 @@
+/* ---------- Responsive ---------- */
+@media (max-width: 600px) {
+    .header-controls {
+        position: static;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+    }
+
+    .app-container {
+        padding: 20px 14px 36px;
+    }
+
+    .scores-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .timer-time {
+        font-size: 2.5rem;
+    }
+
+    .btn-group {
+        flex-direction: column;
+    }
+
+    .card {
+        padding: 20px;
+    }
+
+    .phase-steps {
+        gap: 0;
+        overflow-x: auto;
+        padding-bottom: 4px;
+    }
+
+    .phase-step {
+        padding: 8px 10px;
+        font-size: 0.72rem;
+        white-space: nowrap;
+    }
+
+    .session-actions {
+        margin: -8px 0 14px;
+    }
+
+    .audio-mode-banner {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+
+@media (min-width: 601px) and (max-width: 1024px) {
+    .app-container {
+        max-width: 900px;
+        padding: 30px 20px 44px;
+    }
+
+    .card {
+        padding: 24px;
+    }
+
+    .timer-time {
+        font-size: 3rem;
+    }
+
+    .btn-group {
+        flex-direction: row;
+    }
+
+    .auth-card {
+        max-width: 450px;
+    }
+
+    .phase-steps {
+        overflow-x: visible;
+        gap: 2px;
+    }
+
+    .header-controls {
+        position: static;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+}

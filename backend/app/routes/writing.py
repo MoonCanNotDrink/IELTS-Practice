@@ -10,7 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models import WritingAttempt, WritingPrompt
 from app.services.auth_service import get_current_user, User
+from app.services.chart_generation_service import generate_chart_data
 from app.services.writing_scoring_service import score_writing
+from app.routes.helpers import parse_feedback_blob, feedback_error_info
 
 router = APIRouter(prefix="/api/writing", tags=["Writing"])
 
@@ -28,23 +30,6 @@ def normalize_task_type(task_type: str) -> str:
 def assert_attempt_access(attempt: WritingAttempt, current_user: User) -> None:
     if cast(Any, attempt.user_id) != current_user.id:
         raise HTTPException(status_code=403, detail="You do not have access to this writing attempt")
-
-
-def parse_feedback_blob(raw_feedback: str | None) -> dict | None:
-    if not raw_feedback:
-        return None
-    try:
-        parsed = json.loads(raw_feedback)
-    except Exception:
-        parsed = None
-    return parsed if isinstance(parsed, dict) else None
-
-
-def feedback_error_info(raw_feedback: str | None) -> tuple[str, str, str]:
-    parsed = parse_feedback_blob(raw_feedback)
-    if not parsed or not parsed.get("error"):
-        return "ok", "", ""
-    return "error", str(parsed.get("error", "")), str(parsed.get("detail", ""))
 
 
 def serialize_prompt(prompt: WritingPrompt) -> dict:
@@ -104,6 +89,10 @@ class CreateWritingAttemptRequest(BaseModel):
     essay_text: str
 
 
+class GenerateChartRequest(BaseModel):
+    prompt_text: str
+
+
 @router.get("/prompts/random")
 async def get_random_prompt(
     task_type: str,
@@ -136,6 +125,22 @@ async def list_prompts(
         result = await db.execute(select(WritingPrompt))
     prompts = result.scalars().all()
     return [serialize_prompt(p) for p in prompts]
+
+
+@router.post("/generate-chart")
+async def generate_chart(
+    body: GenerateChartRequest,
+    current_user: User = Depends(get_current_user),
+):
+    prompt_text = (body.prompt_text or "").strip()
+    if not prompt_text:
+        raise HTTPException(status_code=400, detail="prompt_text is required")
+
+    result = await generate_chart_data(prompt_text)
+    if "error" in result:
+        return result
+
+    return {"chart_data": result}
 
 
 @router.post("/attempts")

@@ -1,5 +1,3 @@
-import json
-
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,25 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models import PracticeSession, Recording, Topic, WritingAttempt
 from app.services.auth_service import get_current_user, User
+from app.routes.helpers import parse_feedback_blob, feedback_error_info
 
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
-
-
-def parse_feedback_blob(raw_feedback: str | None) -> dict | None:
-    if not raw_feedback:
-        return None
-    try:
-        parsed = json.loads(raw_feedback)
-    except Exception:
-        parsed = None
-    return parsed if isinstance(parsed, dict) else None
-
-
-def feedback_error_info(raw_feedback: str | None) -> tuple[str, str, str]:
-    parsed = parse_feedback_blob(raw_feedback)
-    if not parsed or not parsed.get("error"):
-        return "ok", "", ""
-    return "error", str(parsed.get("error", "")), str(parsed.get("detail", ""))
 
 
 def determine_speaking_task_type(recordings: list[Recording]) -> str:

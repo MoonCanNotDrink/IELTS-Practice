@@ -12,7 +12,7 @@ from app.config import settings
 from app.models import Base, User, WritingAttempt, WritingPrompt
 from app.routes import writing as writing_module
 from app.routes.writing import router as writing_router
-from app.seed_data import seed_writing_prompts
+from app.seed_data import SEED_WRITING_PROMPTS, seed_writing_prompts
 
 
 class FakeUser:
@@ -96,7 +96,36 @@ class WritingRouteTests(unittest.TestCase):
                 result = await session.execute(select(func.count(WritingPrompt.id)))
                 return result.scalar_one()
 
-        self.assertEqual(self._run_async(_count_prompts()), 5)
+        self.assertEqual(self._run_async(_count_prompts()), len(SEED_WRITING_PROMPTS))
+
+    def test_seed_writing_prompts_updates_existing_prompt_details(self):
+        async def _create_stale_prompt():
+            async with self.session_factory() as session:
+                session.add(
+                    WritingPrompt(
+                        slug="task1-library-visits-bar-chart",
+                        task_type="task1",
+                        title="Old title",
+                        prompt_text="Old prompt",
+                        prompt_details={},
+                        source="seed",
+                    )
+                )
+                await session.commit()
+
+        self._run_async(_create_stale_prompt())
+        self._seed_prompts()
+
+        async def _query_prompt():
+            async with self.session_factory() as session:
+                result = await session.execute(
+                    select(WritingPrompt).where(WritingPrompt.slug == "task1-library-visits-bar-chart")
+                )
+                return result.scalars().one()
+
+        prompt = self._run_async(_query_prompt())
+        self.assertEqual(prompt.title, "Task 1 · Library visits by age group")
+        self.assertIn("chart_data", prompt.prompt_details)
 
     def test_random_prompt_rejects_invalid_task_type(self):
         self._seed_prompts()

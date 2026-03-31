@@ -2,7 +2,6 @@
 
 import uuid
 from datetime import datetime
-from pathlib import Path
 from typing import Literal
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from pydantic import BaseModel, Field
@@ -15,28 +14,13 @@ from app.models import PracticeSession, Recording, Topic
 from app.services.asr_service import transcribe_audio, _estimate_word_timestamps
 from app.services.auth_service import get_current_user, User
 from app.config import settings
+from app.routes.helpers import assert_session_access as _assert_session_access, resolve_audio_extension as _resolve_audio_extension
 
 router = APIRouter(prefix="/api/exam", tags=["Full Exam"])
 
 genai.configure(api_key=settings.GEMINI_API_KEY)
 VALID_RECORDING_PARTS = {"part1", "part2", "part3"}
 FOLLOWUP_PARTS = {"part1", "part3"}
-
-
-def _assert_session_access(session: PracticeSession, current_user: User) -> None:
-    """Ensure a session can only be accessed by its owner."""
-    if session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="You do not have access to this session")
-
-
-def _resolve_audio_extension(filename: str | None) -> str:
-    ext = Path(filename or "").suffix.lower().lstrip(".")
-    if ext in settings.ALLOWED_AUDIO_FORMATS:
-        return ext
-    raise HTTPException(
-        status_code=400,
-        detail=f"Unsupported audio format: .{ext or 'unknown'}",
-    )
 
 # 鈹€鈹€鈹€ Part 1 question bank 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 # Organized by topic 鈥?the examiner picks ~4-5 questions from one topic

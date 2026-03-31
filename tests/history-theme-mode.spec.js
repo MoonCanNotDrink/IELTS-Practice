@@ -20,22 +20,22 @@ test.describe('history page theme mode', () => {
         await expect(html).toHaveAttribute('data-theme', 'light');
         await expect(page.locator('#currentThemeLabel')).toHaveText('System');
 
-        await page.locator('#btnThemeToggle').click();
-        await page.locator('#themeMenu .theme-option[data-theme-mode="dark"]').click();
+        await page.getByRole('button', { name: /system/i }).click();
+        await page.getByRole('menuitemradio', { name: 'Dark Mode' }).click();
         await expect(html).toHaveAttribute('data-theme-mode', 'dark');
         await expect(html).toHaveAttribute('data-theme', 'dark');
         await expect(page.locator('#currentThemeLabel')).toHaveText('Dark');
         await expect.poll(() => page.evaluate(() => localStorage.getItem('ielts_theme_mode'))).toBe('dark');
 
-        await page.locator('#btnThemeToggle').click();
-        await page.locator('#themeMenu .theme-option[data-theme-mode="light"]').click();
+        await page.getByRole('button', { name: /dark/i }).click();
+        await page.getByRole('menuitemradio', { name: 'Light Mode' }).click();
         await expect(html).toHaveAttribute('data-theme-mode', 'light');
         await expect(html).toHaveAttribute('data-theme', 'light');
         await expect(page.locator('#currentThemeLabel')).toHaveText('Light');
         await expect.poll(() => page.evaluate(() => localStorage.getItem('ielts_theme_mode'))).toBe('light');
 
-        await page.locator('#btnThemeToggle').click();
-        await page.locator('#themeMenu .theme-option[data-theme-mode="system"]').click();
+        await page.getByRole('button', { name: /light/i }).click();
+        await page.getByRole('menuitemradio', { name: 'Follow System' }).click();
         await expect(html).toHaveAttribute('data-theme-mode', 'system');
         await expect(html).toHaveAttribute('data-theme', 'light');
 

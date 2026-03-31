@@ -34,8 +34,9 @@ test('renders mixed speaking and writing history on history page', async ({ page
 
     await page.goto('/history');
 
-    await expect(page.locator('#historyList')).toContainText('Writing Task 1 - Bar Chart');
-    await expect(page.locator('#historyList')).toContainText('6.5');
-    await expect(page.locator('#historyList')).toContainText('Speaking Full Exam');
-    await expect(page.locator('#historyList')).toContainText('7.0');
+    const historyList = page.getByTestId('history-list');
+    await expect(historyList).toContainText('Writing Task 1 - Bar Chart');
+    await expect(historyList).toContainText('6.5');
+    await expect(historyList).toContainText('Speaking Full Exam');
+    await expect(historyList).toContainText('7.0');
 });

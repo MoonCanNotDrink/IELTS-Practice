@@ -5,68 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="IELTS Writing Practice - Full Mock Exam with AI Scoring">
     <title>IELTS Writing Practice - AI Examiner</title>
-    <link rel="stylesheet" href="/static/index.css?v=17">
+    <link rel="stylesheet" href="/static/variables.css?v=1">
+    <link rel="stylesheet" href="/static/base.css?v=1">
+    <link rel="stylesheet" href="/static/components.css?v=1">
+    <link rel="stylesheet" href="/static/layout.css?v=1">
+    <link rel="stylesheet" href="/static/pages.css?v=1">
+    <link rel="stylesheet" href="/static/responsive.css?v=1">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='35' y='18' width='30' height='44' rx='15' fill='%234f8cff'/><rect x='47' y='62' width='6' height='18' fill='%234f8cff'/><rect x='38' y='80' width='24' height='6' rx='3' fill='%234f8cff'/></svg>">
 </head>
 <body>
-    <!-- Auth Modal -->
-    <div id="authModal" class="auth-overlay">
-        <div class="auth-card">
-            <div class="auth-header">
-                <h2>Welcome Back</h2>
-                <p id="authSubtitle">Please log in to save your practice history.</p>
-            </div>
-            <div id="authError" class="auth-error"></div>
-            <div class="form-group">
-                <label for="authUsername">Username</label>
-                <input type="text" id="authUsername" placeholder="Enter username" autocomplete="username">
-            </div>
-            <div class="form-group">
-                <label for="authPassword">Password</label>
-                <div class="password-input-wrap">
-                    <input type="password" id="authPassword" placeholder="Enter password" autocomplete="current-password">
-                    <button type="button" class="password-toggle hidden" id="authPasswordToggle" onclick="togglePasswordVisibility('authPassword', 'authPasswordToggle')" aria-label="Show password" aria-pressed="false">Show</button>
-                </div>
-            </div>
-            <div class="form-group hidden" id="confirmPasswordGroup">
-                <label for="authConfirmPassword">Confirm Password</label>
-                <div class="password-input-wrap">
-                    <input type="password" id="authConfirmPassword" placeholder="Re-enter password" autocomplete="new-password">
-                    <button type="button" class="password-toggle" id="authConfirmPasswordToggle" onclick="togglePasswordVisibility('authConfirmPassword', 'authConfirmPasswordToggle')" aria-label="Show password confirmation" aria-pressed="false">Show</button>
-                </div>
-            </div>
-            <div class="form-group" id="inviteCodeGroup" style="display: none;">
-                <label for="authInviteCode">Invite Code</label>
-                <input type="password" id="authInviteCode" placeholder="Required for new accounts">
-            </div>
-            <button type="button" class="btn btn-primary btn-full" id="btnSubmitAuth" style="margin-top:20px;" onclick="submitAuth()">Log In</button>
-            <div class="auth-toggle">
-                <span id="authToggleText">No account? <a onclick="toggleAuthMode()">Register here</a></span>
-            </div>
-        </div>
-    </div>
-
+    <a class="skip-link" href="#mainContent">Skip to main content</a>
     <div class="app-container">
 
         <!-- Header -->
         <header class="app-header">
             <div class="header-controls">
-                <div class="theme-switcher" id="themeSwitcher">
-                    <button type="button" id="btnThemeToggle" class="btn btn-ghost theme-toggle" aria-haspopup="menu" aria-expanded="false" aria-controls="themeMenu">
-                        <span aria-hidden="true">🎨</span>
-                        <span id="currentThemeLabel">System</span>
-                    </button>
-                    <div id="themeMenu" class="theme-menu hidden" role="menu" aria-label="Theme mode">
-                        <button type="button" class="theme-option" data-theme-mode="system" role="menuitemradio" aria-checked="true">Follow System</button>
-                        <button type="button" class="theme-option" data-theme-mode="light" role="menuitemradio" aria-checked="false">Light Mode</button>
-                        <button type="button" class="theme-option" data-theme-mode="dark" role="menuitemradio" aria-checked="false">Dark Mode</button>
-                    </div>
-                </div>
-                <button type="button" id="btnLogin" class="btn btn-primary" style="font-size: 0.8rem; padding: 4px 10px;" onclick="showAuth()">Log In</button>
-                <button type="button" id="btnLogout" class="btn btn-ghost" style="font-size: 0.8rem; padding: 4px 10px; display: none;" onclick="logout()">Log Out</button>
+                <button type="button" id="btnLogin" class="btn btn-primary header-btn-compact" onclick="showAuth()">Log In</button>
+                <button type="button" id="btnLogout" class="btn btn-ghost header-btn-compact auth-logout-hidden" onclick="logout()">Log Out</button>
             </div>
             <h1>
-                <svg style="width:1.15em;height:1.15em;vertical-align:-0.2em;margin-right:0.25em;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="url(#micGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+                <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="url(#micGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
                     <title>Microphone icon</title>
                     <defs><linearGradient id="micGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#60a5fa"/><stop offset="100%" style="stop-color:#a78bfa"/></linearGradient></defs>
                     <rect x="9" y="2" width="6" height="12" rx="3"/>
@@ -77,36 +35,38 @@
             <p class="subtitle">AI-Powered Writing Practice &middot; Task 1 & 2</p>
         </header>
 
-        <div style="text-align:center; margin-bottom: 32px;">
-            <a href="/" class="btn btn-ghost" style="text-decoration:none; display:inline-flex; padding: 10px 20px;">
+        <nav class="page-nav page-nav-centered" aria-label="Page navigation">
+            <a href="/" class="btn btn-ghost btn-link-inline page-back-link">
                 &larr; Back to Home
             </a>
-        </div>
+        </nav>
+
+        <main id="mainContent">
 
         <!-- Mode Selector (shown on start screen) -->
         <div id="modeSelector">
             <div class="card">
-                <div style="font-weight: 600; margin-bottom: 14px; color: var(--text-secondary); font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 8px;">
-                    <span style="display:inline-block; width: 4px; height: 14px; background: var(--accent-purple); border-radius: 2px;"></span>
+                <div class="writing-mode-heading">
+                    <span class="writing-mode-heading-bar"></span>
                     Writing
                 </div>
                 <div class="btn-grid">
-                    <button type="button" class="btn btn-ghost btn-full" id="btnWritingTask1" onclick="startWritingMode('task1')" style="border-color: rgba(139, 92, 246, 0.3);">
+                    <button type="button" class="btn btn-ghost btn-full btn-ghost-accent" id="btnWritingTask1" onclick="startWritingMode('task1')">
                         &#128202; Writing Task 1
                     </button>
-                    <button type="button" class="btn btn-ghost btn-full" id="btnWritingTask2" onclick="startWritingMode('task2')" style="border-color: rgba(139, 92, 246, 0.3);">
+                    <button type="button" class="btn btn-ghost btn-full btn-ghost-accent" id="btnWritingTask2" onclick="startWritingMode('task2')">
                         &#9997;&#65039; Writing Task 2
                     </button>
-                    <button type="button" class="btn btn-ghost btn-full" id="btnWritingFreePractice" onclick="showWritingFreePracticeSetup()" style="grid-column: 1 / -1; border-color: rgba(139, 92, 246, 0.3);">
+                    <button type="button" class="btn btn-ghost btn-full btn-grid-span-full btn-ghost-accent" id="btnWritingFreePractice" onclick="showWritingFreePracticeSetup()">
                         &#9997;&#65039; Writing Free Practice (Custom)
                     </button>
                 </div>
                 
                 <!-- Writing Free Practice Panel -->
                 <div class="practice-form hidden" id="writingFreePracticePanel" data-timer-minutes="40">
-                    <div style="margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border);">
-                        <h3 style="margin-bottom: 4px; font-size: 1.1rem; color: var(--text-primary);">Writing Free Practice</h3>
-                        <p style="font-size: 0.85rem; color: var(--text-secondary);">Choose a topic from the library, or write your own prompt.</p>
+                    <div class="practice-panel-header">
+                        <h3 class="practice-panel-title">Writing Free Practice</h3>
+                        <p class="practice-panel-copy">Choose a topic from the library, or write your own prompt.</p>
                     </div>
 
                     <div class="inline-error hidden" id="writingFpError"></div>
@@ -119,7 +79,7 @@
                     <div id="wfp-library-view" class="view-panel active">
                         <div class="form-group" id="wfpLibrarySelectGroup">
                             <label for="writingFpTopicSelect">Select a prompt</label>
-                            <select id="writingFpTopicSelect" class="form-select" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg-card);color:var(--text-primary);font-size:0.95rem;">
+                            <select id="writingFpTopicSelect" class="form-select writing-topic-select">
                                 <option value="">Loading prompts...</option>
                             </select>
                         </div>
@@ -128,14 +88,14 @@
                     <div id="wfp-custom-view" class="view-panel hidden">
                         <div class="form-group">
                             <label>Task Type</label>
-                            <div class="btn-grid" style="gap:8px;">
+                            <div class="btn-grid compact-grid-gap">
                                 <button type="button" class="btn btn-ghost is-selected" id="wfpCustomTask2Btn" data-task-type="task2" onclick="setWfpCustomTaskType('task2')">Task 2</button>
                                 <button type="button" class="btn btn-ghost" id="wfpCustomTask1Btn" data-task-type="task1" onclick="setWfpCustomTaskType('task1')">Task 1</button>
                             </div>
                         </div>
                         <div class="form-group">
                             <label for="writingFpCustomPrompt">Custom prompt</label>
-                            <textarea id="writingFpCustomPrompt" placeholder="Write about the advantages and disadvantages of remote work." style="width: 100%; min-height: 80px; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); color: var(--text-primary); font-size: 0.95rem; font-family: inherit; resize: vertical;"></textarea>
+                            <textarea id="writingFpCustomPrompt" class="writing-custom-prompt" placeholder="Write about the advantages and disadvantages of remote work."></textarea>
                         </div>
                     </div>
 
@@ -161,7 +121,7 @@
 
         <!-- WRITING FLOW -->
         <div id="writingFlow" class="hidden">
-            <div class="session-actions" id="writingSessionActions" style="margin-bottom: 16px;">
+            <div class="session-actions session-actions-spacing" id="writingSessionActions">
                 <button type="button" class="btn btn-ghost" onclick="interruptPractice()">
                     &#9209; Interrupt & Back Home
                 </button>
@@ -173,15 +133,20 @@
                     <h2 id="writingTaskTitle">Writing Task</h2>
                 </div>
                 <div class="part-question-display">
-                    <p id="writingPromptText" style="font-size: 1.1rem; color: var(--text-primary); line-height: 1.6; white-space: pre-wrap; margin-bottom: 16px;"></p>
+                    <div id="writingChartContainer" class="hidden writing-chart-wrap">
+                        <canvas id="writingChartCanvas"></canvas>
+                        <div id="writingTableContainer"></div>
+                        <div id="writingMultiPieContainer" class="writing-multi-pie"></div>
+                    </div>
+                    <p id="writingPromptText" class="writing-prompt-text"></p>
                 </div>
-                <div class="form-group" style="margin-top: 16px;">
-                    <textarea id="writingEssayInput" class="notes-area" style="min-height: 300px; padding: 16px; font-size: 1rem; line-height: 1.5; font-family: inherit;" placeholder="Write your essay here..."></textarea>
-                    <div style="text-align: right; margin-top: 8px; color: var(--text-muted); font-size: 0.85rem;">
+                <div class="form-group form-group-top-spacing">
+                    <textarea id="writingEssayInput" class="notes-area writing-essay-input" placeholder="Write your essay here..."></textarea>
+                    <div class="writing-word-count-row">
                         Words: <span id="writingWordCount">0</span>
                     </div>
                 </div>
-                <div class="btn-group" style="margin-top: 20px;">
+                <div class="btn-group controls-submit-spacing">
                     <button type="button" class="btn btn-primary btn-full" id="btnSubmitWriting" onclick="submitWriting()">
                         &#128190; Submit for Scoring
                     </button>
@@ -197,35 +162,39 @@
                 <div class="loading-overlay" id="writingScoringLoader">
                     <div class="spinner"></div>
                     <p class="loading-text">Analyzing your essay...</p>
-                    <p class="loading-text" style="font-size:0.78rem; margin-top:4px;">Grammar &middot; Vocabulary &middot; Coherence &middot; Task Achievement</p>
+                    <p class="loading-text loading-text-subtle">Grammar &middot; Vocabulary &middot; Coherence &middot; Task Achievement</p>
                 </div>
                 <div class="hidden" id="writingScoreResults">
                     <!-- Score cards -->
                     <div class="scores-grid" id="writingScoresGrid"></div>
                     
-                    <div class="feedback-section" style="margin-top: 24px;">
-                        <h3 style="margin-bottom: 12px; font-size: 1.1rem; color: var(--text-primary);">Your Essay</h3>
-                        <div class="transcript-box" id="writingEssayDisplay" style="white-space: pre-wrap;"></div>
+                    <div class="feedback-section feedback-section-top-spacing">
+                        <h3 class="essay-display-heading">Your Essay</h3>
+                        <div class="transcript-box transcript-prewrap" id="writingEssayDisplay"></div>
                     </div>
 
                     <!-- Feedback -->
                     <div class="feedback-section" id="writingFeedbackSection"></div>
                     
                     <!-- Restart / History -->
-                    <div class="btn-group" style="margin-top: 24px;">
+                    <div class="btn-group controls-actions-spacing">
                         <button type="button" class="btn btn-primary btn-full" onclick="backToHome()">
                             &#127968; Back to Home
                         </button>
-                        <a href="/history" class="btn btn-ghost btn-full" style="text-decoration:none;text-align:center;">
+                        <a href="/history" class="btn btn-ghost btn-full btn-link-reset">
                             &#128200; View Progress Chart
                         </a>
                     </div>
                 </div>
             </div>
         </div>
+        </main>
 
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="/static/shared.js?v=1" charset="utf-8"></script>
     <script src="/static/app.js?v=23" charset="utf-8"></script>
+    <script src="/static/writing.js?v=1" charset="utf-8"></script>
 </body>
 </html>

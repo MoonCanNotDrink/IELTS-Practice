@@ -95,7 +95,7 @@ test.describe('free-practice topic library', () => {
 
         await page.goto('/history');
 
-        const historyItem = page.locator('#historyList > div').first();
+        const historyItem = page.getByTestId('history-session-item').first();
         await expect(historyItem).toContainText('<strong>Unsafe history title</strong>');
         await expect(page.locator('#historyList strong')).toHaveCount(0);
     });
