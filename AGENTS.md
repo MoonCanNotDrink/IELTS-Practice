@@ -1,10 +1,10 @@
 # Project rules
 
 ## Setup
-- Install dependencies: pnpm install
-- Run dev server: pnpm dev
-- Run tests: pnpm test
-- Run lint: pnpm lint
+- Install dependencies: corepack pnpm install
+- Run dev server: see backend/ and frontend/ for local start instructions (no single pnpm dev)
+- Run tests: corepack pnpm test
+- Run lint: corepack pnpm lint
 
 ## Conventions
 - Keep changes minimal
@@ -13,9 +13,9 @@
 - Prefer fixing root causes over superficial patches
 
 ## Important paths
-- src/server: backend logic
-- src/components: UI components
-- tests: automated tests
+- backend/app: backend logic (FastAPI)
+- frontend/: frontend pages, JS and CSS
+- tests/: automated tests (Playwright / unit tests)
 
 ## Safety
 - Ask before changing CI, release config, or database migrations
