@@ -1,8 +1,10 @@
-﻿"""API routes for Part 2 practice flow: draw topic 鈫?record 鈫?score."""
+"""API routes for Part 2 practice flow: draw topic 鈫?record 鈫?score."""
 
 import uuid
 import json
 import asyncio
+import logging
+import time
 from datetime import datetime
 from pathlib import Path
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
@@ -12,10 +14,18 @@ from sqlalchemy import select, func
 
 from app.database import get_db
 from app.models import Topic, PracticeSession, Recording, SavedTopic
-from app.services.saved_topic_service import upsert_saved_topic, normalize_saved_topic_prompt
+from app.services.saved_topic_service import (
+    upsert_saved_topic,
+    normalize_saved_topic_prompt,
+)
 from app.config import settings
-from app.services.asr_service import transcribe_audio, _estimate_word_timestamps, _looks_like_wav
-from app.services.scoring_service import score_speaking
+from app.services.asr_service import (
+    transcribe_audio,
+    _estimate_word_timestamps,
+    _looks_like_wav,
+    classify_asr_fallback,
+)
+from app.services.scoring_service import score_speaking, classify_scoring_fallback
 from app.services.pronunciation_service import assess_pronunciation_sync
 from app.services.auth_service import get_current_user, User
 from app.routes.helpers import (
@@ -25,10 +35,26 @@ from app.routes.helpers import (
 )
 
 router = APIRouter(prefix="/api/part2", tags=["Part 2"])
+logger = logging.getLogger(__name__)
 NO_SPEECH_DETAIL = (
     "Transcription failed - no speech detected. "
     "Please re-record and speak clearly into your microphone."
 )
+
+
+def _emit_structured_log(level: str, event: str, **payload) -> None:
+    body = {"event": event, **payload}
+    line = json.dumps(body, ensure_ascii=False, sort_keys=True)
+    if level == "error":
+        logger.error(line)
+    elif level == "warning":
+        logger.warning(line)
+    else:
+        logger.info(line)
+
+
+def _request_id_headers(request_id: str) -> dict[str, str]:
+    return {"X-Request-ID": request_id}
 
 
 @router.get("/topics/random")
@@ -37,9 +63,7 @@ async def draw_topic(
     current_user: User = Depends(get_current_user),
 ):
     """Draw a random Part 2 topic card."""
-    result = await db.execute(
-        select(Topic).order_by(func.random()).limit(1)
-    )
+    result = await db.execute(select(Topic).order_by(func.random()).limit(1))
     topic = result.scalars().first()
     if not topic:
         raise HTTPException(status_code=404, detail="No topics available")
@@ -71,7 +95,6 @@ async def list_topics(
     ]
 
 
-
 class CreateSavedTopicRequest(BaseModel):
     prompt_text: str
     category: str | None = None
@@ -96,7 +119,8 @@ async def get_free_practice_topics(
 
     # Saved topics scoped to current user (return specific fields for frontend wiring)
     result = await db.execute(
-        select(SavedTopic).where(SavedTopic.user_id == current_user.id, SavedTopic.is_archived == False)
+        select(SavedTopic)
+        .where(SavedTopic.user_id == current_user.id, SavedTopic.is_archived == False)
         .order_by(SavedTopic.updated_at.desc())
     )
     saved_rows = result.scalars().all()
@@ -141,7 +165,10 @@ async def create_free_practice_topic(
     # determine whether this will be a new row (dedupe by normalized_prompt scoped to user)
     normalized = normalize_saved_topic_prompt(prompt)
     result = await db.execute(
-        select(SavedTopic).where(SavedTopic.user_id == current_user.id, SavedTopic.normalized_prompt == normalized)
+        select(SavedTopic).where(
+            SavedTopic.user_id == current_user.id,
+            SavedTopic.normalized_prompt == normalized,
+        )
     )
     existing = result.scalars().first()
 
@@ -167,7 +194,9 @@ async def create_free_practice_topic(
             "category": topic.category,
             "source": topic.source,
             "use_count": topic.use_count,
-            "last_used_at": topic.last_used_at.isoformat() if topic.last_used_at else None,
+            "last_used_at": topic.last_used_at.isoformat()
+            if topic.last_used_at
+            else None,
         },
     }
     return resp
@@ -179,15 +208,21 @@ class CreateSessionRequest(BaseModel):
     custom_topic: str = ""
 
 
-def _can_run_azure_pronunciation(audio_filename: str | None, audio_bytes: bytes) -> bool:
-    return bool(audio_filename and audio_filename.lower().endswith(".wav") and _looks_like_wav(audio_bytes))
+def _can_run_azure_pronunciation(
+    audio_filename: str | None, audio_bytes: bytes
+) -> bool:
+    return bool(
+        audio_filename
+        and audio_filename.lower().endswith(".wav")
+        and _looks_like_wav(audio_bytes)
+    )
 
 
 @router.post("/sessions")
 async def create_session(
     request: CreateSessionRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Start a new practice session for Part 2."""
     custom_topic = request.custom_topic.strip()
@@ -201,7 +236,10 @@ async def create_session(
         provided += 1
 
     if provided != 1:
-        raise HTTPException(status_code=400, detail="Provide exactly one of topic_id, saved_topic_id, or custom_topic")
+        raise HTTPException(
+            status_code=400,
+            detail="Provide exactly one of topic_id, saved_topic_id, or custom_topic",
+        )
 
     # Official topic path
     topic = None
@@ -214,7 +252,11 @@ async def create_session(
     saved_topic = None
     if request.saved_topic_id is not None:
         saved_topic = await db.get(SavedTopic, request.saved_topic_id)
-        if not saved_topic or saved_topic.user_id != current_user.id or saved_topic.is_archived:
+        if (
+            not saved_topic
+            or saved_topic.user_id != current_user.id
+            or saved_topic.is_archived
+        ):
             raise HTTPException(status_code=404, detail="Saved topic not found")
         # update usage metrics
         saved_topic.use_count = (saved_topic.use_count or 0) + 1
@@ -223,7 +265,9 @@ async def create_session(
 
     # Create session: we store official topic_id for official topics, otherwise leave topic_id NULL
     session_topic_id = request.topic_id if request.topic_id is not None else None
-    session = PracticeSession(topic_id=session_topic_id, status="in_progress", user_id=current_user.id)
+    session = PracticeSession(
+        topic_id=session_topic_id, status="in_progress", user_id=current_user.id
+    )
     db.add(session)
     await db.flush()
 
@@ -260,10 +304,16 @@ async def upload_audio(
     Upload Part 2 recording audio.
     Triggers ASR transcription and stores results.
     """
+    request_id = uuid.uuid4().hex
+
     # Verify session exists
     session = await db.get(PracticeSession, session_id)
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(
+            status_code=404,
+            detail="Session not found",
+            headers=_request_id_headers(request_id),
+        )
     _assert_session_access(session, current_user)
 
     # Read audio bytes
@@ -280,7 +330,10 @@ async def upload_audio(
     elif prompt_text:
         question_text = prompt_text
     else:
-        raise HTTPException(status_code=400, detail="question_text is required for custom-topic sessions")
+        raise HTTPException(
+            status_code=400,
+            detail="question_text is required for custom-topic sessions",
+        )
 
     # Save audio file
     ext = _resolve_audio_extension(audio.filename)
@@ -289,12 +342,41 @@ async def upload_audio(
     with open(audio_path, "wb") as f:
         f.write(audio_bytes)
 
+    asr_started = time.perf_counter()
+    asr_result = await transcribe_audio(
+        audio_bytes, audio_filename, request_id=request_id
+    )
+    asr_duration_ms = round((time.perf_counter() - asr_started) * 1000, 2)
+    asr_detail = asr_result.get("error")
+    _emit_structured_log(
+        "info",
+        "part2_asr_completed",
+        request_id=request_id,
+        route="/api/part2/sessions/{session_id}/upload-audio",
+        stage="asr",
+        status="ok" if asr_result.get("text") else "fallback",
+        duration_ms=asr_duration_ms,
+        fallback_reason=classify_asr_fallback(asr_detail),
+        detail=asr_detail or "",
+        session_id=session_id,
+    )
+
     # ASR transcription: prefer server ASR, then fall back to browser-finalized text.
-    asr_result = await transcribe_audio(audio_bytes, audio_filename)
     if not asr_result.get("text") and client_transcript.strip():
         transcript = client_transcript.strip()
         words = _estimate_word_timestamps(transcript)
         asr_result = {"text": transcript, "words": words}
+        fallback_reason = classify_asr_fallback(asr_detail) or "asr_failure"
+        _emit_structured_log(
+            "info",
+            "part2_asr_client_transcript_fallback",
+            request_id=request_id,
+            route="/api/part2/sessions/{session_id}/upload-audio",
+            stage="asr",
+            status="fallback",
+            fallback_reason=fallback_reason,
+            session_id=session_id,
+        )
 
     # Create recording entry
     recording = Recording(
@@ -336,7 +418,11 @@ async def upload_audio(
                 transcript_text = (asr_result.get("text") or "").strip()
                 if transcript_text:
                     # derive title from first non-empty line of the question_text
-                    first_line = question_text.splitlines()[0].strip() if question_text.splitlines() else question_text
+                    first_line = (
+                        question_text.splitlines()[0].strip()
+                        if question_text.splitlines()
+                        else question_text
+                    )
                     title = (first_line[:255]) or "Untitled"
                     # use upsert_saved_topic to dedupe per user
                     topic_row = await upsert_saved_topic(
@@ -364,6 +450,7 @@ async def upload_audio(
         "transcript": asr_result["text"],
         "word_count": len(asr_result["words"]),
         "duration_seconds": recording.duration_seconds,
+        "request_id": request_id,
     }
 
 
@@ -377,6 +464,16 @@ async def score_session(
     Score a completed Part 2 session.
     Runs pronunciation assessment + LLM scoring in parallel.
     """
+    request_id = uuid.uuid4().hex
+    scoring_started = time.perf_counter()
+    _emit_structured_log(
+        "info",
+        "part2_scoring_started",
+        request_id=request_id,
+        route="/api/part2/sessions/{session_id}/score",
+        session_id=session_id,
+    )
+
     # Load session and recordings
     session = await db.get(PracticeSession, session_id)
     if not session:
@@ -388,13 +485,31 @@ async def score_session(
     )
     recordings = result.scalars().all()
     if not recordings:
-        raise HTTPException(status_code=400, detail="No recordings found for this session")
+        raise HTTPException(
+            status_code=400,
+            detail="No recordings found for this session",
+            headers=_request_id_headers(request_id),
+        )
 
     # Get the Part 2 recording (primary)
     part2_recording = next((r for r in recordings if r.part == "part2"), recordings[0])
 
     if not part2_recording.transcript:
-        raise HTTPException(status_code=422, detail=NO_SPEECH_DETAIL)
+        _emit_structured_log(
+            "warning",
+            "part2_scoring_failed",
+            request_id=request_id,
+            route="/api/part2/sessions/{session_id}/score",
+            stage="input_validation",
+            fallback_reason="audio_or_no_speech_issue",
+            detail="missing_part2_transcript",
+            session_id=session_id,
+        )
+        raise HTTPException(
+            status_code=422,
+            detail=NO_SPEECH_DETAIL,
+            headers=_request_id_headers(request_id),
+        )
 
     # Get topic
     topic = await db.get(Topic, session.topic_id) if session.topic_id else None
@@ -406,28 +521,55 @@ async def score_session(
 
     # Run pronunciation assessment (if audio file exists and Azure is configured)
     pron_data = None
+    pron_started = time.perf_counter()
+    pron_status = "skipped"
+    pron_fallback_reason = None
     from app.config import settings as app_settings
+
     if app_settings.AZURE_SPEECH_KEY and part2_recording.audio_filename:
         audio_path = app_settings.recordings_path / part2_recording.audio_filename
         if audio_path.exists():
             audio_bytes = audio_path.read_bytes()
-            if _can_run_azure_pronunciation(part2_recording.audio_filename, audio_bytes):
+            if _can_run_azure_pronunciation(
+                part2_recording.audio_filename, audio_bytes
+            ):
                 # Azure SDK is synchronous 鈥?run in thread pool
                 try:
                     pron_data = await asyncio.wait_for(
                         asyncio.to_thread(
-                            assess_pronunciation_sync, audio_bytes, part2_recording.transcript
+                            assess_pronunciation_sync,
+                            audio_bytes,
+                            part2_recording.transcript,
                         ),
                         timeout=max(1, app_settings.PRONUNCIATION_TIMEOUT_SECONDS),
                     )
+                    pron_status = "ok"
                 except asyncio.TimeoutError:
                     pron_data = None
+                    pron_status = "error"
+                    pron_fallback_reason = "config_or_dependency_issue"
+    _emit_structured_log(
+        "info",
+        "part2_scoring_stage_timing",
+        request_id=request_id,
+        route="/api/part2/sessions/{session_id}/score",
+        stage="pronunciation",
+        status=pron_status,
+        duration_ms=round((time.perf_counter() - pron_started) * 1000, 2),
+        fallback_reason=pron_fallback_reason,
+        session_id=session_id,
+    )
 
     # Acoustic analysis (librosa)
     acoustic_data = None
+    acoustic_started = time.perf_counter()
+    acoustic_status = "skipped"
+    acoustic_fallback_reason = None
     from app.services.acoustic_service import analyze_audio_fluency_sync
+
     if part2_recording.audio_filename and part2_recording.transcript:
         from app.config import settings as app_settings
+
         audio_path = app_settings.recordings_path / part2_recording.audio_filename
         if audio_path.exists():
             word_count = len(part2_recording.transcript.split())
@@ -435,10 +577,25 @@ async def score_session(
                 acoustic_data = await asyncio.to_thread(
                     analyze_audio_fluency_sync, str(audio_path), word_count
                 )
+                acoustic_status = "ok" if acoustic_data else "fallback"
             except Exception:
                 acoustic_data = None
+                acoustic_status = "error"
+                acoustic_fallback_reason = "config_or_dependency_issue"
+    _emit_structured_log(
+        "info",
+        "part2_scoring_stage_timing",
+        request_id=request_id,
+        route="/api/part2/sessions/{session_id}/score",
+        stage="acoustic",
+        status=acoustic_status,
+        duration_ms=round((time.perf_counter() - acoustic_started) * 1000, 2),
+        fallback_reason=acoustic_fallback_reason,
+        session_id=session_id,
+    )
 
     # Run LLM scoring
+    llm_started = time.perf_counter()
     score_result = await score_speaking(
         transcript=part2_recording.transcript,
         question_text=question_text,
@@ -446,12 +603,38 @@ async def score_session(
         word_timestamps=part2_recording.word_timestamps,
         pronunciation_data=pron_data,
         acoustic_data=acoustic_data,
+        request_id=request_id,
+    )
+    llm_fallback_reason = classify_scoring_fallback(
+        score_result.get("error"),
+        score_result.get("detail"),
+    )
+    _emit_structured_log(
+        "info",
+        "part2_scoring_stage_timing",
+        request_id=request_id,
+        route="/api/part2/sessions/{session_id}/score",
+        stage="llm_scoring",
+        status="error" if score_result.get("error") else "ok",
+        duration_ms=round((time.perf_counter() - llm_started) * 1000, 2),
+        fallback_reason=llm_fallback_reason,
+        session_id=session_id,
     )
 
     # Update session with scores
     if score_result.get("error") == "empty_transcript":
+        _emit_structured_log(
+            "warning",
+            "part2_scoring_failed",
+            request_id=request_id,
+            route="/api/part2/sessions/{session_id}/score",
+            stage="llm_scoring",
+            fallback_reason="audio_or_no_speech_issue",
+            detail=score_result.get("detail", ""),
+            session_id=session_id,
+        )
         raise HTTPException(status_code=422, detail=NO_SPEECH_DETAIL)
-    
+
     # Save the result, even if it's an LLM fallback with an "error" key.
     # This ensures the 0.0 fallback values and error message are visible to the user.
     session.fluency_score = score_result.get("fluency_score", 0.0)
@@ -460,12 +643,14 @@ async def score_session(
     session.pronunciation_score = score_result.get("pronunciation_score", 0.0)
     session.overall_score = score_result.get("overall_score", 0.0)
     session.sample_answer = score_result.get("sample_answer", "")
-    
+
     if "error" in score_result:
         # Persist JSON so parsing is stable on history/detail pages.
         session.feedback = json.dumps(
             {
-                "overall_feedback": score_result.get("overall_feedback", "Scoring failed."),
+                "overall_feedback": score_result.get(
+                    "overall_feedback", "Scoring failed."
+                ),
                 "error": score_result.get("error", "llm_generation_failed"),
                 "detail": score_result.get("detail", ""),
             },
@@ -483,7 +668,19 @@ async def score_session(
     session.status = "completed"
     session.finished_at = datetime.utcnow()
 
+    _emit_structured_log(
+        "info",
+        "part2_scoring_completed",
+        request_id=request_id,
+        route="/api/part2/sessions/{session_id}/score",
+        status="error" if score_result.get("error") else "ok",
+        fallback_reason=llm_fallback_reason,
+        duration_ms=round((time.perf_counter() - scoring_started) * 1000, 2),
+        session_id=session_id,
+    )
+
     return {
+        "request_id": request_id,
         "session_id": session_id,
         "exam_scope": "part2_only",
         "is_full_flow": False,
@@ -529,20 +726,22 @@ async def get_history(
 
     history = []
     for s, topic_title in rows:
-        resolved_title = topic_title or await _get_part2_prompt_title(db, s.id) or "Unknown"
-        history.append({
-            "session_id": s.id,
-            "topic_title": resolved_title,
-            "date": s.finished_at.isoformat() if s.finished_at else None,
-            "scores": {
-                "fluency": s.fluency_score,
-                "vocabulary": s.vocabulary_score,
-                "grammar": s.grammar_score,
-                "pronunciation": s.pronunciation_score,
-                "overall": s.overall_score,
-            },
-        })
+        resolved_title = (
+            topic_title or await _get_part2_prompt_title(db, s.id) or "Unknown"
+        )
+        history.append(
+            {
+                "session_id": s.id,
+                "topic_title": resolved_title,
+                "date": s.finished_at.isoformat() if s.finished_at else None,
+                "scores": {
+                    "fluency": s.fluency_score,
+                    "vocabulary": s.vocabulary_score,
+                    "grammar": s.grammar_score,
+                    "pronunciation": s.pronunciation_score,
+                    "overall": s.overall_score,
+                },
+            }
+        )
 
     return history
-
-
