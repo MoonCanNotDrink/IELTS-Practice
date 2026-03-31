@@ -31,7 +31,7 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Then fill in required values in `backend/.env` (see `backend/.env.example`).
+Then fill in required values in `backend/.env`. See docs/configuration.md for a complete env var reference and `backend/.env.example` for a minimal template.
 
 3) Start the app with auto-reload:
 
@@ -40,6 +40,38 @@ uvicorn app.main:app --reload --port 8000
 ```
 
 Open `http://localhost:8000`.
+
+## Database Migrations
+
+Use Alembic from the `backend/` directory.
+
+- Create a new migration:
+
+```bash
+cd backend && alembic revision --autogenerate -m "description"
+```
+
+- Apply migrations locally:
+
+```bash
+cd backend && alembic upgrade head
+```
+
+- Check current migration state:
+
+```bash
+cd backend && alembic current
+```
+
+- Roll back one revision:
+
+```bash
+cd backend && alembic downgrade -1
+```
+
+Production behavior: migrations run automatically on container startup via the Dockerfile `CMD` (`alembic upgrade head` runs before `uvicorn`).
+
+Note: for local SQLite development, `init_db()` in `app/database.py` creates tables from SQLAlchemy models. Alembic is primarily needed for production PostgreSQL schema changes.
 
 ## Running Tests
 
