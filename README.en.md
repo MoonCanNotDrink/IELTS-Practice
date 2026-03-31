@@ -1,127 +1,53 @@
-# IELTS Speaking AI
+# IELTS Practice
 
-An IELTS speaking practice platform covering full exam flows, free practice, dynamic follow-up questions, voice examiner playback, transcription, scoring feedback, and history review.
+English • [中文](README.md)
 
-Its goal is not just to demonstrate isolated AI features, but to connect the key stages before, during, and after practice into a usable learning system.
+Status: Beta
 
-> Status: Beta
-> Last Updated: 2026-03-20
+An end-to-end IELTS practice project for speaking and writing, pairing a FastAPI backend with a lightweight frontend. AI components provide scoring, transcription, and a voice examiner experience suitable for a portfolio demo.
 
-## Navigation
+Why this repo matters (first 20 lines): showcases a full-stack AI integration that recreates a realistic IELTS practice flow, with automated feedback and voice interaction, useful as a technical and product example.
 
-- [中文版 README](README.md)
-- [文档目录（中文）](docs/README.md)
-- [Documentation Index](docs/README.en.md)
-- [Project Overview (Chinese)](docs/项目简介.md)
-- [Project Overview (English)](docs/项目简介.en.md)
-- [External documentation (Chinese)](docs/README.md)
-- [External Documentation](docs/README.en.md)
+## What it does
 
-## Start Here
+- Implements the full IELTS Speaking flow (Part 1 / Part 2 / Part 3) and Writing practice (Task 1 / Task 2)
+- Provides multi-dimensional scoring and actionable feedback by combining transcription and audio analysis with LLM outputs
+- Integrates TTS and transcription for a voice examiner experience and dynamic follow-up questions
+- Tracks user history and progress, with JWT-based multi-user isolation for realistic usage scenarios
 
-| I want to... | Go to |
-|---|---|
-| understand the project quickly | [Project Overview](docs/项目简介.en.md) |
-| read the public-facing docs | [External Documentation](docs/README.en.md) |
-| begin with the user guides | [Getting Started](docs/user-guide/getting-started.en.md) |
-| inspect plans and reports | [Documentation Index](docs/README.en.md) |
+## Tech stack (short)
 
-## Core Features
+- Frontend: vanilla HTML, JavaScript, CSS
+- Backend: FastAPI, Python
+- AI / Speech: Gemini (scoring/feedback), Azure Speech (TTS/transcription), faster-whisper (local transcription), librosa (audio analysis)
+- Infrastructure: SQLite / PostgreSQL, Docker, Cloud Run (examples)
 
-- Full IELTS Speaking flow: Part 1 / Part 2 / Part 3
-- Free Practice mode with topic library, custom prompts, and custom speaking duration
-- Dynamic follow-up questions powered by an LLM
-- Voice examiner playback with TTS
-- Multi-dimensional scoring based on transcription, audio analysis, and model output
-- History and progress review for repeated practice
-- Multi-user isolation with JWT-based authentication
+## Quick start
 
-## Quick Start
+See docs/dev-guide.md for full setup and deployment instructions.
 
-### Install dependencies
+Minimal three-step path for development:
 
 ```bash
-corepack pnpm install
+corepack pnpm install        # install frontend and test deps
+# configure environment variables as described in docs/dev-guide.md
+corepack pnpm test           # run automated tests
+# follow docs/dev-guide.md to start backend and frontend services
 ```
 
-### Run tests
+## Project layout (top-level)
 
-```bash
-corepack pnpm test
-```
+- frontend/ — static pages and browser interaction
+- backend/ — FastAPI application and business logic
+- tests/ — automated tests (Playwright and unit)
+- docs/ — developer and public documentation (see docs/dev-guide.md)
 
-### Local development note
+## Links
 
-- The current root `package.json` exposes `corepack pnpm test`.
-- For broader local workflow details, see [AGENTS.md](AGENTS.md) and [docs/README.en.md](docs/README.en.md).
+- Dev guide (run, configure, deploy): docs/dev-guide.md
+- Documentation index: docs/README.md
+- Collaboration rules: AGENTS.md
 
-## Project Structure
+---
 
-- `frontend/`: frontend pages, interaction logic, and styles
-- `backend/`: FastAPI backend, routes, services, and data models
-- `tests/`: Playwright and related automated tests
-- [`docs/plans/`](docs/plans/): implementation plans and solution notes
-- [`docs/reports/`](docs/reports/): optimization reports, product summaries, and stage recaps
-- [`AGENTS.md`](AGENTS.md): project development rules and collaboration constraints
-
-## Documentation Entry Points
-
-- [docs/README.en.md](docs/README.en.md): documentation index
-- [docs/style-guide.en.md](docs/style-guide.en.md): documentation style guide
-- [docs/README.en.md](docs/README.en.md): unified documentation entry for project and external docs
-- [docs/plans/自由练习实现计划.en.md](docs/plans/自由练习实现计划.en.md): Free Practice implementation plan
-- [docs/reports/自由练习界面优化报告.en.md](docs/reports/自由练习界面优化报告.en.md): Free Practice UI optimization summary
-- [docs/reports/自由练习-产品设计摘要.en.md](docs/reports/自由练习-产品设计摘要.en.md): product/design summary for Free Practice
-- [docs/reports/全阶段开发总结.en.md](docs/reports/全阶段开发总结.en.md): overall project development summary
-
-## Tech Stack
-
-- Frontend: vanilla HTML / JavaScript / CSS
-- Backend: FastAPI / Python
-- Database: SQLite / PostgreSQL
-- Speech transcription: Azure Speech + faster-whisper
-- Audio analysis: librosa
-- LLM: Gemini
-- Auth: JWT
-- Deployment: Docker
-
-## Deployment
-
-### Local Docker build
-
-Default official PyPI:
-
-```bash
-docker build -t ielts-practice .
-```
-
-If your network is slow, you can opt into the Tsinghua mirror for that build only:
-
-```bash
-docker build \
-  --build-arg PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple \
-  --build-arg PIP_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn \
-  -t ielts-practice .
-```
-
-### Cloud Run deployment
-
-Default official PyPI:
-
-```bash
-bash scripts/deploy-cloud-run.sh
-```
-
-Optional mirror mode:
-
-```bash
-bash scripts/deploy-cloud-run.sh --use-mirror=tsinghua
-```
-
-The script runs `gcloud builds submit --config cloudbuild.yaml` first, then deploys the built image to Cloud Run.
-
-## Notes
-
-The root `README.md` serves as the primary Chinese entry document.
-
-The `docs/` directory contains user-facing collaboration and delivery documents. Internal execution traces under `.sisyphus/` remain internal and are not part of the external documentation set.
+Note: this README is trimmed to serve as the public project landing page. Full developer and deployment details live in docs/dev-guide.md.

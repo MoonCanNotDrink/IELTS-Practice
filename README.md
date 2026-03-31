@@ -1,127 +1,53 @@
-# IELTS Speaking AI
+# IELTS Practice
 
-一个面向 IELTS 口语训练的练习平台，覆盖完整模考、自由练习、动态追问、语音播报、转写、评分反馈与历史复盘。
+中文 • [English](README.en.md)
 
-它的目标不是只展示单点技术能力，而是把“练习前、练习中、练习后”的关键链路连成一个可持续使用的学习系统。
+状态：Beta
 
-> 状态：Beta
-> 最后更新：2026-03-20
+一个面向 IELTS 口语与写作练习的全栈项目，结合 FastAPI 后端与原生前端，使用大模型与语音服务为考生提供模考流程、即时反馈与历史复盘。
 
-## 导航
+什么值得看（20 行内）：快速演示完整考试流、AI 评分与语音考官体验，适合作为个人作品集的技术与产品示例。
 
-- [English README](README.en.md)
-- [文档目录](docs/README.md)
-- [Documentation Index (English)](docs/README.en.md)
-- [项目简介（中文）](docs/项目简介.md)
-- [Project Overview (English)](docs/项目简介.en.md)
- - [对外文档 (External docs)](docs/README.md)
- - [External Documentation (English)](docs/README.en.md)
+## 它能做什么
 
-## 从这里开始
+- 提供完整的 IELTS Speaking 模考流程（Part 1 / Part 2 / Part 3）与写作练习（Task 1 / Task 2）
+- 基于大模型的多维评分与反馈，结合转写和音频分析给出具体改进点
+- 语音考官与 TTS / 转写集成，支持动态追问与更真实的口语练习体验
+- 历史记录与进度回顾，支持多用户隔离（JWT）以便长期练习追踪
 
-| 我想做什么 | 入口 |
-|---|---|
-| 快速了解这个项目 | [项目简介](docs/项目简介.md) |
-| 作为普通读者阅读公开文档 | [对外文档](docs/README.md) |
-| 开始查看用户指南 | [快速开始](docs/user-guide/getting-started.md) |
-| 查看实现计划和报告 | [文档目录](docs/README.md) |
+## 技术栈（精简）
 
-## 核心能力
-
-- 完整 IELTS Speaking 流程：Part 1 / Part 2 / Part 3
-- 自由练习模式：支持题库选题、自定义题目、自定义作答时长
-- 动态追问：基于大模型生成更接近真实考试的连续提问
-- 语音考官：支持 TTS 播报，增强沉浸感
-- 多维评分：结合转写、音频分析与模型能力输出反馈
-- 历史记录与趋势复盘：便于长期练习与回看
-- 多用户隔离：基于 JWT 的登录与数据隔离
+- 前端：vanilla HTML, JavaScript, CSS
+- 后端：FastAPI, Python
+- AI / 语音：Gemini（评分与反馈）, Azure Speech（TTS/转写）, faster-whisper（本地转写）, librosa（音频分析）
+- 基础设施：SQLite / PostgreSQL（可选）, Docker（容器化）, Cloud Run（部署示例）
 
 ## 快速开始
 
-### 安装依赖
+完整开发与部署说明请参见 docs/dev-guide.md。
+
+最小三步（用于开发环境）：
 
 ```bash
-corepack pnpm install
+corepack pnpm install        # 安装前端与测试依赖
+# 配置环境变量，参见 docs/dev-guide.md
+corepack pnpm test           # 运行测试
+# 按 docs/dev-guide.md 中的步骤启动后端与前端
 ```
 
-### 运行测试
+## 项目结构（顶层）
 
-```bash
-corepack pnpm test
-```
+- frontend/ — 静态页面与浏览器端交互
+- backend/ — FastAPI 应用与业务逻辑
+- tests/ — 自动化测试（Playwright / 单元测试）
+- docs/ — 开发指南与对外文档（详见 docs/dev-guide.md）
 
-### 本地运行说明
+## 重要链接
 
-- 当前根目录 `package.json` 提供的脚本是 `corepack pnpm test`。
-- 其他本地开发步骤请参考 [AGENTS.md](AGENTS.md) 与 [docs/README.md](docs/README.md) 中的计划 / 报告文档。
+- 开发指南（包含运行、配置与部署）: docs/dev-guide.md
+- 文档索引: docs/README.md
+- 项目协作规范: AGENTS.md
 
-## 项目结构
+---
 
-- `frontend/`：前端页面、交互逻辑与样式
-- `backend/`：FastAPI 后端、业务路由、服务与数据模型
-- `tests/`：Playwright 与相关自动化测试
-- [`docs/plans/`](docs/plans/)：功能实现计划与方案文档
-- [`docs/reports/`](docs/reports/)：优化报告、产品摘要与阶段总结
-- [`AGENTS.md`](AGENTS.md)：项目开发规则与协作约束
-
-## 文档入口
-
-- [docs/README.md](docs/README.md)：文档目录
-- [docs/style-guide.md](docs/style-guide.md)：文档风格指南
-- [docs/README.md](docs/README.md)：对外文档与项目文档的统一入口
-- [docs/plans/自由练习实现计划.md](docs/plans/自由练习实现计划.md)：自由练习功能的实现计划
-- [docs/reports/自由练习界面优化报告.md](docs/reports/自由练习界面优化报告.md)：Free Practice 界面优化与可访问性报告
-- [docs/reports/自由练习-产品设计摘要.md](docs/reports/自由练习-产品设计摘要.md)：Free Practice 的产品 / 设计视角摘要
-- [docs/reports/全阶段开发总结.md](docs/reports/全阶段开发总结.md)：项目整体阶段性总结
-
-## 技术栈
-
-- 前端：原生 HTML / JavaScript / CSS
-- 后端：FastAPI / Python
-- 数据库：SQLite / PostgreSQL
-- 语音转写：Azure Speech + faster-whisper
-- 音频分析：librosa
-- 大模型：Gemini
-- 鉴权：JWT
-- 部署：Docker
-
-## 部署
-
-### 本地 Docker 构建
-
-默认使用官方 PyPI：
-
-```bash
-docker build -t ielts-practice .
-```
-
-如果网络较慢，可临时切换清华镜像：
-
-```bash
-docker build \
-  --build-arg PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple \
-  --build-arg PIP_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn \
-  -t ielts-practice .
-```
-
-### Cloud Run 部署
-
-默认使用官方 PyPI：
-
-```bash
-bash scripts/deploy-cloud-run.sh
-```
-
-需要时可显式切换镜像源：
-
-```bash
-bash scripts/deploy-cloud-run.sh --use-mirror=tsinghua
-```
-
-这个脚本会先执行 `gcloud builds submit --config cloudbuild.yaml` 构建镜像，再将该镜像部署到 Cloud Run。
-
-## 说明
-
-根目录 `README.md` 用于项目入口说明。
-
-`docs/` 目录中的文档面向协作与交付；`.sisyphus/` 中的计划、问题与决策记录保留为内部执行痕迹，不作为对外交付文档。 
+更新说明: 本 README 精简为面向访问者与作品集展示的首页，详细开发与部署步骤已移至 docs/dev-guide.md。
