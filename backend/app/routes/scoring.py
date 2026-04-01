@@ -1,19 +1,26 @@
-﻿"""Full-exam scoring route 鈥?combines Part 1 + Part 2 + Part 3 for final assessment."""
+"""Full-exam scoring route 鈥?combines Part 1 + Part 2 + Part 3 for final assessment."""
 
 import json
 import asyncio
 import base64
+import logging
+import time
+import uuid
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 import httpx
 
 from app.database import get_db
 from app.models import PracticeSession, Recording, Topic
 from app.services.scoring_service import score_speaking
+from app.services.scoring_service import classify_scoring_fallback
 from app.services.pronunciation_service import assess_pronunciation_sync
+from app.services.speaking_learning_service import (
+    apply_learning_metadata,
+)
 from app.services.auth_service import get_current_user, User
 from app.config import settings
 from app.routes.helpers import (
@@ -24,6 +31,68 @@ from app.routes.helpers import (
 )
 
 router = APIRouter(prefix="/api/scoring", tags=["Scoring"])
+logger = logging.getLogger(__name__)
+ANALYSIS_VERSION = "v1"
+
+
+async def _resolve_session_learning_flags(
+    db: AsyncSession, session_id: int, user_id: object
+) -> dict[str, int | bool]:
+    recording_result = await db.execute(
+        select(Recording)
+        .where(Recording.session_id == session_id, Recording.part == "part2")
+        .order_by(Recording.question_index, Recording.created_at)
+        .limit(1)
+    )
+    part2_recording = recording_result.scalars().first()
+
+    if not part2_recording:
+        return {
+            "attempt_count": 0,
+            "has_retry_match": False,
+            "has_coaching": False,
+        }
+
+    prompt_match_key = (part2_recording.prompt_match_key or "").strip()
+    attempt_count = 1
+    if prompt_match_key:
+        attempts_result = await db.execute(
+            select(func.count(Recording.id))
+            .select_from(Recording)
+            .join(PracticeSession, PracticeSession.id == Recording.session_id)
+            .where(
+                PracticeSession.user_id == user_id,
+                PracticeSession.status == "completed",
+                Recording.prompt_match_key == prompt_match_key,
+            )
+        )
+        attempt_count = int(attempts_result.scalar_one() or 0)
+
+    return {
+        "attempt_count": attempt_count,
+        "has_retry_match": attempt_count > 1,
+        "has_coaching": bool(part2_recording.coaching_payload)
+        or bool(
+            part2_recording.weakness_tags
+            if isinstance(part2_recording.weakness_tags, list)
+            else []
+        ),
+    }
+
+
+def _emit_structured_log(level: str, event: str, **payload) -> None:
+    body = {"event": event, **payload}
+    line = json.dumps(body, ensure_ascii=False, sort_keys=True)
+    if level == "error":
+        logger.error(line)
+    elif level == "warning":
+        logger.warning(line)
+    else:
+        logger.info(line)
+
+
+def _request_id_headers(request_id: str) -> dict[str, str]:
+    return {"X-Request-ID": request_id}
 
 
 def _determine_exam_scope(recorded_parts: set[str], is_full_flow: bool) -> str:
@@ -56,7 +125,11 @@ def _build_combined_transcript(recordings: list) -> tuple[str, str, str, str, li
         if r.part not in parts:
             continue
         if r.transcript:
-            qa = f"Q: {r.question_text}\nA: {r.transcript}" if r.question_text else r.transcript
+            qa = (
+                f"Q: {r.question_text}\nA: {r.transcript}"
+                if r.question_text
+                else r.transcript
+            )
             parts[r.part].append(qa)
         # Use Part 2 timestamps for fluency (it's the longest monologue)
         if r.part == "part2" and r.word_timestamps:
@@ -85,9 +158,23 @@ async def score_full_session(
     Score a completed IELTS mock exam session (Part 1 + 2 + 3).
     Runs pronunciation assessment + LLM scoring and persists results.
     """
+    request_id = uuid.uuid4().hex
+    scoring_started = time.perf_counter()
+    _emit_structured_log(
+        "info",
+        "full_scoring_started",
+        request_id=request_id,
+        route="/api/scoring/sessions/{session_id}/score",
+        session_id=session_id,
+    )
+
     session = await db.get(PracticeSession, session_id)
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(
+            status_code=404,
+            detail="Session not found",
+            headers=_request_id_headers(request_id),
+        )
     _assert_session_access(session, current_user)
 
     rec_result = await db.execute(
@@ -97,7 +184,11 @@ async def score_full_session(
     )
     recordings = rec_result.scalars().all()
     if not recordings:
-        raise HTTPException(status_code=400, detail="No recordings for this session")
+        raise HTTPException(
+            status_code=400,
+            detail="No recordings for this session",
+            headers=_request_id_headers(request_id),
+        )
     recorded_parts = {r.part for r in recordings if (r.transcript or "").strip()}
     required_parts = ("part1", "part2", "part3")
     missing_parts = [p for p in required_parts if p not in recorded_parts]
@@ -107,16 +198,25 @@ async def score_full_session(
     topic = await db.get(Topic, session.topic_id) if session.topic_id else None
 
     # Build combined transcript
-    full_transcript, p1, p2, p3, word_timestamps = _build_combined_transcript(recordings)
+    full_transcript, p1, p2, p3, word_timestamps = _build_combined_transcript(
+        recordings
+    )
 
     question_text = (
-        f"{topic.title}\nYou should say:\n" + "\n".join(f"- {pt}" for pt in topic.points)
-        if topic else "Full IELTS Speaking Mock Test"
+        f"{topic.title}\nYou should say:\n"
+        + "\n".join(f"- {pt}" for pt in topic.points)
+        if topic
+        else "Full IELTS Speaking Mock Test"
     )
 
     # Pronunciation: use Part 2 audio (longest monologue)
     pron_data = None
-    part2_rec = next((r for r in recordings if r.part == "part2" and r.audio_filename), None)
+    pron_started = time.perf_counter()
+    pron_status = "skipped"
+    pron_fallback_reason = None
+    part2_rec = next(
+        (r for r in recordings if r.part == "part2" and r.audio_filename), None
+    )
     if part2_rec and settings.AZURE_SPEECH_KEY:
         audio_path = settings.recordings_path / part2_rec.audio_filename
         if audio_path.exists() and part2_rec.transcript:
@@ -129,12 +229,30 @@ async def score_full_session(
                         ),
                         timeout=max(1, settings.PRONUNCIATION_TIMEOUT_SECONDS),
                     )
+                    pron_status = "ok"
                 except (Exception, asyncio.TimeoutError):
                     pron_data = None
+                    pron_status = "error"
+                    pron_fallback_reason = "config_or_dependency_issue"
+    _emit_structured_log(
+        "info",
+        "full_scoring_stage_timing",
+        request_id=request_id,
+        route="/api/scoring/sessions/{session_id}/score",
+        stage="pronunciation",
+        status=pron_status,
+        duration_ms=round((time.perf_counter() - pron_started) * 1000, 2),
+        fallback_reason=pron_fallback_reason,
+        session_id=session_id,
+    )
 
     # Acoustic analysis (librosa) on Part 2 audio
     acoustic_data = None
+    acoustic_started = time.perf_counter()
+    acoustic_status = "skipped"
+    acoustic_fallback_reason = None
     from app.services.acoustic_service import analyze_audio_fluency_sync
+
     if part2_rec and part2_rec.transcript:
         audio_path = settings.recordings_path / part2_rec.audio_filename
         if audio_path.exists():
@@ -143,10 +261,25 @@ async def score_full_session(
                 acoustic_data = await asyncio.to_thread(
                     analyze_audio_fluency_sync, str(audio_path), word_count
                 )
+                acoustic_status = "ok" if acoustic_data else "fallback"
             except Exception:
                 acoustic_data = None
+                acoustic_status = "error"
+                acoustic_fallback_reason = "config_or_dependency_issue"
+    _emit_structured_log(
+        "info",
+        "full_scoring_stage_timing",
+        request_id=request_id,
+        route="/api/scoring/sessions/{session_id}/score",
+        stage="acoustic",
+        status=acoustic_status,
+        duration_ms=round((time.perf_counter() - acoustic_started) * 1000, 2),
+        fallback_reason=acoustic_fallback_reason,
+        session_id=session_id,
+    )
 
     # LLM scoring 鈥?send full combined transcript
+    llm_started = time.perf_counter()
     score_result = await score_speaking(
         transcript=full_transcript,
         question_text=question_text,
@@ -154,6 +287,22 @@ async def score_full_session(
         word_timestamps=word_timestamps,
         pronunciation_data=pron_data,
         acoustic_data=acoustic_data,
+        request_id=request_id,
+    )
+    llm_fallback_reason = classify_scoring_fallback(
+        score_result.get("error"),
+        score_result.get("detail"),
+    )
+    _emit_structured_log(
+        "info",
+        "full_scoring_stage_timing",
+        request_id=request_id,
+        route="/api/scoring/sessions/{session_id}/score",
+        stage="llm_scoring",
+        status="error" if score_result.get("error") else "ok",
+        duration_ms=round((time.perf_counter() - llm_started) * 1000, 2),
+        fallback_reason=llm_fallback_reason,
+        session_id=session_id,
     )
 
     # Persist scores
@@ -170,7 +319,9 @@ async def score_full_session(
         # Persist JSON so parsing is stable on history/detail pages.
         session.feedback = json.dumps(
             {
-                "overall_feedback": score_result.get("overall_feedback", "Scoring failed."),
+                "overall_feedback": score_result.get(
+                    "overall_feedback", "Scoring failed."
+                ),
                 "error": score_result.get("error", "llm_generation_failed"),
                 "detail": score_result.get("detail", ""),
             },
@@ -184,10 +335,45 @@ async def score_full_session(
         part2_rec.pronunciation_accuracy = pron_data.get("accuracy_score")
         part2_rec.pronunciation_details = pron_data
 
+    coaching_recordings = []
+    for recording in recordings:
+        metadata = await apply_learning_metadata(
+            db=db,
+            recording=recording,
+            score_result=score_result,
+            analysis_version=ANALYSIS_VERSION,
+        )
+
+        if metadata.weakness_tags or metadata.has_coaching_payload:
+            coaching_recordings.append(
+                {
+                    "recording_id": metadata.recording_id,
+                    "part": metadata.part,
+                    "prompt_match_type": metadata.prompt_match_type,
+                    "prompt_match_key": metadata.prompt_match_key,
+                    "prompt_source": metadata.prompt_source,
+                    "weakness_tags": metadata.weakness_tags,
+                    "has_coaching_payload": metadata.has_coaching_payload,
+                    "analysis_version": metadata.analysis_version,
+                }
+            )
+
     session.status = "completed"
     session.finished_at = datetime.utcnow()
 
+    _emit_structured_log(
+        "info",
+        "full_scoring_completed",
+        request_id=request_id,
+        route="/api/scoring/sessions/{session_id}/score",
+        status="error" if score_result.get("error") else "ok",
+        fallback_reason=llm_fallback_reason,
+        duration_ms=round((time.perf_counter() - scoring_started) * 1000, 2),
+        session_id=session_id,
+    )
+
     return {
+        "request_id": request_id,
         "session_id": session_id,
         "exam_scope": exam_scope,
         "is_full_flow": is_full_flow,
@@ -209,6 +395,7 @@ async def score_full_session(
         "key_improvements": score_result.get("key_improvements", []),
         "sample_answer": score_result.get("sample_answer", ""),
         "transcripts": {"part1": p1, "part2": p2, "part3": p3},
+        "coaching": {"recordings": coaching_recordings},
     }
 
 
@@ -216,7 +403,7 @@ async def score_full_session(
 async def get_history(
     limit: int = 20,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Return recent completed sessions with scores for trend chart."""
     result = await db.execute(
@@ -233,23 +420,35 @@ async def get_history(
 
     history = []
     for s, topic_title in rows:
-        scoring_status, scoring_error, scoring_error_detail = _feedback_error_info(s.feedback)
-        resolved_title = topic_title or await _get_part2_prompt_title(db, s.id) or "Unknown"
-        history.append({
-            "session_id": s.id,
-            "topic_title": resolved_title,
-            "date": s.finished_at.isoformat() if s.finished_at else None,
-            "scoring_status": scoring_status,
-            "scoring_error": scoring_error,
-            "scoring_error_detail": scoring_error_detail,
-            "scores": {
-                "fluency": s.fluency_score,
-                "vocabulary": s.vocabulary_score,
-                "grammar": s.grammar_score,
-                "pronunciation": s.pronunciation_score,
-                "overall": s.overall_score,
-            },
-        })
+        scoring_status, scoring_error, scoring_error_detail = _feedback_error_info(
+            s.feedback
+        )
+        learning_flags = await _resolve_session_learning_flags(
+            db, s.id, current_user.id
+        )
+        resolved_title = (
+            topic_title or await _get_part2_prompt_title(db, s.id) or "Unknown"
+        )
+        history.append(
+            {
+                "session_id": s.id,
+                "topic_title": resolved_title,
+                "date": s.finished_at.isoformat() if s.finished_at else None,
+                "scoring_status": scoring_status,
+                "scoring_error": scoring_error,
+                "scoring_error_detail": scoring_error_detail,
+                "attempt_count": learning_flags["attempt_count"],
+                "has_retry_match": learning_flags["has_retry_match"],
+                "has_coaching": learning_flags["has_coaching"],
+                "scores": {
+                    "fluency": s.fluency_score,
+                    "vocabulary": s.vocabulary_score,
+                    "grammar": s.grammar_score,
+                    "pronunciation": s.pronunciation_score,
+                    "overall": s.overall_score,
+                },
+            }
+        )
 
     return history
 
@@ -258,7 +457,7 @@ async def get_history(
 async def get_session_detail(
     session_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Return full scoring results for a specific session (for history review)."""
     session = await db.get(PracticeSession, session_id)
@@ -285,7 +484,59 @@ async def get_session_detail(
     for r in recordings:
         if r.transcript:
             part_key = r.part  # 'part1','part2','part3'
-            transcripts[part_key] = (transcripts.get(part_key, '') + ' ' + r.transcript).strip()
+            transcripts[part_key] = (
+                transcripts.get(part_key, "") + " " + r.transcript
+            ).strip()
+
+    prompt_match_keys = {
+        (recording.prompt_match_key or "").strip()
+        for recording in recordings
+        if (recording.prompt_match_key or "").strip()
+    }
+    attempt_counts_by_key: dict[str, int] = {}
+    if prompt_match_keys:
+        counts_result = await db.execute(
+            select(Recording.prompt_match_key, func.count(Recording.id))
+            .select_from(Recording)
+            .join(PracticeSession, PracticeSession.id == Recording.session_id)
+            .where(
+                PracticeSession.user_id == current_user.id,
+                PracticeSession.status == "completed",
+                Recording.prompt_match_key.in_(prompt_match_keys),
+            )
+            .group_by(Recording.prompt_match_key)
+        )
+        attempt_counts_by_key = {
+            str(key): int(count)
+            for key, count in counts_result.all()
+            if isinstance(key, str) and key.strip()
+        }
+
+    answer_learning = []
+    for recording in recordings:
+        prompt_match_key = (recording.prompt_match_key or "").strip()
+        attempt_count = attempt_counts_by_key.get(prompt_match_key, 1)
+        answer_learning.append(
+            {
+                "recording_id": recording.id,
+                "part": recording.part,
+                "question_index": recording.question_index,
+                "prompt_match_type": recording.prompt_match_type,
+                "prompt_match_key": recording.prompt_match_key,
+                "prompt_source": recording.prompt_source,
+                "attempt_count": attempt_count,
+                "has_retry_match": attempt_count > 1,
+                "has_coaching": bool(recording.coaching_payload)
+                or bool(
+                    recording.weakness_tags
+                    if isinstance(recording.weakness_tags, list)
+                    else []
+                ),
+                "weakness_tags": recording.weakness_tags
+                if isinstance(recording.weakness_tags, list)
+                else [],
+            }
+        )
 
     feedback = {}
     key_improvements = []
@@ -293,10 +544,16 @@ async def get_session_detail(
     resolved_title = topic.title if topic else None
     if not resolved_title:
         resolved_title = next(
-            ((r.question_text or "").strip() for r in recordings if r.part == "part2" and (r.question_text or "").strip()),
+            (
+                (r.question_text or "").strip()
+                for r in recordings
+                if r.part == "part2" and (r.question_text or "").strip()
+            ),
             "Unknown",
         )
-    scoring_status, scoring_error, scoring_error_detail = _feedback_error_info(session.feedback)
+    scoring_status, scoring_error, scoring_error_detail = _feedback_error_info(
+        session.feedback
+    )
     if session.feedback:
         fb = _parse_feedback_blob(session.feedback)
         if isinstance(fb, dict):
@@ -333,11 +590,14 @@ async def get_session_detail(
         "key_improvements": key_improvements,
         "sample_answer": session.sample_answer or sample_answer,
         "transcripts": transcripts,
+        "answer_learning": answer_learning,
     }
+
 
 class TTSRequest(BaseModel):
     text: str
     voice_name: str = "Aoede"
+
 
 async def _generate_tts_response(req: TTSRequest) -> Response:
     """
@@ -348,39 +608,44 @@ async def _generate_tts_response(req: TTSRequest) -> Response:
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured")
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key={settings.GEMINI_API_KEY}"
-    
+
     payload = {
-      "contents": [{"parts": [{"text": req.text}]}],
-      "generationConfig": {
-        "responseModalities": ["AUDIO"],
-        "speechConfig": {
-          "voiceConfig": {
-            "prebuiltVoiceConfig": {
-              "voiceName": req.voice_name
-            }
-          }
-        }
-      }
+        "contents": [{"parts": [{"text": req.text}]}],
+        "generationConfig": {
+            "responseModalities": ["AUDIO"],
+            "speechConfig": {
+                "voiceConfig": {"prebuiltVoiceConfig": {"voiceName": req.voice_name}}
+            },
+        },
     }
-    
+
     async with httpx.AsyncClient(timeout=15.0) as client:
         try:
             res = await client.post(url, json=payload)
             res.raise_for_status()
             data = res.json()
-            
+
             # Extract base64 audio from response
-            parts = data.get('candidates', [{}])[0].get('content', {}).get('parts', [])
+            parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
             for p in parts:
-                if 'inlineData' in p and p['inlineData']['mimeType'].startswith("audio/"):
-                    audio_b64 = p['inlineData']['data']
+                if "inlineData" in p and p["inlineData"]["mimeType"].startswith(
+                    "audio/"
+                ):
+                    audio_b64 = p["inlineData"]["data"]
                     audio_bytes = base64.b64decode(audio_b64)
-                    return Response(content=audio_bytes, media_type=p['inlineData']['mimeType'])
-            
-            raise HTTPException(status_code=500, detail="Gemini response contained no audio data.")
+                    return Response(
+                        content=audio_bytes, media_type=p["inlineData"]["mimeType"]
+                    )
+
+            raise HTTPException(
+                status_code=500, detail="Gemini response contained no audio data."
+            )
         except httpx.HTTPStatusError as e:
             error_body = e.response.text
-            raise HTTPException(status_code=e.response.status_code, detail=f"Gemini API Error: {error_body}")
+            raise HTTPException(
+                status_code=e.response.status_code,
+                detail=f"Gemini API Error: {error_body}",
+            )
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
@@ -388,5 +653,3 @@ async def _generate_tts_response(req: TTSRequest) -> Response:
 @router.post("/tts")
 async def generate_tts(req: TTSRequest, current_user: User = Depends(get_current_user)):
     return await _generate_tts_response(req)
-
-

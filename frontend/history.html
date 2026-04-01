@@ -136,7 +136,12 @@
     <div id="detailOverlay" class="history-detail-overlay">
         <div class="history-detail-dialog">
             <button type="button" onclick="closeDetail()" class="history-detail-close">✕</button>
-            <div id="detailContent">Loading...</div>
+            <div id="detailContent">
+                <!-- populated by viewSessionDetail() in history.js -->
+                <div id="comparisonBlock"></div>
+                <div id="weaknessBlock"></div>
+                <div id="answerLearningBlock"></div>
+            </div>
         </div>
     </div>
 

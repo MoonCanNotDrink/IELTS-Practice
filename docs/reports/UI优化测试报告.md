@@ -1,5 +1,7 @@
 # UI/UX 优化测试报告
 
+*Written for project version as of 2026-03-31. Some details may not reflect the current state.*
+
 ## 1. 测试概览
 - **测试目的**：验证前端 UI 布局设计与视觉美术优化的落地效果，确保功能未受损且在不同设备上的响应式表现符合预期。
 - **测试范围**：首页 (`index.html`)、历史记录页 (`history.html`) 以及相关的样式文件 (`index.css`)。

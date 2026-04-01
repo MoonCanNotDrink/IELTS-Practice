@@ -1,5 +1,7 @@
 # IELTS Speaking AI 前端界面与布局优化方案
 
+*Written for project version as of 2026-03-31. Some details may not reflect the current state.*
+
 ## 1. 现状分析
 
 通过对项目现有 `frontend/index.html`、`frontend/history.html` 和 `frontend/index.css` 的分析，我们发现原有的 UI 设计呈现出以下特点与局限性：

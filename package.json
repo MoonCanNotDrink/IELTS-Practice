@@ -4,6 +4,7 @@
     "test": "npx playwright test",
     "test:unit": "npx vitest run",
     "test:unit:coverage": "npx vitest run --coverage",
+    "test:backend:smoke": "cd backend && python3 -m unittest test_backend_smoke.py -v",
     "test:all": "cd backend && (python -m unittest discover -p 'test*_route*.py' -v || python3 -m unittest discover -p 'test*_route*.py' -v) && cd .. && npx playwright test"
   },
   "devDependencies": {

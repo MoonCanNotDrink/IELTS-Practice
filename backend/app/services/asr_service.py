@@ -36,7 +36,31 @@ def _normalize_audio_suffix(filename: str | None) -> str:
 
 
 def _looks_like_wav(audio_bytes: bytes) -> bool:
-    return len(audio_bytes) >= 12 and audio_bytes[:4] == b"RIFF" and audio_bytes[8:12] == b"WAVE"
+    return (
+        len(audio_bytes) >= 12
+        and audio_bytes[:4] == b"RIFF"
+        and audio_bytes[8:12] == b"WAVE"
+    )
+
+
+def classify_asr_fallback(error_detail: str | None) -> str | None:
+    if not error_detail:
+        return None
+    text = error_detail.lower()
+    if any(
+        token in text for token in ("not configured", "not installed", "no asr backend")
+    ):
+        return "config_or_dependency_issue"
+    if any(
+        token in text
+        for token in ("empty transcript", "no speech", "not valid wav", "invalid wav")
+    ):
+        return "audio_or_no_speech_issue"
+    if any(
+        token in text for token in ("azure asr failed", "whisper asr failed", "asr")
+    ):
+        return "asr_failure"
+    return "asr_failure"
 
 
 def _make_config() -> speechsdk.SpeechConfig:
@@ -47,9 +71,7 @@ def _make_config() -> speechsdk.SpeechConfig:
     cfg.speech_recognition_language = "en-US"
     cfg.output_format = speechsdk.OutputFormat.Detailed
     # Allow up to 2s of silence before cutting a segment (helps long Part 2 recordings)
-    cfg.set_property(
-        speechsdk.PropertyId.Speech_SegmentationSilenceTimeoutMs, "2000"
-    )
+    cfg.set_property(speechsdk.PropertyId.Speech_SegmentationSilenceTimeoutMs, "2000")
     return cfg
 
 
@@ -151,7 +173,12 @@ def _transcribe_wav_sync(wav_path: str) -> dict:
         raise RuntimeError(f"Azure ASR error: {error[0]}")
 
     text = " ".join(all_texts).strip()
-    logger.info("Azure ASR: %d segments → %d words, %d chars", len(all_texts), len(all_words), len(text))
+    logger.info(
+        "Azure ASR: %d segments → %d words, %d chars",
+        len(all_texts),
+        len(all_words),
+        len(text),
+    )
     return {"text": text, "words": all_words}
 
 
@@ -196,7 +223,11 @@ def _transcribe_with_whisper_sync(audio_path: str) -> dict:
     return {"text": text, "words": all_words}
 
 
-async def transcribe_audio(audio_bytes: bytes, filename: str = "audio.wav") -> dict:
+async def transcribe_audio(
+    audio_bytes: bytes,
+    filename: str = "audio.wav",
+    request_id: str | None = None,
+) -> dict:
     """
     Async wrapper around the layered ASR pipeline.
     """
@@ -213,24 +244,68 @@ async def transcribe_audio(audio_bytes: bytes, filename: str = "audio.wav") -> d
             try:
                 result = await asyncio.to_thread(_transcribe_wav_sync, tmp_path)
                 if result.get("text"):
+                    logger.info(
+                        json.dumps(
+                            {
+                                "event": "asr_transcription_completed",
+                                "stage": "asr",
+                                "status": "ok",
+                                "request_id": request_id,
+                                "backend": "azure",
+                                "word_count": len(result.get("words") or []),
+                            },
+                            ensure_ascii=False,
+                            sort_keys=True,
+                        )
+                    )
                     return result
                 errors.append("Azure ASR returned empty transcript")
             except Exception as e:
                 logger.error("Azure ASR failed: %s", e, exc_info=True)
                 errors.append(f"Azure ASR failed: {e}")
         elif settings.AZURE_SPEECH_KEY and suffix == ".wav":
-            errors.append("Azure ASR skipped: uploaded .wav payload is not valid WAV data")
+            errors.append(
+                "Azure ASR skipped: uploaded .wav payload is not valid WAV data"
+            )
 
         try:
             result = await asyncio.to_thread(_transcribe_with_whisper_sync, tmp_path)
             if result.get("text"):
+                logger.info(
+                    json.dumps(
+                        {
+                            "event": "asr_transcription_completed",
+                            "stage": "asr",
+                            "status": "ok",
+                            "request_id": request_id,
+                            "backend": "whisper",
+                            "word_count": len(result.get("words") or []),
+                        },
+                        ensure_ascii=False,
+                        sort_keys=True,
+                    )
+                )
                 return result
             errors.append("Whisper ASR returned empty transcript")
         except Exception as e:
             logger.error("Whisper ASR failed: %s", e, exc_info=True)
             errors.append(f"Whisper ASR failed: {e}")
-
-        return {"text": "", "words": [], "error": " | ".join(errors) or "No ASR backend available"}
+        error_text = " | ".join(errors) or "No ASR backend available"
+        logger.warning(
+            json.dumps(
+                {
+                    "event": "asr_transcription_fallback",
+                    "stage": "asr",
+                    "status": "fallback",
+                    "request_id": request_id,
+                    "detail": error_text,
+                    "fallback_reason": classify_asr_fallback(error_text),
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+        )
+        return {"text": "", "words": [], "error": error_text}
     finally:
         try:
             os.unlink(tmp_path)
@@ -238,7 +313,9 @@ async def transcribe_audio(audio_bytes: bytes, filename: str = "audio.wav") -> d
             pass
 
 
-def _estimate_word_timestamps(transcript: str, assumed_wpm: float = 120.0) -> list[dict]:
+def _estimate_word_timestamps(
+    transcript: str, assumed_wpm: float = 120.0
+) -> list[dict]:
     """
     Fallback: estimate word timestamps when real timing is unavailable.
     Used when client_transcript is provided directly (no audio ASR).

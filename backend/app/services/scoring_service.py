@@ -10,7 +10,10 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-logger.info("Configuring Gemini with API key: %s...", settings.GEMINI_API_KEY[:10] if settings.GEMINI_API_KEY else "EMPTY")
+logger.info(
+    "Configuring Gemini with API key: %s...",
+    settings.GEMINI_API_KEY[:10] if settings.GEMINI_API_KEY else "EMPTY",
+)
 genai.configure(api_key=settings.GEMINI_API_KEY)
 
 SCORING_SYSTEM_INSTRUCTION = """You are an experienced IELTS speaking examiner with 15+ years of experience.
@@ -45,6 +48,28 @@ The JSON must follow this exact schema:
 }"""
 
 
+def classify_scoring_fallback(error: str | None, detail: str | None = "") -> str | None:
+    if not error and not detail:
+        return None
+
+    combined = f"{error or ''} {detail or ''}".lower()
+    if "empty_transcript" in combined or "no speech" in combined:
+        return "audio_or_no_speech_issue"
+    if any(
+        token in combined
+        for token in ("not configured", "api key", "dependency", "not installed")
+    ):
+        return "config_or_dependency_issue"
+    if "asr" in combined or "whisper" in combined:
+        return "asr_failure"
+    if any(
+        token in combined
+        for token in ("llm_generation_failed", "gemini", "timeout", "timed out")
+    ):
+        return "llm_timeout_or_failure"
+    return "llm_timeout_or_failure"
+
+
 def _build_fluency_context(word_timestamps: list[dict]) -> str:
     """Analyze word timestamps to provide quantitative fluency data to the LLM."""
     if not word_timestamps or len(word_timestamps) < 2:
@@ -62,11 +87,13 @@ def _build_fluency_context(word_timestamps: list[dict]) -> str:
     for i in range(1, total_words):
         gap = word_timestamps[i]["start"] - word_timestamps[i - 1]["end"]
         if gap > 0.8:
-            pauses.append({
-                "after_word": word_timestamps[i - 1]["word"],
-                "before_word": word_timestamps[i]["word"],
-                "duration": round(gap, 2),
-            })
+            pauses.append(
+                {
+                    "after_word": word_timestamps[i - 1]["word"],
+                    "before_word": word_timestamps[i]["word"],
+                    "duration": round(gap, 2),
+                }
+            )
 
     long_pause_count = sum(1 for p in pauses if p["duration"] > 2.0)
 
@@ -84,7 +111,7 @@ def _build_fluency_context(word_timestamps: list[dict]) -> str:
         context += "\n- Pause details:"
         for p in pauses[:10]:
             context += (
-                f'\n  • {p["duration"]}s pause between '
+                f"\n  • {p['duration']}s pause between "
                 f'"{p["after_word"]}" and "{p["before_word"]}"'
             )
 
@@ -93,63 +120,84 @@ def _build_fluency_context(word_timestamps: list[dict]) -> str:
 
 def _extract_json(text: str) -> dict:
     """Robustly extract a JSON object from LLM output.
-    
+
     Handles multiple formats Gemini may return:
     - Raw JSON
     - ```json\n{...}\n```  (markdown code fence)
     - ```\n{...}\n```  (plain code fence)
     - Text before/after JSON
     """
-    logger.info("_extract_json: input length=%d, first 300 chars: %r", len(text), text[:300])
+    logger.info(
+        "_extract_json: input length=%d, first 300 chars: %r", len(text), text[:300]
+    )
     original = text
     text = text.strip()
 
     # 1. Try direct parse (clean JSON with no wrapping)
     try:
         result = json.loads(text)
-        logger.info("_extract_json: direct parse succeeded, keys=%s", list(result.keys()))
+        logger.info(
+            "_extract_json: direct parse succeeded, keys=%s", list(result.keys())
+        )
         return result
     except json.JSONDecodeError as e:
         logger.info("_extract_json: direct parse failed: %s", e)
 
     # 2. Strip markdown code fences explicitly
     # Match: ```json\n...\n``` or ```\n...\n```
-    fence_pattern = re.compile(r'```(?:json)?\s*\n([\s\S]*?)\n\s*```', re.IGNORECASE)
+    fence_pattern = re.compile(r"```(?:json)?\s*\n([\s\S]*?)\n\s*```", re.IGNORECASE)
     fence_match = fence_pattern.search(text)
     if fence_match:
         inner = fence_match.group(1).strip()
-        logger.info("_extract_json: found code fence, inner length=%d, first 200: %r", len(inner), inner[:200])
+        logger.info(
+            "_extract_json: found code fence, inner length=%d, first 200: %r",
+            len(inner),
+            inner[:200],
+        )
         try:
             result = json.loads(inner)
-            logger.info("_extract_json: fence-stripped parse succeeded, keys=%s", list(result.keys()))
+            logger.info(
+                "_extract_json: fence-stripped parse succeeded, keys=%s",
+                list(result.keys()),
+            )
             return result
         except json.JSONDecodeError as e:
             logger.info("_extract_json: fence-stripped parse failed: %s", e)
 
     # 3. Find first { and last } and try to parse everything between them
-    first_brace = text.find('{')
-    last_brace = text.rfind('}')
+    first_brace = text.find("{")
+    last_brace = text.rfind("}")
     if first_brace != -1 and last_brace > first_brace:
-        candidate = text[first_brace:last_brace + 1]
-        logger.info("_extract_json: trying brace extraction [%d:%d], length=%d", first_brace, last_brace + 1, len(candidate))
+        candidate = text[first_brace : last_brace + 1]
+        logger.info(
+            "_extract_json: trying brace extraction [%d:%d], length=%d",
+            first_brace,
+            last_brace + 1,
+            len(candidate),
+        )
         try:
             result = json.loads(candidate)
-            logger.info("_extract_json: brace extraction succeeded, keys=%s", list(result.keys()))
+            logger.info(
+                "_extract_json: brace extraction succeeded, keys=%s",
+                list(result.keys()),
+            )
             return result
         except json.JSONDecodeError as e:
             logger.info("_extract_json: brace extraction failed: %s", e)
-            
+
     # 4. Try parsing a truncated JSON string (missing closing brace)
     if first_brace != -1 and last_brace == -1:
         # Extreme fallback: auto-append missing '}' and any likely missing quotes
-        logger.info("_extract_json: output appears truncated. Attempting simple repair.")
+        logger.info(
+            "_extract_json: output appears truncated. Attempting simple repair."
+        )
         repair = text[first_brace:] + '"}'
         try:
             result = json.loads(repair)
             return result
         except json.JSONDecodeError:
             pass
-        repair_2 = text[first_brace:] + '}'
+        repair_2 = text[first_brace:] + "}"
         try:
             return json.loads(repair_2)
         except json.JSONDecodeError:
@@ -170,6 +218,7 @@ async def score_speaking(
     word_timestamps: list[dict] | None = None,
     pronunciation_data: dict | None = None,
     acoustic_data: dict | None = None,
+    request_id: str | None = None,
 ) -> dict:
     """
     Score a speaking response using Gemini LLM.
@@ -177,10 +226,30 @@ async def score_speaking(
     """
     # Guard: refuse to score empty transcript — the LLM would return 0s
     if not transcript or not transcript.strip():
+        logger.info(
+            json.dumps(
+                {
+                    "event": "scoring_llm_skipped",
+                    "stage": "llm_scoring",
+                    "status": "skipped",
+                    "request_id": request_id,
+                    "fallback_reason": "audio_or_no_speech_issue",
+                    "detail": "empty_transcript",
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+        )
         return {
             "error": "empty_transcript",
             "detail": "No speech was detected. Please try recording again and speak clearly.",
-            "scores": {"fluency": 0, "vocabulary": 0, "grammar": 0, "pronunciation": 0, "overall": 0},
+            "scores": {
+                "fluency": 0,
+                "vocabulary": 0,
+                "grammar": 0,
+                "pronunciation": 0,
+                "overall": 0,
+            },
         }
 
     fluency_context = _build_fluency_context(word_timestamps or [])
@@ -223,7 +292,21 @@ async def score_speaking(
         system_instruction=SCORING_SYSTEM_INSTRUCTION,
     )
 
-    logger.info("score_speaking: calling Gemini model=%s, transcript_len=%d", settings.GEMINI_MODEL, len(transcript))
+    logger.info(
+        json.dumps(
+            {
+                "event": "scoring_llm_started",
+                "stage": "llm_scoring",
+                "status": "started",
+                "request_id": request_id,
+                "part": part,
+                "transcript_len": len(transcript),
+                "model": settings.GEMINI_MODEL,
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+    )
     try:
         response = await asyncio.wait_for(
             model.generate_content_async(
@@ -237,7 +320,7 @@ async def score_speaking(
                     HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
                     HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
                     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-                }
+                },
             ),
             timeout=max(1, settings.GEMINI_TIMEOUT_SECONDS),
         )
@@ -246,20 +329,47 @@ async def score_speaking(
         if response.candidates:
             cand = response.candidates[0]
             finish_reason = str(cand.finish_reason)
-            logger.info("score_speaking: finish_reason=%s, text_length=%d", finish_reason, len(response.text or ""))
+            logger.info(
+                "score_speaking: finish_reason=%s, text_length=%d",
+                finish_reason,
+                len(response.text or ""),
+            )
             if finish_reason not in ("FinishReason.STOP", "1", "STOP"):
-                logger.error("score_speaking: ABNORMAL finish_reason=%s safety_ratings=%s — response may be truncated or blocked",
-                             finish_reason, cand.safety_ratings)
+                logger.error(
+                    "score_speaking: ABNORMAL finish_reason=%s safety_ratings=%s — response may be truncated or blocked",
+                    finish_reason,
+                    cand.safety_ratings,
+                )
             raw_text = response.text or ""
         else:
-            logger.error("score_speaking: no candidates in Gemini response — likely blocked entirely")
+            logger.error(
+                "score_speaking: no candidates in Gemini response — likely blocked entirely"
+            )
             raw_text = ""
 
         if not raw_text:
-            raise ValueError("Gemini returned empty response (possible safety block or prompt_feedback issue)")
+            raise ValueError(
+                "Gemini returned empty response (possible safety block or prompt_feedback issue)"
+            )
 
         result = _extract_json(raw_text)
-        logger.info("score_speaking: parsed result keys=%s, overall_score=%s", list(result.keys()), result.get('overall_score'))
+        logger.info(
+            json.dumps(
+                {
+                    "event": "scoring_llm_completed",
+                    "stage": "llm_scoring",
+                    "status": "ok",
+                    "request_id": request_id,
+                    "has_error": bool(result.get("error")),
+                    "fallback_reason": classify_scoring_fallback(
+                        result.get("error"), result.get("detail")
+                    ),
+                    "overall_score": result.get("overall_score"),
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+        )
         return result
     except Exception as e:
         if isinstance(e, asyncio.TimeoutError):
@@ -269,7 +379,23 @@ async def score_speaking(
             )
         else:
             detail = str(e)
-        logger.error("score_speaking: EXCEPTION %s: %s", type(e).__name__, str(e), exc_info=True)
+        fallback_reason = classify_scoring_fallback("llm_generation_failed", detail)
+        logger.error(
+            json.dumps(
+                {
+                    "event": "scoring_llm_failed",
+                    "stage": "llm_scoring",
+                    "status": "error",
+                    "request_id": request_id,
+                    "error_type": type(e).__name__,
+                    "detail": detail,
+                    "fallback_reason": fallback_reason,
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+            ),
+            exc_info=True,
+        )
         return {
             "error": "llm_generation_failed",
             "detail": detail,
@@ -284,5 +410,5 @@ async def score_speaking(
             "grammar_feedback": "-",
             "pronunciation_feedback": "-",
             "key_improvements": ["Could not parse assessment."],
-            "sample_answer": ""
+            "sample_answer": "",
         }

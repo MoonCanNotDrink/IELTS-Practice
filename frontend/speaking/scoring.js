@@ -164,6 +164,37 @@
         }
 
         document.getElementById('feedbackSection').innerHTML = fbHtml;
+
+        const coachingCard = document.getElementById('coachingCard');
+        if (coachingCard) {
+            const coaching = result.coaching;
+            const activeRecs = (coaching?.recordings || []).filter((r) => r.has_coaching_payload);
+            if (activeRecs.length > 0) {
+                const tags = activeRecs.flatMap((r) => r.weakness_tags || []);
+                const uniqueTags = [...new Set(tags)];
+                const prompt = activeRecs[0]?.retry_prompt || result.question_text || '';
+                window._coachingRetryPrompt = prompt;
+                coachingCard.innerHTML = `
+                    <div data-testid="coaching-card" style="background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.24);border-radius:var(--radius-md);padding:16px;margin-top:16px;">
+                        <h3 style="font-size:0.9rem;color:var(--accent-purple);margin:0 0 8px;font-weight:600;">💡 Coaching Tips</h3>
+                        ${uniqueTags.length ? `<p style="font-size:0.8rem;color:var(--text-secondary);margin:0 0 12px;">Focus areas: <b style="color:var(--text-primary);">${uniqueTags.join(', ')}</b></p>` : ''}
+                        <button type="button" data-testid="coaching-retry-btn" onclick="retryWithCoaching()"
+                            class="btn btn-ghost" style="font-size:0.85rem;padding:8px 16px;">
+                            🔄 Try again with these ideas
+                        </button>
+                    </div>`;
+                coachingCard.style.display = 'block';
+            } else {
+                coachingCard.style.display = 'none';
+                coachingCard.innerHTML = '';
+            }
+        }
+    }
+
+    function retryWithCoaching() {
+        const prompt = window._coachingRetryPrompt || '';
+        if (prompt) sessionStorage.setItem('ielts_retry_prompt', prompt);
+        window.location.href = '/speaking';
     }
 
     function showTranscript(part, btn) {
@@ -183,4 +214,6 @@
     speaking.updateFlowStatusBanner = updateFlowStatusBanner;
     speaking.displayResults = displayResults;
     speaking.showTranscript = showTranscript;
+    speaking.retryWithCoaching = retryWithCoaching;
+    window.retryWithCoaching = retryWithCoaching;
 })();

@@ -33,4 +33,4 @@ RUN mkdir -p data/recordings
 EXPOSE 8000
 
 # 启动命令 (使用 Cloud Run 动态注入的 $PORT 环境变量，默认为 8000)
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "cd /app/backend && alembic upgrade head && cd /app && uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

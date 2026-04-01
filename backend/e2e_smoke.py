@@ -83,7 +83,9 @@ async def register_and_login(
     return {"username": username, "email": email, "password": password, "token": token}
 
 
-async def fetch_random_topic(client: httpx.AsyncClient, base_url: str, headers: dict[str, str]) -> dict:
+async def fetch_random_topic(
+    client: httpx.AsyncClient, base_url: str, headers: dict[str, str]
+) -> dict:
     topic_res = await client.get(f"{base_url}/api/part2/topics/random", headers=headers)
     topic_res.raise_for_status()
     return topic_res.json()
@@ -113,8 +115,9 @@ async def upload_part2(
     client_transcript: str | None,
     filename: str = "smoke.wav",
     content_type: str = "audio/wav",
+    practice_source: str = "custom",
 ) -> dict:
-    data = {"notes": "smoke test notes"}
+    data = {"notes": "smoke test notes", "practice_source": practice_source}
     if client_transcript is not None:
         data["client_transcript"] = client_transcript
     upload_res = await client.post(
@@ -157,7 +160,9 @@ async def run_full_exam(
     start_payload = start_res.json()
     session_id = start_payload["session_id"]
 
-    async def upload_exam_part(part: str, question_index: int, question_text: str, transcript: str) -> dict:
+    async def upload_exam_part(
+        part: str, question_index: int, question_text: str, transcript: str
+    ) -> dict:
         res = await client.post(
             f"{base_url}/api/exam/sessions/{session_id}/upload-part-audio",
             headers=headers,
@@ -215,10 +220,14 @@ async def assert_history_and_detail(
     headers: dict[str, str],
     session_id: int,
 ) -> None:
-    history_res = await client.get(f"{base_url}/api/scoring/history?limit=20", headers=headers)
+    history_res = await client.get(
+        f"{base_url}/api/scoring/history?limit=20", headers=headers
+    )
     history_res.raise_for_status()
     history = history_res.json()
-    assert any(item["session_id"] == session_id for item in history), "session missing from history"
+    assert any(item["session_id"] == session_id for item in history), (
+        "session missing from history"
+    )
 
     detail_res = await client.get(
         f"{base_url}/api/scoring/sessions/{session_id}/detail",
@@ -241,33 +250,61 @@ async def assert_tts(
     )
     res.raise_for_status()
     content_type = res.headers.get("content-type", "")
-    assert content_type.startswith("audio/"), f"unexpected TTS content-type: {content_type}"
+    assert content_type.startswith("audio/"), (
+        f"unexpected TTS content-type: {content_type}"
+    )
     assert len(res.content) > 0, "empty TTS audio response"
 
 
-async def main() -> None:
-    load_dotenv(Path(__file__).resolve().parent / ".env")
+async def wait_for_health(
+    client: httpx.AsyncClient,
+    base_url: str,
+    timeout_sec: float = 30.0,
+    poll_interval_sec: float = 0.5,
+) -> None:
+    deadline = time.monotonic() + timeout_sec
+    last_error: str | None = None
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--base-url", default=os.getenv("E2E_BASE_URL", "http://127.0.0.1:8000"))
-    parser.add_argument("--invite-code", default=os.getenv("INVITE_CODE", "IELTS2025"))
-    parser.add_argument("--asr-audio", default=os.getenv("E2E_ASR_AUDIO"))
-    parser.add_argument("--skip-tts", action="store_true", default=_env_flag("E2E_SKIP_TTS", False))
-    args = parser.parse_args()
+    while time.monotonic() < deadline:
+        try:
+            response = await client.get(f"{base_url}/api/health")
+            if response.status_code == 200:
+                payload = response.json()
+                if payload.get("status") == "ok":
+                    return
+                last_error = f"unexpected health payload: {payload}"
+            else:
+                last_error = f"status={response.status_code}"
+        except Exception as exc:
+            last_error = str(exc)
+        await asyncio.sleep(poll_interval_sec)
 
-    if args.invite_code == "IELTS2025" and os.getenv("INVITE_CODE"):
-        args.invite_code = os.environ["INVITE_CODE"]
+    raise RuntimeError(f"health check failed for {base_url}/api/health: {last_error}")
 
-    async with httpx.AsyncClient(timeout=300.0) as client:
-        auth = await register_and_login(client, args.base_url, args.invite_code)
+
+async def run_smoke(
+    *,
+    base_url: str,
+    invite_code: str,
+    asr_audio: str | None = None,
+    skip_tts: bool = False,
+    request_timeout_sec: float = 300.0,
+    health_timeout_sec: float = 30.0,
+) -> dict[str, int | str | None]:
+    base_url = base_url.rstrip("/")
+
+    async with httpx.AsyncClient(timeout=request_timeout_sec) as client:
+        await wait_for_health(client, base_url, timeout_sec=health_timeout_sec)
+
+        auth = await register_and_login(client, base_url, invite_code)
         headers = {"Authorization": f"Bearer {auth['token']}"}
-        topic = await fetch_random_topic(client, args.base_url, headers)
+        topic = await fetch_random_topic(client, base_url, headers)
         demo_audio = build_demo_wav_bytes()
 
-        session_id = await create_part2_session(client, args.base_url, headers, topic["id"])
+        session_id = await create_part2_session(client, base_url, headers, topic["id"])
         upload_payload = await upload_part2(
             client,
-            args.base_url,
+            base_url,
             headers,
             session_id,
             demo_audio,
@@ -275,34 +312,77 @@ async def main() -> None:
         )
         assert upload_payload["transcript"], "client transcript path did not persist"
 
-        part2_score = await score_part2(client, args.base_url, headers, session_id)
-        assert part2_score["scores"]["overall"] is not None, "part2 scoring missing overall score"
-        await assert_history_and_detail(client, args.base_url, headers, session_id)
+        part2_score = await score_part2(client, base_url, headers, session_id)
+        assert part2_score["scores"]["overall"] is not None, (
+            "part2 scoring missing overall score"
+        )
+        await assert_history_and_detail(client, base_url, headers, session_id)
 
-        full_score = await run_full_exam(client, args.base_url, headers, topic, demo_audio)
-        assert full_score["scores"]["overall"] is not None, "full exam scoring missing overall score"
-        await assert_history_and_detail(client, args.base_url, headers, full_score["session_id"])
+        full_score = await run_full_exam(client, base_url, headers, topic, demo_audio)
+        assert full_score["scores"]["overall"] is not None, (
+            "full exam scoring missing overall score"
+        )
+        await assert_history_and_detail(
+            client, base_url, headers, full_score["session_id"]
+        )
 
-        if not args.skip_tts:
-            await assert_tts(client, args.base_url, headers)
+        if not skip_tts:
+            await assert_tts(client, base_url, headers)
 
-        if args.asr_audio:
-            audio_bytes = Path(args.asr_audio).read_bytes()
-            asr_session_id = await create_part2_session(client, args.base_url, headers, topic["id"])
-            guessed_type = mimetypes.guess_type(args.asr_audio)[0] or "application/octet-stream"
+        if asr_audio:
+            audio_bytes = Path(asr_audio).read_bytes()
+            asr_session_id = await create_part2_session(
+                client, base_url, headers, topic["id"]
+            )
+            guessed_type = (
+                mimetypes.guess_type(asr_audio)[0] or "application/octet-stream"
+            )
             asr_upload = await upload_part2(
                 client,
-                args.base_url,
+                base_url,
                 headers,
                 asr_session_id,
                 audio_bytes,
                 None,
-                filename=Path(args.asr_audio).name,
+                filename=Path(asr_audio).name,
                 content_type=guessed_type,
             )
-            assert asr_upload["transcript"].strip(), "ASR fallback returned empty transcript"
+            assert asr_upload["transcript"].strip(), (
+                "ASR fallback returned empty transcript"
+            )
 
-        print("Smoke test passed")
+        return {
+            "username": auth["username"],
+            "part2_session_id": session_id,
+            "full_session_id": full_score["session_id"],
+        }
+
+
+async def main() -> None:
+    load_dotenv(Path(__file__).resolve().parent / ".env")
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--base-url", default=os.getenv("E2E_BASE_URL", "http://127.0.0.1:8000")
+    )
+    parser.add_argument("--invite-code", default=os.getenv("INVITE_CODE", "IELTS2025"))
+    parser.add_argument("--asr-audio", default=os.getenv("E2E_ASR_AUDIO"))
+    parser.add_argument(
+        "--skip-tts", action="store_true", default=_env_flag("E2E_SKIP_TTS", False)
+    )
+    args = parser.parse_args()
+
+    if args.invite_code == "IELTS2025" and os.getenv("INVITE_CODE"):
+        args.invite_code = os.environ["INVITE_CODE"]
+
+    await run_smoke(
+        base_url=args.base_url,
+        invite_code=args.invite_code,
+        asr_audio=args.asr_audio,
+        skip_tts=args.skip_tts,
+    )
+
+    print("Smoke test passed")
 
 
 if __name__ == "__main__":
