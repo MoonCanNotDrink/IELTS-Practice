@@ -38,9 +38,15 @@ class User(Base):
     token_version = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime, default=utc_now)
 
-    sessions = relationship("PracticeSession", back_populates="user", cascade="all, delete-orphan")
-    saved_topics = relationship("SavedTopic", back_populates="user", cascade="all, delete-orphan")
-    writing_attempts = relationship("WritingAttempt", back_populates="user", cascade="all, delete-orphan")
+    sessions = relationship(
+        "PracticeSession", back_populates="user", cascade="all, delete-orphan"
+    )
+    saved_topics = relationship(
+        "SavedTopic", back_populates="user", cascade="all, delete-orphan"
+    )
+    writing_attempts = relationship(
+        "WritingAttempt", back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class Topic(Base):
@@ -79,7 +85,9 @@ class PracticeSession(Base):
 
     topic = relationship("Topic", backref="practice_sessions")
     user = relationship("User", back_populates="sessions")
-    recordings = relationship("Recording", back_populates="session", cascade="all, delete-orphan")
+    recordings = relationship(
+        "Recording", back_populates="session", cascade="all, delete-orphan"
+    )
 
 
 class Recording(Base):
@@ -103,6 +111,12 @@ class Recording(Base):
     pronunciation_details = Column(JSON, nullable=True)
 
     notes = Column(Text, nullable=True)
+    prompt_match_type = Column(String(50), nullable=True)
+    prompt_match_key = Column(String(255), nullable=True)
+    prompt_source = Column(String(100), nullable=True)
+    weakness_tags = Column(JSON, nullable=True)
+    coaching_payload = Column(JSON, nullable=True)
+    analysis_version = Column(String(50), nullable=True)
     created_at = Column(DateTime, default=utc_now)
 
     session = relationship("PracticeSession", back_populates="recordings")

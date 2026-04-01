@@ -139,6 +139,18 @@ class FreePracticeRouteTests(unittest.TestCase):
 
         return self._run_async(_query())
 
+    def _fetch_recordings(self, session_id):
+        async def _query():
+            async with self.session_factory() as session:
+                result = await session.execute(
+                    select(Recording)
+                    .where(Recording.session_id == session_id)
+                    .order_by(Recording.part, Recording.question_index)
+                )
+                return result.scalars().all()
+
+        return self._run_async(_query())
+
     def _complete_free_practice_session(self, prompt: str) -> int:
         captured = {}
 
@@ -257,6 +269,68 @@ class FreePracticeRouteTests(unittest.TestCase):
 
         return self._run_async(_create_rows())
 
+    def _create_topic_and_full_exam_session_with_recordings(self):
+        async def _create_rows():
+            from app.models import PracticeSession, Topic
+
+            async with self.session_factory() as session:
+                topic = Topic(
+                    title="Describe a memorable event",
+                    points=["what happened", "when it happened", "why it matters"],
+                    category="events",
+                )
+                session.add(topic)
+                await session.flush()
+
+                practice_session = PracticeSession(
+                    user_id=FakeUser.id,
+                    status="in_progress",
+                    topic_id=topic.id,
+                )
+                session.add(practice_session)
+                await session.flush()
+
+                part2_audio_name = f"session_{practice_session.id}_part2.wav"
+                (Path(self.recordings_dir) / part2_audio_name).write_bytes(
+                    build_demo_wav_bytes()
+                )
+
+                session.add_all(
+                    [
+                        Recording(
+                            session_id=practice_session.id,
+                            part="part1",
+                            question_index=0,
+                            question_text="What do you usually do on weekends?",
+                            transcript="I usually meet my friends and read books.",
+                        ),
+                        Recording(
+                            session_id=practice_session.id,
+                            part="part2",
+                            question_index=0,
+                            question_text=(
+                                "Describe a memorable event\n"
+                                "- what happened\n"
+                                "- when it happened"
+                            ),
+                            transcript="It happened last year and I learned a lot from it.",
+                            audio_filename=part2_audio_name,
+                            word_timestamps=[{"word": "it", "start": 0.0, "end": 0.2}],
+                        ),
+                        Recording(
+                            session_id=practice_session.id,
+                            part="part3",
+                            question_index=0,
+                            question_text="Why are public events important for communities?",
+                            transcript="They can bring people together and build trust.",
+                        ),
+                    ]
+                )
+                await session.commit()
+                return practice_session.id, topic.id
+
+        return self._run_async(_create_rows())
+
     def test_create_session_accepts_custom_topic(self):
         response = self.client.post(
             "/api/part2/sessions",
@@ -306,6 +380,136 @@ class FreePracticeRouteTests(unittest.TestCase):
         )
         self.assertEqual(detail_res.status_code, 200)
         self.assertEqual(detail_res.json()["topic_title"], prompt)
+
+    def test_history_rows_expose_learning_retry_and_coaching_flags(self):
+        prompt = "Describe a skill you learned online"
+        first_session_id = self._complete_free_practice_session(prompt)
+        second_session_id = self._complete_free_practice_session(prompt)
+
+        part2_history_res = self.client.get(
+            "/api/part2/history?limit=20", headers=self._auth_headers()
+        )
+        self.assertEqual(part2_history_res.status_code, 200)
+        part2_history_payload = part2_history_res.json()
+        first_part2_row = next(
+            item
+            for item in part2_history_payload
+            if item["session_id"] == first_session_id
+        )
+        second_part2_row = next(
+            item
+            for item in part2_history_payload
+            if item["session_id"] == second_session_id
+        )
+
+        for row in (first_part2_row, second_part2_row):
+            self.assertIn("attempt_count", row)
+            self.assertIn("has_retry_match", row)
+            self.assertIn("has_coaching", row)
+            self.assertEqual(row["attempt_count"], 2)
+            self.assertTrue(row["has_retry_match"])
+            self.assertTrue(row["has_coaching"])
+
+        scoring_history_res = self.client.get(
+            "/api/scoring/history?limit=20", headers=self._auth_headers()
+        )
+        self.assertEqual(scoring_history_res.status_code, 200)
+        scoring_history_payload = scoring_history_res.json()
+        first_scoring_row = next(
+            item
+            for item in scoring_history_payload
+            if item["session_id"] == first_session_id
+        )
+        second_scoring_row = next(
+            item
+            for item in scoring_history_payload
+            if item["session_id"] == second_session_id
+        )
+
+        for row in (first_scoring_row, second_scoring_row):
+            self.assertIn("attempt_count", row)
+            self.assertIn("has_retry_match", row)
+            self.assertIn("has_coaching", row)
+            self.assertEqual(row["attempt_count"], 2)
+            self.assertTrue(row["has_retry_match"])
+            self.assertTrue(row["has_coaching"])
+
+    def test_scoring_detail_exposes_answer_level_learning_metadata(self):
+        prompt = "Describe a skill you learned online"
+        session_id = self._complete_free_practice_session(prompt)
+        self._complete_free_practice_session(prompt)
+
+        detail_res = self.client.get(
+            f"/api/scoring/sessions/{session_id}/detail",
+            headers=self._auth_headers(),
+        )
+        self.assertEqual(detail_res.status_code, 200)
+
+        payload = detail_res.json()
+        self.assertIn("answer_learning", payload)
+        self.assertTrue(payload["answer_learning"])
+
+        part2_learning = next(
+            answer for answer in payload["answer_learning"] if answer["part"] == "part2"
+        )
+        self.assertEqual(part2_learning["attempt_count"], 2)
+        self.assertTrue(part2_learning["has_retry_match"])
+        self.assertTrue(part2_learning["has_coaching"])
+        self.assertIn("prompt_match_key", part2_learning)
+        self.assertIn("weakness_tags", part2_learning)
+
+    def test_has_coaching_true_when_only_weakness_tags_present(self):
+        prompt = "Describe a skill you learned online"
+        session_id = self._complete_free_practice_session(prompt)
+
+        async def _force_weakness_without_payload():
+            async with self.session_factory() as session:
+                result = await session.execute(
+                    select(Recording).where(
+                        Recording.session_id == session_id, Recording.part == "part2"
+                    )
+                )
+                recording = result.scalars().first()
+                assert recording is not None
+                recording.weakness_tags = ["grammar_errors"]
+                recording.coaching_payload = None
+                await session.commit()
+
+        self._run_async(_force_weakness_without_payload())
+
+        part2_history_res = self.client.get(
+            "/api/part2/history?limit=20", headers=self._auth_headers()
+        )
+        self.assertEqual(part2_history_res.status_code, 200)
+        part2_row = next(
+            item
+            for item in part2_history_res.json()
+            if item["session_id"] == session_id
+        )
+        self.assertTrue(part2_row["has_coaching"])
+
+        scoring_history_res = self.client.get(
+            "/api/scoring/history?limit=20", headers=self._auth_headers()
+        )
+        self.assertEqual(scoring_history_res.status_code, 200)
+        scoring_row = next(
+            item
+            for item in scoring_history_res.json()
+            if item["session_id"] == session_id
+        )
+        self.assertTrue(scoring_row["has_coaching"])
+
+        detail_res = self.client.get(
+            f"/api/scoring/sessions/{session_id}/detail",
+            headers=self._auth_headers(),
+        )
+        self.assertEqual(detail_res.status_code, 200)
+        part2_learning = next(
+            answer
+            for answer in detail_res.json()["answer_learning"]
+            if answer["part"] == "part2"
+        )
+        self.assertTrue(part2_learning["has_coaching"])
 
     def test_upload_requires_question_text_for_custom_topic_session(self):
         create_res = self.client.post(
@@ -771,6 +975,116 @@ class FreePracticeRouteTests(unittest.TestCase):
             score_res.json()["detail"],
             "Transcription failed - no speech detected. Please re-record and speak clearly into your microphone.",
         )
+
+    def test_part2_scoring_persists_learning_metadata_and_exposes_coaching(self):
+        prompt = "Describe a skill you learned online"
+        session_id = self._complete_free_practice_session(prompt)
+
+        async def fake_score_speaking(**_kwargs):
+            return {
+                "fluency_score": 5.5,
+                "vocabulary_score": 5.5,
+                "grammar_score": 5.5,
+                "pronunciation_score": 5.5,
+                "overall_score": 5.5,
+                "overall_feedback": "ok",
+            }
+
+        fake_acoustic_module = types.SimpleNamespace(
+            analyze_audio_fluency_sync=lambda *_args, **_kwargs: None
+        )
+
+        with (
+            patch("app.routes.part2.score_speaking", fake_score_speaking),
+            patch.dict(
+                sys.modules, {"app.services.acoustic_service": fake_acoustic_module}
+            ),
+        ):
+            response = self.client.post(
+                f"/api/part2/sessions/{session_id}/score",
+                headers=self._auth_headers(),
+            )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("coaching", payload)
+        self.assertIn("weakness_tags", payload["coaching"])
+        self.assertIn("analysis_version", payload["coaching"])
+        self.assertTrue(payload["coaching"]["has_coaching_payload"])
+
+        recordings = self._fetch_recordings(session_id)
+        self.assertEqual(len(recordings), 1)
+        recording = recordings[0]
+        weakness_tags = (
+            recording.weakness_tags if isinstance(recording.weakness_tags, list) else []
+        )
+        self.assertEqual(recording.part, "part2")
+        self.assertEqual(recording.prompt_match_type, "normalized_text")
+        self.assertTrue(recording.prompt_match_key)
+        self.assertEqual(recording.prompt_source, "saved")
+        self.assertIn("short_answer", weakness_tags)
+        self.assertIn("underdeveloped_answer", weakness_tags)
+        self.assertIsInstance(recording.coaching_payload, dict)
+        self.assertEqual(recording.analysis_version, "v1")
+
+    def test_full_scoring_persists_per_recording_learning_metadata(self):
+        session_id, topic_id = (
+            self._create_topic_and_full_exam_session_with_recordings()
+        )
+
+        async def fake_score_speaking(**_kwargs):
+            return {
+                "fluency_score": 6.0,
+                "vocabulary_score": 6.0,
+                "grammar_score": 6.0,
+                "pronunciation_score": 6.0,
+                "overall_score": 6.0,
+                "overall_feedback": "ok",
+            }
+
+        fake_acoustic_module = types.SimpleNamespace(
+            analyze_audio_fluency_sync=lambda *_args, **_kwargs: None
+        )
+
+        with (
+            patch("app.routes.scoring.score_speaking", fake_score_speaking),
+            patch.dict(
+                sys.modules, {"app.services.acoustic_service": fake_acoustic_module}
+            ),
+        ):
+            response = self.client.post(
+                f"/api/scoring/sessions/{session_id}/score",
+                headers=self._auth_headers(),
+            )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("coaching", payload)
+        self.assertIn("recordings", payload["coaching"])
+        self.assertTrue(len(payload["coaching"]["recordings"]) >= 1)
+
+        recordings = self._fetch_recordings(session_id)
+        self.assertEqual(len(recordings), 3)
+
+        part2 = next(
+            recording for recording in recordings if str(recording.part) == "part2"
+        )
+        self.assertEqual(part2.prompt_match_type, "official_topic")
+        self.assertEqual(part2.prompt_match_key, f"topic:{topic_id}")
+        self.assertEqual(part2.prompt_source, "official")
+
+        for part in ("part1", "part3"):
+            rec = next(
+                recording for recording in recordings if str(recording.part) == part
+            )
+            self.assertNotEqual(rec.prompt_match_type, "official_topic")
+            self.assertNotEqual(rec.prompt_match_key, f"topic:{topic_id}")
+            self.assertTrue(rec.prompt_match_key)
+            self.assertTrue(rec.prompt_source)
+
+        for rec in recordings:
+            self.assertIsInstance(rec.weakness_tags, list)
+            self.assertEqual(rec.analysis_version, "v1")
 
     def test_upload_client_transcript_fallback_preserves_real_fallback_reason(self):
         create_res = self.client.post(

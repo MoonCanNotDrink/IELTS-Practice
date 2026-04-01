@@ -1,7 +1,8 @@
 """FastAPI application entry point."""
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from typing import cast
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -13,6 +14,7 @@ from app.seed_data import seed_topics, seed_writing_prompts
 from app.routes.part2 import router as part2_router
 from app.routes.exam import router as exam_router
 from app.routes.scoring import router as scoring_router
+from app.routes.speaking_learning import router as speaking_learning_router
 from app.routes.auth import router as auth_router
 from app.routes.writing import router as writing_router
 from app.routes.dashboard import router as dashboard_router
@@ -31,7 +33,9 @@ class FrontendStaticFiles(StaticFiles):
     async def get_response(self, path: str, scope):
         response = await super().get_response(path, scope)
         content_type = response.headers.get("content-type", "")
-        is_text_asset = content_type.startswith("text/") or content_type.startswith("application/javascript")
+        is_text_asset = content_type.startswith("text/") or content_type.startswith(
+            "application/javascript"
+        )
         if content_type and is_text_asset and "charset=" not in content_type.lower():
             response.headers["content-type"] = f"{content_type}; charset=utf-8"
         response.headers["Cache-Control"] = "no-store, max-age=0"
@@ -53,8 +57,13 @@ app = FastAPI(title=settings.APP_NAME, version=APP_VERSION, lifespan=lifespan)
 # attach limiter instance to app state for route decorators to use
 app.state.limiter = limiter
 
+
+def _rate_limit_exception_handler(request: Request, exc: Exception) -> Response:
+    return _rate_limit_exceeded_handler(request, cast(RateLimitExceeded, exc))
+
+
 # register rate limit exceeded handler (returns 429)
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exception_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -69,11 +78,13 @@ app.include_router(auth_router)
 app.include_router(part2_router)
 app.include_router(exam_router)
 app.include_router(scoring_router)
+app.include_router(speaking_learning_router)
 app.include_router(writing_router)
 app.include_router(dashboard_router)
 
 if settings.DEBUG:
     from app.routes.dev import router as dev_router
+
     app.include_router(dev_router)
 
 
@@ -84,7 +95,9 @@ async def health_check():
 
 # Static assets
 if FRONTEND_DIR.exists():
-    app.mount("/static", FrontendStaticFiles(directory=str(FRONTEND_DIR)), name="static")
+    app.mount(
+        "/static", FrontendStaticFiles(directory=str(FRONTEND_DIR)), name="static"
+    )
 
 
 PAGE_ROUTES = {
@@ -108,6 +121,7 @@ for _route, _filename in PAGE_ROUTES.items():
                     headers={"Cache-Control": "no-store, max-age=0"},
                 )
             return {"message": f"{name} not found"}
+
         return serve_page
 
     app.get(_route, include_in_schema=False)(_make_handler())

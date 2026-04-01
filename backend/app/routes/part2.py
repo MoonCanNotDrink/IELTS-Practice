@@ -27,6 +27,9 @@ from app.services.asr_service import (
 )
 from app.services.scoring_service import score_speaking, classify_scoring_fallback
 from app.services.pronunciation_service import assess_pronunciation_sync
+from app.services.speaking_learning_service import (
+    apply_learning_metadata,
+)
 from app.services.auth_service import get_current_user, User
 from app.routes.helpers import (
     assert_session_access as _assert_session_access,
@@ -36,10 +39,56 @@ from app.routes.helpers import (
 
 router = APIRouter(prefix="/api/part2", tags=["Part 2"])
 logger = logging.getLogger(__name__)
+ANALYSIS_VERSION = "v1"
 NO_SPEECH_DETAIL = (
     "Transcription failed - no speech detected. "
     "Please re-record and speak clearly into your microphone."
 )
+
+
+async def _resolve_session_learning_flags(
+    db: AsyncSession, session_id: int, user_id: object
+) -> dict[str, int | bool]:
+    recording_result = await db.execute(
+        select(Recording)
+        .where(Recording.session_id == session_id, Recording.part == "part2")
+        .order_by(Recording.question_index, Recording.created_at)
+        .limit(1)
+    )
+    part2_recording = recording_result.scalars().first()
+
+    if not part2_recording:
+        return {
+            "attempt_count": 0,
+            "has_retry_match": False,
+            "has_coaching": False,
+        }
+
+    prompt_match_key = (part2_recording.prompt_match_key or "").strip()
+    attempt_count = 1
+    if prompt_match_key:
+        attempts_result = await db.execute(
+            select(func.count(Recording.id))
+            .select_from(Recording)
+            .join(PracticeSession, PracticeSession.id == Recording.session_id)
+            .where(
+                PracticeSession.user_id == user_id,
+                PracticeSession.status == "completed",
+                Recording.prompt_match_key == prompt_match_key,
+            )
+        )
+        attempt_count = int(attempts_result.scalar_one() or 0)
+
+    return {
+        "attempt_count": attempt_count,
+        "has_retry_match": attempt_count > 1,
+        "has_coaching": bool(part2_recording.coaching_payload)
+        or bool(
+            part2_recording.weakness_tags
+            if isinstance(part2_recording.weakness_tags, list)
+            else []
+        ),
+    }
 
 
 def _emit_structured_log(level: str, event: str, **payload) -> None:
@@ -665,6 +714,24 @@ async def score_session(
         part2_recording.pronunciation_accuracy = pron_data.get("accuracy_score")
         part2_recording.pronunciation_details = pron_data
 
+    metadata = await apply_learning_metadata(
+        db=db,
+        recording=part2_recording,
+        score_result=score_result,
+        analysis_version=ANALYSIS_VERSION,
+    )
+
+    coaching = None
+    if metadata.weakness_tags or metadata.has_coaching_payload:
+        coaching = {
+            "prompt_match_type": metadata.prompt_match_type,
+            "prompt_match_key": metadata.prompt_match_key,
+            "prompt_source": metadata.prompt_source,
+            "weakness_tags": metadata.weakness_tags,
+            "has_coaching_payload": metadata.has_coaching_payload,
+            "analysis_version": metadata.analysis_version,
+        }
+
     session.status = "completed"
     session.finished_at = datetime.utcnow()
 
@@ -702,6 +769,7 @@ async def score_session(
         "key_improvements": score_result.get("key_improvements", []),
         "sample_answer": score_result.get("sample_answer", ""),
         "pronunciation_data": pron_data,
+        "coaching": coaching,
     }
 
 
@@ -726,6 +794,9 @@ async def get_history(
 
     history = []
     for s, topic_title in rows:
+        learning_flags = await _resolve_session_learning_flags(
+            db, s.id, current_user.id
+        )
         resolved_title = (
             topic_title or await _get_part2_prompt_title(db, s.id) or "Unknown"
         )
@@ -734,6 +805,9 @@ async def get_history(
                 "session_id": s.id,
                 "topic_title": resolved_title,
                 "date": s.finished_at.isoformat() if s.finished_at else None,
+                "attempt_count": learning_flags["attempt_count"],
+                "has_retry_match": learning_flags["has_retry_match"],
+                "has_coaching": learning_flags["has_coaching"],
                 "scores": {
                     "fluency": s.fluency_score,
                     "vocabulary": s.vocabulary_score,

@@ -10,7 +10,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 import httpx
 
 from app.database import get_db
@@ -18,6 +18,9 @@ from app.models import PracticeSession, Recording, Topic
 from app.services.scoring_service import score_speaking
 from app.services.scoring_service import classify_scoring_fallback
 from app.services.pronunciation_service import assess_pronunciation_sync
+from app.services.speaking_learning_service import (
+    apply_learning_metadata,
+)
 from app.services.auth_service import get_current_user, User
 from app.config import settings
 from app.routes.helpers import (
@@ -29,6 +32,52 @@ from app.routes.helpers import (
 
 router = APIRouter(prefix="/api/scoring", tags=["Scoring"])
 logger = logging.getLogger(__name__)
+ANALYSIS_VERSION = "v1"
+
+
+async def _resolve_session_learning_flags(
+    db: AsyncSession, session_id: int, user_id: object
+) -> dict[str, int | bool]:
+    recording_result = await db.execute(
+        select(Recording)
+        .where(Recording.session_id == session_id, Recording.part == "part2")
+        .order_by(Recording.question_index, Recording.created_at)
+        .limit(1)
+    )
+    part2_recording = recording_result.scalars().first()
+
+    if not part2_recording:
+        return {
+            "attempt_count": 0,
+            "has_retry_match": False,
+            "has_coaching": False,
+        }
+
+    prompt_match_key = (part2_recording.prompt_match_key or "").strip()
+    attempt_count = 1
+    if prompt_match_key:
+        attempts_result = await db.execute(
+            select(func.count(Recording.id))
+            .select_from(Recording)
+            .join(PracticeSession, PracticeSession.id == Recording.session_id)
+            .where(
+                PracticeSession.user_id == user_id,
+                PracticeSession.status == "completed",
+                Recording.prompt_match_key == prompt_match_key,
+            )
+        )
+        attempt_count = int(attempts_result.scalar_one() or 0)
+
+    return {
+        "attempt_count": attempt_count,
+        "has_retry_match": attempt_count > 1,
+        "has_coaching": bool(part2_recording.coaching_payload)
+        or bool(
+            part2_recording.weakness_tags
+            if isinstance(part2_recording.weakness_tags, list)
+            else []
+        ),
+    }
 
 
 def _emit_structured_log(level: str, event: str, **payload) -> None:
@@ -286,6 +335,29 @@ async def score_full_session(
         part2_rec.pronunciation_accuracy = pron_data.get("accuracy_score")
         part2_rec.pronunciation_details = pron_data
 
+    coaching_recordings = []
+    for recording in recordings:
+        metadata = await apply_learning_metadata(
+            db=db,
+            recording=recording,
+            score_result=score_result,
+            analysis_version=ANALYSIS_VERSION,
+        )
+
+        if metadata.weakness_tags or metadata.has_coaching_payload:
+            coaching_recordings.append(
+                {
+                    "recording_id": metadata.recording_id,
+                    "part": metadata.part,
+                    "prompt_match_type": metadata.prompt_match_type,
+                    "prompt_match_key": metadata.prompt_match_key,
+                    "prompt_source": metadata.prompt_source,
+                    "weakness_tags": metadata.weakness_tags,
+                    "has_coaching_payload": metadata.has_coaching_payload,
+                    "analysis_version": metadata.analysis_version,
+                }
+            )
+
     session.status = "completed"
     session.finished_at = datetime.utcnow()
 
@@ -323,6 +395,7 @@ async def score_full_session(
         "key_improvements": score_result.get("key_improvements", []),
         "sample_answer": score_result.get("sample_answer", ""),
         "transcripts": {"part1": p1, "part2": p2, "part3": p3},
+        "coaching": {"recordings": coaching_recordings},
     }
 
 
@@ -350,6 +423,9 @@ async def get_history(
         scoring_status, scoring_error, scoring_error_detail = _feedback_error_info(
             s.feedback
         )
+        learning_flags = await _resolve_session_learning_flags(
+            db, s.id, current_user.id
+        )
         resolved_title = (
             topic_title or await _get_part2_prompt_title(db, s.id) or "Unknown"
         )
@@ -361,6 +437,9 @@ async def get_history(
                 "scoring_status": scoring_status,
                 "scoring_error": scoring_error,
                 "scoring_error_detail": scoring_error_detail,
+                "attempt_count": learning_flags["attempt_count"],
+                "has_retry_match": learning_flags["has_retry_match"],
+                "has_coaching": learning_flags["has_coaching"],
                 "scores": {
                     "fluency": s.fluency_score,
                     "vocabulary": s.vocabulary_score,
@@ -408,6 +487,56 @@ async def get_session_detail(
             transcripts[part_key] = (
                 transcripts.get(part_key, "") + " " + r.transcript
             ).strip()
+
+    prompt_match_keys = {
+        (recording.prompt_match_key or "").strip()
+        for recording in recordings
+        if (recording.prompt_match_key or "").strip()
+    }
+    attempt_counts_by_key: dict[str, int] = {}
+    if prompt_match_keys:
+        counts_result = await db.execute(
+            select(Recording.prompt_match_key, func.count(Recording.id))
+            .select_from(Recording)
+            .join(PracticeSession, PracticeSession.id == Recording.session_id)
+            .where(
+                PracticeSession.user_id == current_user.id,
+                PracticeSession.status == "completed",
+                Recording.prompt_match_key.in_(prompt_match_keys),
+            )
+            .group_by(Recording.prompt_match_key)
+        )
+        attempt_counts_by_key = {
+            str(key): int(count)
+            for key, count in counts_result.all()
+            if isinstance(key, str) and key.strip()
+        }
+
+    answer_learning = []
+    for recording in recordings:
+        prompt_match_key = (recording.prompt_match_key or "").strip()
+        attempt_count = attempt_counts_by_key.get(prompt_match_key, 1)
+        answer_learning.append(
+            {
+                "recording_id": recording.id,
+                "part": recording.part,
+                "question_index": recording.question_index,
+                "prompt_match_type": recording.prompt_match_type,
+                "prompt_match_key": recording.prompt_match_key,
+                "prompt_source": recording.prompt_source,
+                "attempt_count": attempt_count,
+                "has_retry_match": attempt_count > 1,
+                "has_coaching": bool(recording.coaching_payload)
+                or bool(
+                    recording.weakness_tags
+                    if isinstance(recording.weakness_tags, list)
+                    else []
+                ),
+                "weakness_tags": recording.weakness_tags
+                if isinstance(recording.weakness_tags, list)
+                else [],
+            }
+        )
 
     feedback = {}
     key_improvements = []
@@ -461,6 +590,7 @@ async def get_session_detail(
         "key_improvements": key_improvements,
         "sample_answer": session.sample_answer or sample_answer,
         "transcripts": transcripts,
+        "answer_learning": answer_learning,
     }
 
 
