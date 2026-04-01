@@ -120,6 +120,18 @@ bash scripts/deploy-cloud-run.sh
 
 This is the primary deploy path (Cloud Build -> Cloud Run).
 
+If `gcloud run deploy` is flaky in your local environment, the script also supports:
+
+```bash
+DEPLOY_STRATEGY=api bash scripts/deploy-cloud-run.sh
+```
+
+To reuse the latest pushed image without rebuilding:
+
+```bash
+SKIP_BUILD=true DEPLOY_STRATEGY=api bash scripts/deploy-cloud-run.sh
+```
+
 ## Alternative Paths
 
 These are supported but not primary:
