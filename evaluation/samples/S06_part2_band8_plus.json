@@ -1,0 +1,15 @@
+{
+  "id": "S06",
+  "part": "part2",
+  "band_level": "band8+",
+  "question": "Describe a place you visited that left a strong impression on you. You should say where it was, when you went there, what you did, and explain why it was memorable.",
+  "transcript": "One place that left a lasting impression on me was Kyoto, which I visited during the spring two years ago. I had seen photos of the city before, but the atmosphere in person was far more captivating than I expected. Early in the morning, I walked through narrow streets lined with wooden houses, and the whole area felt calm and almost cinematic. Later, I visited several temples, where I spent time observing small architectural details rather than rushing from one site to another. In the afternoon, I joined a short tea ceremony workshop, and that experience helped me understand how deeply ritual is connected to daily life there. What struck me most was the contrast between tradition and modern convenience, because you could step out of a quiet shrine and immediately find efficient transport and lively cafés. I also remember having long conversations with local shop owners, who were patient and surprisingly open to sharing stories about seasonal customs. By the end of the trip, I felt mentally refreshed and more attentive to slower, more deliberate ways of living. That's why the visit remains memorable: it wasn't just visually beautiful, it genuinely changed how I think about time, routine, and priorities.",
+  "human_expected": {
+    "fluency_score": 8.5,
+    "vocabulary_score": 8.5,
+    "grammar_score": 8.0,
+    "pronunciation_score": 8.0,
+    "overall_score": 8.0
+  },
+  "notes": "Extended and cohesive monologue with vivid detail, flexible vocabulary, complex control"
+}

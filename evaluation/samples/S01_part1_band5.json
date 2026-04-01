@@ -1,0 +1,15 @@
+{
+  "id": "S01",
+  "part": "part1",
+  "band_level": "band5",
+  "question": "Do you think the internet is good or bad?",
+  "transcript": "Uh, I think the internet is mostly good for people. I use it every day to check messages and study English, so it helps me a lot. But, um, sometimes it is bad because people spend too much time scrolling and they forget real life. Also there is fake news, so we need to be careful.",
+  "human_expected": {
+    "fluency_score": 5.0,
+    "vocabulary_score": 5.0,
+    "grammar_score": 5.0,
+    "pronunciation_score": 5.0,
+    "overall_score": 5.0
+  },
+  "notes": "Short answer, visible hesitation, simple vocabulary and structures"
+}

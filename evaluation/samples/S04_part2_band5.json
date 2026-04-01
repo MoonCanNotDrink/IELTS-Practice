@@ -1,0 +1,15 @@
+{
+  "id": "S04",
+  "part": "part2",
+  "band_level": "band5",
+  "question": "Describe a book you recently read. You should say what it was about, why you chose it, and whether you would recommend it.",
+  "transcript": "Um, I read a book last month, but I forgot the name. It is about a man who wants to be successful in business. I chose it because my friend said it is useful. The story is okay, not very interesting for me. Uh, I think the language is easy, so I can understand most parts. There are some good ideas about hard work. But some chapters are long and a little boring. I finished it quickly because I wanted to practice reading. I maybe recommend it for beginners, but not for people who like deep stories.",
+  "human_expected": {
+    "fluency_score": 5.0,
+    "vocabulary_score": 5.0,
+    "grammar_score": 5.0,
+    "pronunciation_score": 5.0,
+    "overall_score": 5.0
+  },
+  "notes": "Limited development, vague details, repetitive wording, mostly simple grammar"
+}

@@ -1,0 +1,971 @@
+{
+  "meta": {
+    "started_at": "2026-04-01T18:37:47",
+    "finished_at": "2026-04-01T18:37:53",
+    "runs_per_sample": 3,
+    "sample_count": 8,
+    "gemini_model": "gemini-3-flash-preview"
+  },
+  "samples": [
+    {
+      "sample_id": "S01",
+      "file": "S01_part1_band5.json",
+      "part": "part1",
+      "band_level": "band5",
+      "question": "Do you think the internet is good or bad?",
+      "notes": "Short answer, visible hesitation, simple vocabulary and structures",
+      "runs_total": 3,
+      "runs_success": 0,
+      "runs_failed": 3,
+      "dimensions": {
+        "fluency_score": {
+          "expected": 5.0,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "vocabulary_score": {
+          "expected": 5.0,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "grammar_score": {
+          "expected": 5.0,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "pronunciation_score": {
+          "expected": 5.0,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "overall_score": {
+          "expected": 5.0,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        }
+      },
+      "runs": [
+        {
+          "run": 1,
+          "status": "failed",
+          "error": "llm_generation_failed",
+          "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+          "raw": {
+            "error": "llm_generation_failed",
+            "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+            "fluency_score": 0.0,
+            "vocabulary_score": 0.0,
+            "grammar_score": 0.0,
+            "pronunciation_score": 0.0,
+            "overall_score": 0.0,
+            "overall_feedback": "❌ Scoring Failed: The AI model refused to score this transcript or encountered an error. Detail: 400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]\n\n(This sometimes happens if safety filters incorrectly flag the speech.)",
+            "fluency_feedback": "-",
+            "vocabulary_feedback": "-",
+            "grammar_feedback": "-",
+            "pronunciation_feedback": "-",
+            "key_improvements": [
+              "Could not parse assessment."
+            ],
+            "sample_answer": ""
+          },
+          "scores": null
+        },
+        {
+          "run": 2,
+          "status": "failed",
+          "error": "llm_generation_failed",
+          "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+          "raw": {
+            "error": "llm_generation_failed",
+            "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+            "fluency_score": 0.0,
+            "vocabulary_score": 0.0,
+            "grammar_score": 0.0,
+            "pronunciation_score": 0.0,
+            "overall_score": 0.0,
+            "overall_feedback": "❌ Scoring Failed: The AI model refused to score this transcript or encountered an error. Detail: 400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]\n\n(This sometimes happens if safety filters incorrectly flag the speech.)",
+            "fluency_feedback": "-",
+            "vocabulary_feedback": "-",
+            "grammar_feedback": "-",
+            "pronunciation_feedback": "-",
+            "key_improvements": [
+              "Could not parse assessment."
+            ],
+            "sample_answer": ""
+          },
+          "scores": null
+        },
+        {
+          "run": 3,
+          "status": "failed",
+          "error": "llm_generation_failed",
+          "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+          "raw": {
+            "error": "llm_generation_failed",
+            "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+            "fluency_score": 0.0,
+            "vocabulary_score": 0.0,
+            "grammar_score": 0.0,
+            "pronunciation_score": 0.0,
+            "overall_score": 0.0,
+            "overall_feedback": "❌ Scoring Failed: The AI model refused to score this transcript or encountered an error. Detail: 400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]\n\n(This sometimes happens if safety filters incorrectly flag the speech.)",
+            "fluency_feedback": "-",
+            "vocabulary_feedback": "-",
+            "grammar_feedback": "-",
+            "pronunciation_feedback": "-",
+            "key_improvements": [
+              "Could not parse assessment."
+            ],
+            "sample_answer": ""
+          },
+          "scores": null
+        }
+      ]
+    },
+    {
+      "sample_id": "S02",
+      "file": "S02_part1_band6_5.json",
+      "part": "part1",
+      "band_level": "band6.5",
+      "question": "Do you prefer to work in the morning or at night?",
+      "notes": "Mostly fluent with minor hesitation, adequate range, some complex clauses",
+      "runs_total": 3,
+      "runs_success": 0,
+      "runs_failed": 3,
+      "dimensions": {
+        "fluency_score": {
+          "expected": 6.5,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "vocabulary_score": {
+          "expected": 6.5,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "grammar_score": {
+          "expected": 6.5,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "pronunciation_score": {
+          "expected": 6.5,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "overall_score": {
+          "expected": 6.5,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        }
+      },
+      "runs": [
+        {
+          "run": 1,
+          "status": "failed",
+          "error": "llm_generation_failed",
+          "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+          "raw": {
+            "error": "llm_generation_failed",
+            "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+            "fluency_score": 0.0,
+            "vocabulary_score": 0.0,
+            "grammar_score": 0.0,
+            "pronunciation_score": 0.0,
+            "overall_score": 0.0,
+            "overall_feedback": "❌ Scoring Failed: The AI model refused to score this transcript or encountered an error. Detail: 400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]\n\n(This sometimes happens if safety filters incorrectly flag the speech.)",
+            "fluency_feedback": "-",
+            "vocabulary_feedback": "-",
+            "grammar_feedback": "-",
+            "pronunciation_feedback": "-",
+            "key_improvements": [
+              "Could not parse assessment."
+            ],
+            "sample_answer": ""
+          },
+          "scores": null
+        },
+        {
+          "run": 2,
+          "status": "failed",
+          "error": "llm_generation_failed",
+          "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+          "raw": {
+            "error": "llm_generation_failed",
+            "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+            "fluency_score": 0.0,
+            "vocabulary_score": 0.0,
+            "grammar_score": 0.0,
+            "pronunciation_score": 0.0,
+            "overall_score": 0.0,
+            "overall_feedback": "❌ Scoring Failed: The AI model refused to score this transcript or encountered an error. Detail: 400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]\n\n(This sometimes happens if safety filters incorrectly flag the speech.)",
+            "fluency_feedback": "-",
+            "vocabulary_feedback": "-",
+            "grammar_feedback": "-",
+            "pronunciation_feedback": "-",
+            "key_improvements": [
+              "Could not parse assessment."
+            ],
+            "sample_answer": ""
+          },
+          "scores": null
+        },
+        {
+          "run": 3,
+          "status": "failed",
+          "error": "llm_generation_failed",
+          "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+          "raw": {
+            "error": "llm_generation_failed",
+            "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+            "fluency_score": 0.0,
+            "vocabulary_score": 0.0,
+            "grammar_score": 0.0,
+            "pronunciation_score": 0.0,
+            "overall_score": 0.0,
+            "overall_feedback": "❌ Scoring Failed: The AI model refused to score this transcript or encountered an error. Detail: 400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]\n\n(This sometimes happens if safety filters incorrectly flag the speech.)",
+            "fluency_feedback": "-",
+            "vocabulary_feedback": "-",
+            "grammar_feedback": "-",
+            "pronunciation_feedback": "-",
+            "key_improvements": [
+              "Could not parse assessment."
+            ],
+            "sample_answer": ""
+          },
+          "scores": null
+        }
+      ]
+    },
+    {
+      "sample_id": "S03",
+      "file": "S03_part1_band8.json",
+      "part": "part1",
+      "band_level": "band8",
+      "question": "How has your hometown changed in recent years?",
+      "notes": "Fluent delivery, precise lexical choice, complex grammar, balanced viewpoint",
+      "runs_total": 3,
+      "runs_success": 0,
+      "runs_failed": 3,
+      "dimensions": {
+        "fluency_score": {
+          "expected": 8.0,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "vocabulary_score": {
+          "expected": 8.0,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "grammar_score": {
+          "expected": 8.0,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "pronunciation_score": {
+          "expected": 8.0,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "overall_score": {
+          "expected": 8.0,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        }
+      },
+      "runs": [
+        {
+          "run": 1,
+          "status": "failed",
+          "error": "llm_generation_failed",
+          "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+          "raw": {
+            "error": "llm_generation_failed",
+            "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+            "fluency_score": 0.0,
+            "vocabulary_score": 0.0,
+            "grammar_score": 0.0,
+            "pronunciation_score": 0.0,
+            "overall_score": 0.0,
+            "overall_feedback": "❌ Scoring Failed: The AI model refused to score this transcript or encountered an error. Detail: 400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]\n\n(This sometimes happens if safety filters incorrectly flag the speech.)",
+            "fluency_feedback": "-",
+            "vocabulary_feedback": "-",
+            "grammar_feedback": "-",
+            "pronunciation_feedback": "-",
+            "key_improvements": [
+              "Could not parse assessment."
+            ],
+            "sample_answer": ""
+          },
+          "scores": null
+        },
+        {
+          "run": 2,
+          "status": "failed",
+          "error": "llm_generation_failed",
+          "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+          "raw": {
+            "error": "llm_generation_failed",
+            "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+            "fluency_score": 0.0,
+            "vocabulary_score": 0.0,
+            "grammar_score": 0.0,
+            "pronunciation_score": 0.0,
+            "overall_score": 0.0,
+            "overall_feedback": "❌ Scoring Failed: The AI model refused to score this transcript or encountered an error. Detail: 400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]\n\n(This sometimes happens if safety filters incorrectly flag the speech.)",
+            "fluency_feedback": "-",
+            "vocabulary_feedback": "-",
+            "grammar_feedback": "-",
+            "pronunciation_feedback": "-",
+            "key_improvements": [
+              "Could not parse assessment."
+            ],
+            "sample_answer": ""
+          },
+          "scores": null
+        },
+        {
+          "run": 3,
+          "status": "failed",
+          "error": "llm_generation_failed",
+          "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+          "raw": {
+            "error": "llm_generation_failed",
+            "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+            "fluency_score": 0.0,
+            "vocabulary_score": 0.0,
+            "grammar_score": 0.0,
+            "pronunciation_score": 0.0,
+            "overall_score": 0.0,
+            "overall_feedback": "❌ Scoring Failed: The AI model refused to score this transcript or encountered an error. Detail: 400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]\n\n(This sometimes happens if safety filters incorrectly flag the speech.)",
+            "fluency_feedback": "-",
+            "vocabulary_feedback": "-",
+            "grammar_feedback": "-",
+            "pronunciation_feedback": "-",
+            "key_improvements": [
+              "Could not parse assessment."
+            ],
+            "sample_answer": ""
+          },
+          "scores": null
+        }
+      ]
+    },
+    {
+      "sample_id": "S04",
+      "file": "S04_part2_band5.json",
+      "part": "part2",
+      "band_level": "band5",
+      "question": "Describe a book you recently read. You should say what it was about, why you chose it, and whether you would recommend it.",
+      "notes": "Limited development, vague details, repetitive wording, mostly simple grammar",
+      "runs_total": 3,
+      "runs_success": 0,
+      "runs_failed": 3,
+      "dimensions": {
+        "fluency_score": {
+          "expected": 5.0,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "vocabulary_score": {
+          "expected": 5.0,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "grammar_score": {
+          "expected": 5.0,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "pronunciation_score": {
+          "expected": 5.0,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "overall_score": {
+          "expected": 5.0,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        }
+      },
+      "runs": [
+        {
+          "run": 1,
+          "status": "failed",
+          "error": "llm_generation_failed",
+          "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+          "raw": {
+            "error": "llm_generation_failed",
+            "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+            "fluency_score": 0.0,
+            "vocabulary_score": 0.0,
+            "grammar_score": 0.0,
+            "pronunciation_score": 0.0,
+            "overall_score": 0.0,
+            "overall_feedback": "❌ Scoring Failed: The AI model refused to score this transcript or encountered an error. Detail: 400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]\n\n(This sometimes happens if safety filters incorrectly flag the speech.)",
+            "fluency_feedback": "-",
+            "vocabulary_feedback": "-",
+            "grammar_feedback": "-",
+            "pronunciation_feedback": "-",
+            "key_improvements": [
+              "Could not parse assessment."
+            ],
+            "sample_answer": ""
+          },
+          "scores": null
+        },
+        {
+          "run": 2,
+          "status": "failed",
+          "error": "llm_generation_failed",
+          "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+          "raw": {
+            "error": "llm_generation_failed",
+            "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+            "fluency_score": 0.0,
+            "vocabulary_score": 0.0,
+            "grammar_score": 0.0,
+            "pronunciation_score": 0.0,
+            "overall_score": 0.0,
+            "overall_feedback": "❌ Scoring Failed: The AI model refused to score this transcript or encountered an error. Detail: 400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]\n\n(This sometimes happens if safety filters incorrectly flag the speech.)",
+            "fluency_feedback": "-",
+            "vocabulary_feedback": "-",
+            "grammar_feedback": "-",
+            "pronunciation_feedback": "-",
+            "key_improvements": [
+              "Could not parse assessment."
+            ],
+            "sample_answer": ""
+          },
+          "scores": null
+        },
+        {
+          "run": 3,
+          "status": "failed",
+          "error": "llm_generation_failed",
+          "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+          "raw": {
+            "error": "llm_generation_failed",
+            "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+            "fluency_score": 0.0,
+            "vocabulary_score": 0.0,
+            "grammar_score": 0.0,
+            "pronunciation_score": 0.0,
+            "overall_score": 0.0,
+            "overall_feedback": "❌ Scoring Failed: The AI model refused to score this transcript or encountered an error. Detail: 400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]\n\n(This sometimes happens if safety filters incorrectly flag the speech.)",
+            "fluency_feedback": "-",
+            "vocabulary_feedback": "-",
+            "grammar_feedback": "-",
+            "pronunciation_feedback": "-",
+            "key_improvements": [
+              "Could not parse assessment."
+            ],
+            "sample_answer": ""
+          },
+          "scores": null
+        }
+      ]
+    },
+    {
+      "sample_id": "S05",
+      "file": "S05_part2_band6_5.json",
+      "part": "part2",
+      "band_level": "band6.5",
+      "question": "Describe a time when you helped someone. You should say who the person was, what problem they had, what you did, and how you felt afterwards.",
+      "notes": "Coherent structure and clear sequence, adequate range, occasional formulaic phrasing",
+      "runs_total": 3,
+      "runs_success": 0,
+      "runs_failed": 3,
+      "dimensions": {
+        "fluency_score": {
+          "expected": 6.5,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "vocabulary_score": {
+          "expected": 6.5,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "grammar_score": {
+          "expected": 6.5,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "pronunciation_score": {
+          "expected": 6.5,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "overall_score": {
+          "expected": 6.5,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        }
+      },
+      "runs": [
+        {
+          "run": 1,
+          "status": "failed",
+          "error": "llm_generation_failed",
+          "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+          "raw": {
+            "error": "llm_generation_failed",
+            "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+            "fluency_score": 0.0,
+            "vocabulary_score": 0.0,
+            "grammar_score": 0.0,
+            "pronunciation_score": 0.0,
+            "overall_score": 0.0,
+            "overall_feedback": "❌ Scoring Failed: The AI model refused to score this transcript or encountered an error. Detail: 400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]\n\n(This sometimes happens if safety filters incorrectly flag the speech.)",
+            "fluency_feedback": "-",
+            "vocabulary_feedback": "-",
+            "grammar_feedback": "-",
+            "pronunciation_feedback": "-",
+            "key_improvements": [
+              "Could not parse assessment."
+            ],
+            "sample_answer": ""
+          },
+          "scores": null
+        },
+        {
+          "run": 2,
+          "status": "failed",
+          "error": "llm_generation_failed",
+          "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+          "raw": {
+            "error": "llm_generation_failed",
+            "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+            "fluency_score": 0.0,
+            "vocabulary_score": 0.0,
+            "grammar_score": 0.0,
+            "pronunciation_score": 0.0,
+            "overall_score": 0.0,
+            "overall_feedback": "❌ Scoring Failed: The AI model refused to score this transcript or encountered an error. Detail: 400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]\n\n(This sometimes happens if safety filters incorrectly flag the speech.)",
+            "fluency_feedback": "-",
+            "vocabulary_feedback": "-",
+            "grammar_feedback": "-",
+            "pronunciation_feedback": "-",
+            "key_improvements": [
+              "Could not parse assessment."
+            ],
+            "sample_answer": ""
+          },
+          "scores": null
+        },
+        {
+          "run": 3,
+          "status": "failed",
+          "error": "llm_generation_failed",
+          "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+          "raw": {
+            "error": "llm_generation_failed",
+            "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+            "fluency_score": 0.0,
+            "vocabulary_score": 0.0,
+            "grammar_score": 0.0,
+            "pronunciation_score": 0.0,
+            "overall_score": 0.0,
+            "overall_feedback": "❌ Scoring Failed: The AI model refused to score this transcript or encountered an error. Detail: 400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]\n\n(This sometimes happens if safety filters incorrectly flag the speech.)",
+            "fluency_feedback": "-",
+            "vocabulary_feedback": "-",
+            "grammar_feedback": "-",
+            "pronunciation_feedback": "-",
+            "key_improvements": [
+              "Could not parse assessment."
+            ],
+            "sample_answer": ""
+          },
+          "scores": null
+        }
+      ]
+    },
+    {
+      "sample_id": "S06",
+      "file": "S06_part2_band8_plus.json",
+      "part": "part2",
+      "band_level": "band8+",
+      "question": "Describe a place you visited that left a strong impression on you. You should say where it was, when you went there, what you did, and explain why it was memorable.",
+      "notes": "Extended and cohesive monologue with vivid detail, flexible vocabulary, complex control",
+      "runs_total": 3,
+      "runs_success": 0,
+      "runs_failed": 3,
+      "dimensions": {
+        "fluency_score": {
+          "expected": 8.5,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "vocabulary_score": {
+          "expected": 8.5,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "grammar_score": {
+          "expected": 8.0,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "pronunciation_score": {
+          "expected": 8.0,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "overall_score": {
+          "expected": 8.0,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        }
+      },
+      "runs": [
+        {
+          "run": 1,
+          "status": "failed",
+          "error": "llm_generation_failed",
+          "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+          "raw": {
+            "error": "llm_generation_failed",
+            "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+            "fluency_score": 0.0,
+            "vocabulary_score": 0.0,
+            "grammar_score": 0.0,
+            "pronunciation_score": 0.0,
+            "overall_score": 0.0,
+            "overall_feedback": "❌ Scoring Failed: The AI model refused to score this transcript or encountered an error. Detail: 400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]\n\n(This sometimes happens if safety filters incorrectly flag the speech.)",
+            "fluency_feedback": "-",
+            "vocabulary_feedback": "-",
+            "grammar_feedback": "-",
+            "pronunciation_feedback": "-",
+            "key_improvements": [
+              "Could not parse assessment."
+            ],
+            "sample_answer": ""
+          },
+          "scores": null
+        },
+        {
+          "run": 2,
+          "status": "failed",
+          "error": "llm_generation_failed",
+          "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+          "raw": {
+            "error": "llm_generation_failed",
+            "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+            "fluency_score": 0.0,
+            "vocabulary_score": 0.0,
+            "grammar_score": 0.0,
+            "pronunciation_score": 0.0,
+            "overall_score": 0.0,
+            "overall_feedback": "❌ Scoring Failed: The AI model refused to score this transcript or encountered an error. Detail: 400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]\n\n(This sometimes happens if safety filters incorrectly flag the speech.)",
+            "fluency_feedback": "-",
+            "vocabulary_feedback": "-",
+            "grammar_feedback": "-",
+            "pronunciation_feedback": "-",
+            "key_improvements": [
+              "Could not parse assessment."
+            ],
+            "sample_answer": ""
+          },
+          "scores": null
+        },
+        {
+          "run": 3,
+          "status": "failed",
+          "error": "llm_generation_failed",
+          "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+          "raw": {
+            "error": "llm_generation_failed",
+            "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+            "fluency_score": 0.0,
+            "vocabulary_score": 0.0,
+            "grammar_score": 0.0,
+            "pronunciation_score": 0.0,
+            "overall_score": 0.0,
+            "overall_feedback": "❌ Scoring Failed: The AI model refused to score this transcript or encountered an error. Detail: 400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]\n\n(This sometimes happens if safety filters incorrectly flag the speech.)",
+            "fluency_feedback": "-",
+            "vocabulary_feedback": "-",
+            "grammar_feedback": "-",
+            "pronunciation_feedback": "-",
+            "key_improvements": [
+              "Could not parse assessment."
+            ],
+            "sample_answer": ""
+          },
+          "scores": null
+        }
+      ]
+    },
+    {
+      "sample_id": "S07",
+      "file": "S07_part3_band5_5.json",
+      "part": "part3",
+      "band_level": "band5.5",
+      "question": "Why do some people prefer online learning while others prefer classroom learning?",
+      "notes": "Basic comparison with limited depth, repetitive lexical choices, simple linking",
+      "runs_total": 3,
+      "runs_success": 0,
+      "runs_failed": 3,
+      "dimensions": {
+        "fluency_score": {
+          "expected": 5.5,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "vocabulary_score": {
+          "expected": 5.5,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "grammar_score": {
+          "expected": 5.5,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "pronunciation_score": {
+          "expected": 5.5,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "overall_score": {
+          "expected": 5.5,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        }
+      },
+      "runs": [
+        {
+          "run": 1,
+          "status": "failed",
+          "error": "llm_generation_failed",
+          "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+          "raw": {
+            "error": "llm_generation_failed",
+            "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+            "fluency_score": 0.0,
+            "vocabulary_score": 0.0,
+            "grammar_score": 0.0,
+            "pronunciation_score": 0.0,
+            "overall_score": 0.0,
+            "overall_feedback": "❌ Scoring Failed: The AI model refused to score this transcript or encountered an error. Detail: 400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]\n\n(This sometimes happens if safety filters incorrectly flag the speech.)",
+            "fluency_feedback": "-",
+            "vocabulary_feedback": "-",
+            "grammar_feedback": "-",
+            "pronunciation_feedback": "-",
+            "key_improvements": [
+              "Could not parse assessment."
+            ],
+            "sample_answer": ""
+          },
+          "scores": null
+        },
+        {
+          "run": 2,
+          "status": "failed",
+          "error": "llm_generation_failed",
+          "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+          "raw": {
+            "error": "llm_generation_failed",
+            "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+            "fluency_score": 0.0,
+            "vocabulary_score": 0.0,
+            "grammar_score": 0.0,
+            "pronunciation_score": 0.0,
+            "overall_score": 0.0,
+            "overall_feedback": "❌ Scoring Failed: The AI model refused to score this transcript or encountered an error. Detail: 400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]\n\n(This sometimes happens if safety filters incorrectly flag the speech.)",
+            "fluency_feedback": "-",
+            "vocabulary_feedback": "-",
+            "grammar_feedback": "-",
+            "pronunciation_feedback": "-",
+            "key_improvements": [
+              "Could not parse assessment."
+            ],
+            "sample_answer": ""
+          },
+          "scores": null
+        },
+        {
+          "run": 3,
+          "status": "failed",
+          "error": "llm_generation_failed",
+          "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+          "raw": {
+            "error": "llm_generation_failed",
+            "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+            "fluency_score": 0.0,
+            "vocabulary_score": 0.0,
+            "grammar_score": 0.0,
+            "pronunciation_score": 0.0,
+            "overall_score": 0.0,
+            "overall_feedback": "❌ Scoring Failed: The AI model refused to score this transcript or encountered an error. Detail: 400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]\n\n(This sometimes happens if safety filters incorrectly flag the speech.)",
+            "fluency_feedback": "-",
+            "vocabulary_feedback": "-",
+            "grammar_feedback": "-",
+            "pronunciation_feedback": "-",
+            "key_improvements": [
+              "Could not parse assessment."
+            ],
+            "sample_answer": ""
+          },
+          "scores": null
+        }
+      ]
+    },
+    {
+      "sample_id": "S08",
+      "file": "S08_part3_band7.json",
+      "part": "part3",
+      "band_level": "band7",
+      "question": "Do you think governments should invest more in public transport than in roads for private cars? Why?",
+      "notes": "Clear position with balanced reasoning and examples; minor slips but generally strong control",
+      "runs_total": 3,
+      "runs_success": 0,
+      "runs_failed": 3,
+      "dimensions": {
+        "fluency_score": {
+          "expected": 7.0,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "vocabulary_score": {
+          "expected": 7.0,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "grammar_score": {
+          "expected": 7.0,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "pronunciation_score": {
+          "expected": 7.0,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        },
+        "overall_score": {
+          "expected": 7.0,
+          "mean": null,
+          "stddev": null,
+          "delta": null
+        }
+      },
+      "runs": [
+        {
+          "run": 1,
+          "status": "failed",
+          "error": "llm_generation_failed",
+          "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+          "raw": {
+            "error": "llm_generation_failed",
+            "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+            "fluency_score": 0.0,
+            "vocabulary_score": 0.0,
+            "grammar_score": 0.0,
+            "pronunciation_score": 0.0,
+            "overall_score": 0.0,
+            "overall_feedback": "❌ Scoring Failed: The AI model refused to score this transcript or encountered an error. Detail: 400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]\n\n(This sometimes happens if safety filters incorrectly flag the speech.)",
+            "fluency_feedback": "-",
+            "vocabulary_feedback": "-",
+            "grammar_feedback": "-",
+            "pronunciation_feedback": "-",
+            "key_improvements": [
+              "Could not parse assessment."
+            ],
+            "sample_answer": ""
+          },
+          "scores": null
+        },
+        {
+          "run": 2,
+          "status": "failed",
+          "error": "llm_generation_failed",
+          "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+          "raw": {
+            "error": "llm_generation_failed",
+            "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+            "fluency_score": 0.0,
+            "vocabulary_score": 0.0,
+            "grammar_score": 0.0,
+            "pronunciation_score": 0.0,
+            "overall_score": 0.0,
+            "overall_feedback": "❌ Scoring Failed: The AI model refused to score this transcript or encountered an error. Detail: 400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]\n\n(This sometimes happens if safety filters incorrectly flag the speech.)",
+            "fluency_feedback": "-",
+            "vocabulary_feedback": "-",
+            "grammar_feedback": "-",
+            "pronunciation_feedback": "-",
+            "key_improvements": [
+              "Could not parse assessment."
+            ],
+            "sample_answer": ""
+          },
+          "scores": null
+        },
+        {
+          "run": 3,
+          "status": "failed",
+          "error": "llm_generation_failed",
+          "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+          "raw": {
+            "error": "llm_generation_failed",
+            "detail": "400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]",
+            "fluency_score": 0.0,
+            "vocabulary_score": 0.0,
+            "grammar_score": 0.0,
+            "pronunciation_score": 0.0,
+            "overall_score": 0.0,
+            "overall_feedback": "❌ Scoring Failed: The AI model refused to score this transcript or encountered an error. Detail: 400 API key expired. Please renew the API key. [reason: \"API_KEY_INVALID\"\ndomain: \"googleapis.com\"\nmetadata {\n  key: \"service\"\n  value: \"generativelanguage.googleapis.com\"\n}\n, locale: \"en-US\"\nmessage: \"API key expired. Please renew the API key.\"\n]\n\n(This sometimes happens if safety filters incorrectly flag the speech.)",
+            "fluency_feedback": "-",
+            "vocabulary_feedback": "-",
+            "grammar_feedback": "-",
+            "pronunciation_feedback": "-",
+            "key_improvements": [
+              "Could not parse assessment."
+            ],
+            "sample_answer": ""
+          },
+          "scores": null
+        }
+      ]
+    }
+  ]
+}
