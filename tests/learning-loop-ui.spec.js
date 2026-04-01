@@ -374,5 +374,8 @@ test('retry button sets sessionStorage ielts_retry_prompt and navigates to /spea
     ]);
 
     const retryPrompt = await page.evaluate(() => sessionStorage.getItem('ielts_retry_prompt'));
-    expect(retryPrompt).toBe('Talk about a memorable trip.');
+    expect(retryPrompt).toBeNull();
+
+    await expect(page.locator('#freePracticePanel')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#freePracticePrompt')).toHaveValue('Talk about a memorable trip.');
 });

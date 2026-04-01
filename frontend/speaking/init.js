@@ -26,6 +26,20 @@
                 window.resetFreePracticeSetup();
             }
         }
+        const retryPrompt = sessionStorage.getItem('ielts_retry_prompt');
+        if (retryPrompt) {
+            sessionStorage.removeItem('ielts_retry_prompt');
+            if (typeof window.showFreePracticeSetup === 'function') {
+                window.showFreePracticeSetup();
+            }
+            if (typeof window.setFpType === 'function') {
+                window.setFpType('custom');
+            }
+            const promptInput = document.getElementById('freePracticePrompt');
+            if (promptInput) {
+                promptInput.value = retryPrompt;
+            }
+        }
         const audioToggle = document.getElementById('audioModeToggle');
         if (audioToggle) {
             audioToggle.checked = false;
