@@ -399,6 +399,9 @@
                     <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
                         <div data-testid="history-session-score" style="font-family:var(--font-mono);font-size:1.8rem;font-weight:700;
                             color:${scoreColor};">${scoreReady ? formatScore(overall) : '\u2014'}</div>
+                        ${session.module_type === 'speaking' && session.attempt_count > 1 ? `<span data-testid="history-attempt-badge" style="font-size:0.65rem;background:var(--accent-blue);color:#fff;border-radius:99px;padding:1px 6px;font-weight:700;">×${session.attempt_count}</span>` : ''}
+                        ${session.module_type === 'speaking' && session.has_retry_match ? `<span data-testid="history-retry-hint" title="Retry comparison available" style="font-size:0.85rem;cursor:default;">🔄</span>` : ''}
+                        ${session.module_type === 'speaking' && session.has_coaching ? `<span data-testid="history-coaching-hint" title="Coaching tips available" style="font-size:0.85rem;cursor:default;">💡</span>` : ''}
                         <span style="color:var(--text-muted);font-size:1rem;">›</span>
                     </div>
                 </div>
@@ -540,9 +543,146 @@
                     }
                     html += '</div>';
                 }
+                html += `<div id="comparisonBlock"></div><div id="weaknessBlock"></div><div id="answerLearningBlock"></div>`;
             }
 
             content.innerHTML = html;
+
+            if (moduleType === 'speaking') {
+                const answerLearning = result.answer_learning || [];
+                const token = localStorage.getItem('ielts_token');
+
+                const retryRec = answerLearning.find((r) => r.has_retry_match);
+                if (retryRec) {
+                    try {
+                        const compRes = await fetch(`/api/speaking/comparisons/${retryRec.recording_id}`, {
+                            headers: { Authorization: `Bearer ${token}` },
+                        });
+                        const compData = await compRes.json();
+                        const comp = compData.comparison;
+                        const compBlock = document.getElementById('comparisonBlock');
+                        if (comp && compBlock) {
+                            const deltas = comp.score_deltas || {};
+                            const deltaEntries = [
+                                ['overall', 'Overall', 'comparison-delta-overall'],
+                                ['fluency', 'Fluency', 'comparison-delta-fluency'],
+                                ['vocabulary', 'Vocabulary', 'comparison-delta-vocabulary'],
+                                ['grammar', 'Grammar', 'comparison-delta-grammar'],
+                                ['pronunciation', 'Pronunciation', 'comparison-delta-pronunciation'],
+                            ];
+                            const deltaRows = deltaEntries.map(([key, name, testid]) => {
+                                const val = deltas[key];
+                                const num = typeof val === 'number' ? val : 0;
+                                const label = num > 0 ? `+${num}` : (num < 0 ? `${num}` : '=');
+                                const color = num > 0 ? '#22c55e' : (num < 0 ? '#ef4444' : 'var(--text-muted)');
+                                return `<tr>
+                                    <td style="font-size:0.8rem;color:var(--text-secondary);padding:3px 8px 3px 0;">${name}</td>
+                                    <td data-testid="${testid}" style="font-size:0.8rem;font-weight:600;color:${color};font-family:var(--font-mono);">${label}</td>
+                                </tr>`;
+                            }).join('');
+
+                            const diffLines = (comp.transcript_diff || []).map((line) => {
+                                const isAdded = line.startsWith('+');
+                                const isRemoved = line.startsWith('-');
+                                const color = isAdded ? '#22c55e' : (isRemoved ? '#ef4444' : 'var(--text-muted)');
+                                return `<div style="color:${color};font-family:monospace;font-size:0.78rem;line-height:1.5;">${escapeText(line)}</div>`;
+                            }).join('');
+
+                            const followThrough = comp.weakness_follow_through || {};
+                            const addressedTags = (followThrough.addressed_tags || []).map((t) =>
+                                `<span style="font-size:0.72rem;background:rgba(34,197,94,0.12);color:#22c55e;border-radius:99px;padding:2px 8px;margin:2px;">✅ ${escapeText(t)}</span>`
+                            ).join('');
+                            const unchangedTags = (followThrough.unchanged_tags || []).map((t) =>
+                                `<span style="font-size:0.72rem;background:rgba(245,158,11,0.12);color:#f59e0b;border-radius:99px;padding:2px 8px;margin:2px;">⚠️ ${escapeText(t)}</span>`
+                            ).join('');
+                            const newTags = (followThrough.new_tags || []).map((t) =>
+                                `<span style="font-size:0.72rem;background:rgba(239,68,68,0.12);color:#ef4444;border-radius:99px;padding:2px 8px;margin:2px;">🆕 ${escapeText(t)}</span>`
+                            ).join('');
+
+                            compBlock.innerHTML = `
+                                <div data-testid="comparison-block" style="background:var(--bg-glass);border-radius:var(--radius-md);padding:12px 14px;margin-bottom:16px;">
+                                    <h3 style="font-size:0.85rem;color:var(--text-secondary);margin:0 0 6px;">📊 Retry Comparison</h3>
+                                    <table style="border-collapse:collapse;margin-bottom:10px;">${deltaRows}</table>
+                                    ${diffLines ? `<div data-testid="comparison-diff" style="margin-bottom:10px;background:rgba(0,0,0,0.1);border-radius:var(--radius-sm);padding:8px;overflow-x:auto;">${diffLines}</div>` : ''}
+                                    <div data-testid="comparison-weakness-followthrough" style="display:flex;flex-wrap:wrap;gap:4px;">${addressedTags}${unchangedTags}${newTags}</div>
+                                </div>`;
+                        } else if (compBlock) {
+                            compBlock.style.display = 'none';
+                        }
+                    } catch (_) {
+                        const compBlock = document.getElementById('comparisonBlock');
+                        if (compBlock) compBlock.style.display = 'none';
+                    }
+                }
+
+                try {
+                    const wsRes = await fetch('/api/speaking/weakness-summary', {
+                        headers: { Authorization: `Bearer ${token}` },
+                    });
+                    const wsData = await wsRes.json();
+                    const weaknessBlock = document.getElementById('weaknessBlock');
+                    if (weaknessBlock) {
+                        const topTags = wsData.top_recurring_tags || [];
+                        if (!topTags.length) {
+                            weaknessBlock.style.display = 'none';
+                        } else if (wsData.sample_size_label === 'early_signal') {
+                            weaknessBlock.innerHTML = `
+                                <div data-testid="weakness-block" style="background:var(--bg-glass);border-radius:var(--radius-md);padding:12px 14px;margin-bottom:16px;">
+                                    <p style="font-size:0.8rem;color:var(--text-muted);margin:0;">📊 Early signal — keep practicing to see patterns</p>
+                                </div>`;
+                        } else {
+                            const tagPills = topTags.map((t) =>
+                                `<span data-testid="weakness-tag" style="font-size:0.72rem;background:rgba(59,130,246,0.12);color:var(--accent-blue);border-radius:99px;padding:2px 8px;margin:2px;">${escapeText(t.tag)} ×${t.count}</span>`
+                            ).join('');
+                            const trend = wsData.trend_direction || {};
+                            const trendText = trend.overall ? `<span style="font-size:0.78rem;color:var(--text-secondary);">Overall trend: ${escapeText(trend.overall)}</span>` : '';
+                            const suggestions = (wsData.actionable_suggestions || []).map((s) =>
+                                `<li style="font-size:0.8rem;color:var(--text-primary);margin-bottom:4px;line-height:1.5;">${escapeText(s.suggestion)}</li>`
+                            ).join('');
+                            weaknessBlock.innerHTML = `
+                                <div data-testid="weakness-block" style="background:var(--bg-glass);border-radius:var(--radius-md);padding:12px 14px;margin-bottom:16px;">
+                                    <h3 style="font-size:0.85rem;color:var(--text-secondary);margin:0 0 6px;">🔁 Recurring Weaknesses</h3>
+                                    <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">${tagPills}</div>
+                                    ${trendText ? `<div style="margin-bottom:8px;">${trendText}</div>` : ''}
+                                    ${suggestions ? `<ul style="margin:0;padding-left:18px;">${suggestions}</ul>` : ''}
+                                </div>`;
+                        }
+                    }
+                } catch (_) {
+                    const weaknessBlock = document.getElementById('weaknessBlock');
+                    if (weaknessBlock) weaknessBlock.style.display = 'none';
+                }
+
+                const alBlock = document.getElementById('answerLearningBlock');
+                if (alBlock) {
+                    if (!answerLearning.length) {
+                        alBlock.style.display = 'none';
+                    } else {
+                        const alRows = answerLearning.map((rec) => {
+                            const tags = (rec.weakness_tags || []).map((t) =>
+                                `<span style="font-size:0.72rem;background:rgba(59,130,246,0.12);color:var(--accent-blue);border-radius:99px;padding:2px 8px;margin:2px;">${escapeText(t)}</span>`
+                            ).join('');
+                            const attemptBadge = rec.attempt_count > 1
+                                ? `<span style="font-size:0.65rem;background:var(--accent-blue);color:#fff;border-radius:99px;padding:1px 6px;font-weight:700;margin-left:4px;">×${rec.attempt_count}</span>`
+                                : '';
+                            const retryIcon = rec.has_retry_match ? `<span title="Retry comparison available" style="font-size:0.85rem;margin-left:4px;">🔄</span>` : '';
+                            const coachIcon = rec.has_coaching ? `<span title="Coaching tips available" style="font-size:0.85rem;margin-left:4px;">💡</span>` : '';
+                            return `<div data-testid="answer-learning-item" style="padding:8px 0;border-bottom:1px solid var(--border-subtle);">
+                                <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;">
+                                    <span style="font-size:0.8rem;color:var(--text-secondary);font-weight:600;">${escapeText(rec.part || '')}</span>
+                                    ${attemptBadge}${retryIcon}${coachIcon}
+                                </div>
+                                ${tags ? `<div style="margin-top:4px;">${tags}</div>` : ''}
+                            </div>`;
+                        }).join('');
+                        alBlock.innerHTML = `
+                            <div data-testid="answer-learning-block" style="background:var(--bg-glass);border-radius:var(--radius-md);padding:12px 14px;margin-bottom:16px;">
+                                <h3 style="font-size:0.85rem;color:var(--text-secondary);margin:0 0 6px;">🎙️ Per-Recording Summary</h3>
+                                ${alRows}
+                            </div>`;
+                    }
+                }
+            }
         } catch (error) {
             content.innerHTML = `<p style="color:var(--accent-red);text-align:center;padding:32px;">Load failed: ${error.message}</p>`;
         }
