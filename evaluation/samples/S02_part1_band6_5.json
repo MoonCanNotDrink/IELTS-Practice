@@ -1,0 +1,15 @@
+{
+  "id": "S02",
+  "part": "part1",
+  "band_level": "band6.5",
+  "question": "Do you prefer to work in the morning or at night?",
+  "transcript": "I generally prefer working in the morning because my mind feels clearer at that time. I can plan my tasks better and finish difficult work before noon. That said, I sometimes study at night when deadlines are close, although I get tired more easily. So, overall, morning is better for productivity, but night can be useful for quiet focus.",
+  "human_expected": {
+    "fluency_score": 6.5,
+    "vocabulary_score": 6.5,
+    "grammar_score": 6.5,
+    "pronunciation_score": 6.5,
+    "overall_score": 6.5
+  },
+  "notes": "Mostly fluent with minor hesitation, adequate range, some complex clauses"
+}

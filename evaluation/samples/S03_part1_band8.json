@@ -1,0 +1,15 @@
+{
+  "id": "S03",
+  "part": "part1",
+  "band_level": "band8",
+  "question": "How has your hometown changed in recent years?",
+  "transcript": "My hometown has changed dramatically over the past decade. What used to be a quiet industrial town has gradually transformed into a tech-oriented city with co-working spaces, start-up hubs, and much better public transport. On the upside, people now have broader career options and a more cosmopolitan lifestyle. On the downside, housing costs have skyrocketed, which has pushed some long-term residents to the outskirts. Overall, though, I'd say the city has become more dynamic and forward-looking.",
+  "human_expected": {
+    "fluency_score": 8.0,
+    "vocabulary_score": 8.0,
+    "grammar_score": 8.0,
+    "pronunciation_score": 8.0,
+    "overall_score": 8.0
+  },
+  "notes": "Fluent delivery, precise lexical choice, complex grammar, balanced viewpoint"
+}

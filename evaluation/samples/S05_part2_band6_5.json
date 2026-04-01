@@ -1,0 +1,15 @@
+{
+  "id": "S05",
+  "part": "part2",
+  "band_level": "band6.5",
+  "question": "Describe a time when you helped someone. You should say who the person was, what problem they had, what you did, and how you felt afterwards.",
+  "transcript": "I'd like to talk about a time when I helped my younger cousin prepare for a school interview. She was quite nervous because it was her first formal interview and she didn't know how to answer open questions. First, I asked her to write down common topics, such as hobbies, study habits, and future goals. Then we practiced together every evening for about a week. I gave her feedback on eye contact and encouraged her to speak in complete sentences instead of one-word answers. On the interview day, she still felt anxious, but she managed to stay calm. Later she told me the questions were very similar to the ones we had practiced. She eventually got accepted by the school. I felt really satisfied because my support made a practical difference.",
+  "human_expected": {
+    "fluency_score": 6.5,
+    "vocabulary_score": 6.5,
+    "grammar_score": 6.5,
+    "pronunciation_score": 6.5,
+    "overall_score": 6.5
+  },
+  "notes": "Coherent structure and clear sequence, adequate range, occasional formulaic phrasing"
+}

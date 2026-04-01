@@ -1,0 +1,15 @@
+{
+  "id": "S08",
+  "part": "part3",
+  "band_level": "band7",
+  "question": "Do you think governments should invest more in public transport than in roads for private cars? Why?",
+  "transcript": "In general, I believe governments should prioritize public transport, especially in large cities where congestion is already severe. A reliable metro or bus network can move far more people with lower environmental impact than private cars. That said, road investment is still necessary in suburban or rural areas, where residents may not have realistic alternatives. I think the key is not choosing one option blindly, but allocating budgets according to local travel patterns. If authorities only expand roads, traffic often returns to the same level within a few years because demand increases. By contrast, better public transport can reduce both commute time and inequality, since lower-income groups benefit the most.",
+  "human_expected": {
+    "fluency_score": 7.0,
+    "vocabulary_score": 7.0,
+    "grammar_score": 7.0,
+    "pronunciation_score": 7.0,
+    "overall_score": 7.0
+  },
+  "notes": "Clear position with balanced reasoning and examples; minor slips but generally strong control"
+}

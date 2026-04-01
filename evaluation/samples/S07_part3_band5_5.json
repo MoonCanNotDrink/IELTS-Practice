@@ -1,0 +1,15 @@
+{
+  "id": "S07",
+  "part": "part3",
+  "band_level": "band5.5",
+  "question": "Why do some people prefer online learning while others prefer classroom learning?",
+  "transcript": "Well, I think online learning is easier for many people because they can study at home and save time. In classroom learning, students can ask teachers directly, so this part is better. But online classes are sometimes boring and students lose focus quickly. Also, in my opinion, classroom learning gives more pressure, and pressure can help some students study harder. So both ways are okay, but it depends on the person.",
+  "human_expected": {
+    "fluency_score": 5.5,
+    "vocabulary_score": 5.5,
+    "grammar_score": 5.5,
+    "pronunciation_score": 5.5,
+    "overall_score": 5.5
+  },
+  "notes": "Basic comparison with limited depth, repetitive lexical choices, simple linking"
+}
