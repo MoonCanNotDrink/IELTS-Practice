@@ -1,4 +1,6 @@
 # pyright: reportMissingImports=false
+import asyncio
+
 from logging.config import fileConfig
 
 from alembic import context
@@ -57,7 +59,7 @@ async def run_async_migrations() -> None:
 
 
 def run_migrations_online() -> None:
-    context.run_async(run_async_migrations)
+    asyncio.run(run_async_migrations())
 
 
 if context.is_offline_mode():
