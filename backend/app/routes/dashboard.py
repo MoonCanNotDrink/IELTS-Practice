@@ -1,3 +1,7 @@
+from collections.abc import Sequence
+from datetime import datetime
+from typing import cast
+
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,8 +14,12 @@ from app.routes.helpers import parse_feedback_blob, feedback_error_info
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
 
 
-def determine_speaking_task_type(recordings: list[Recording]) -> str:
-    recorded_parts = {recording.part for recording in recordings if (recording.transcript or "").strip()}
+def determine_speaking_task_type(recordings: Sequence[Recording]) -> str:
+    recorded_parts = {
+        recording.part
+        for recording in recordings
+        if (recording.transcript or "").strip()
+    }
     if recorded_parts == {"part2"}:
         return "part2_only"
     if {"part1", "part2", "part3"}.issubset(recorded_parts):
@@ -19,7 +27,9 @@ def determine_speaking_task_type(recordings: list[Recording]) -> str:
     return "partial_exam"
 
 
-async def resolve_speaking_title(db: AsyncSession, session: PracticeSession, topic_title: str | None) -> str:
+async def resolve_speaking_title(
+    db: AsyncSession, session: PracticeSession, topic_title: str | None
+) -> str:
     if topic_title:
         return topic_title
     result = await db.execute(
@@ -67,8 +77,18 @@ async def get_dashboard_history(
             speaking_task_type = determine_speaking_task_type(recordings)
             if normalized_task and normalized_task != speaking_task_type:
                 continue
-            scoring_status, scoring_error, scoring_error_detail = feedback_error_info(session.feedback)
-            completed_at = session.finished_at.isoformat() if session.finished_at else None
+            recordings_with_prompt_match_key = [
+                recording
+                for recording in recordings
+                if (recording.prompt_match_key or "").strip()
+            ]
+            attempt_count = len(recordings_with_prompt_match_key) or 1
+            scoring_status, scoring_error, scoring_error_detail = feedback_error_info(
+                session.feedback
+            )
+            completed_at = (
+                session.finished_at.isoformat() if session.finished_at else None
+            )
             entries.append(
                 {
                     "entry_id": f"speaking:{session.id}",
@@ -82,6 +102,12 @@ async def get_dashboard_history(
                     "scoring_status": scoring_status,
                     "scoring_error": scoring_error,
                     "scoring_error_detail": scoring_error_detail,
+                    "attempt_count": attempt_count,
+                    "has_retry_match": attempt_count > 1,
+                    "has_coaching": any(
+                        recording.coaching_payload is not None
+                        for recording in recordings
+                    ),
                     "scores": {
                         "fluency": session.fluency_score,
                         "vocabulary": session.vocabulary_score,
@@ -95,14 +121,19 @@ async def get_dashboard_history(
 
     if normalized_module in {"all", "writing"}:
         result = await db.execute(
-            select(WritingAttempt)
-            .where(WritingAttempt.user_id == current_user.id)
+            select(WritingAttempt).where(WritingAttempt.user_id == current_user.id)
         )
         for attempt in result.scalars().all():
             if normalized_task and normalized_task != attempt.task_type:
                 continue
-            scoring_status, scoring_error, scoring_error_detail = feedback_error_info(attempt.feedback)
-            completed_at = attempt.completed_at.isoformat() if attempt.completed_at else None
+            attempt_feedback = cast(str | None, attempt.feedback)
+            attempt_completed_at = cast(datetime | None, attempt.completed_at)
+            scoring_status, scoring_error, scoring_error_detail = feedback_error_info(
+                attempt_feedback
+            )
+            completed_at = (
+                attempt_completed_at.isoformat() if attempt_completed_at else None
+            )
             entries.append(
                 {
                     "entry_id": f"writing:{attempt.id}",
