@@ -15,6 +15,7 @@ from app.services.asr_service import transcribe_audio, _estimate_word_timestamps
 from app.services.auth_service import get_current_user, User
 from app.config import settings
 from app.routes.helpers import assert_session_access as _assert_session_access, resolve_audio_extension as _resolve_audio_extension
+from app.seed_data import CURRENT_PART2_SEASON
 
 router = APIRouter(prefix="/api/exam", tags=["Full Exam"])
 
@@ -240,7 +241,7 @@ async def start_full_exam(
     import random
 
     topic = await db.get(Topic, request.topic_id)
-    if not topic:
+    if not topic or topic.season != CURRENT_PART2_SEASON:
         raise HTTPException(status_code=404, detail="Topic not found")
 
     session = PracticeSession(topic_id=request.topic_id, status="in_progress", user_id=current_user.id)

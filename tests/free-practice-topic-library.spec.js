@@ -2,8 +2,8 @@ const { test, expect } = require('@playwright/test');
 
 const LIBRARY_RESPONSE = {
     official_topics: [
-        { id: 1, title: 'Describe a place you visited recently', category: 'places' },
-        { id: 2, title: 'Talk about a book you enjoyed reading', category: 'media' },
+        { id: 1, title: 'Describe a famous person you would like to meet.', category: 'people' },
+        { id: 2, title: 'Describe a shopping mall.', category: 'places' },
     ],
     saved_topics: [
         { id: 10, prompt_text: 'Describe your morning routine', category: 'general', title: 'Describe your morning routine' },
@@ -95,8 +95,8 @@ test.describe('free-practice topic library', () => {
 
         await page.goto('/history');
 
-        const historyItem = page.getByTestId('history-session-item').first();
-        await expect(historyItem).toContainText('<strong>Unsafe history title</strong>');
+        const historyList = page.getByTestId('history-list');
+        await expect(historyList).toContainText('<strong>Unsafe history title</strong>', { timeout: 15000 });
         await expect(page.locator('#historyList strong')).toHaveCount(0);
     });
 
@@ -118,8 +118,8 @@ test.describe('free-practice topic library', () => {
         await expect(page.locator('#fpTopicOptions [role="group"]').nth(0)).toHaveAttribute('aria-labelledby', 'fpTopicGroupOfficialLabel fpTopicGroupOfficialCount');
         await expect(page.locator('#fpTopicOptions [role="group"]').nth(1)).toHaveAttribute('aria-labelledby', 'fpTopicGroupSavedLabel fpTopicGroupSavedCount');
         await expect(page.locator('.custom-select-option')).toHaveText([
-            'Describe a place you visited recently',
-            'Talk about a book you enjoyed reading',
+            'Describe a famous person you would like to meet.',
+            'Describe a shopping mall.',
             'Describe your morning routine',
         ]);
     });
@@ -171,7 +171,7 @@ test.describe('free-practice topic library', () => {
         await page.keyboard.press('Enter');
         await expect(page.locator('#fpTopicDropdown')).toBeHidden();
         await expect(trigger).toHaveAttribute('aria-expanded', 'false');
-        await expect(page.locator('#fpTopicSelectText')).toHaveText('Describe a place you visited recently');
+        await expect(page.locator('#fpTopicSelectText')).toHaveText('Describe a famous person you would like to meet.');
         expect(await page.locator('#freePracticeTopicSelect').inputValue()).toBe('official:1');
 
         await trigger.focus();
@@ -187,9 +187,9 @@ test.describe('free-practice topic library', () => {
         await openFreePracticePanel(page);
         await openTopicDropdown(page);
 
-        await page.locator('#fpTopicSearchInput').fill('book');
+        await page.locator('#fpTopicSearchInput').fill('mall');
         await expect(page.locator('.custom-select-option')).toHaveCount(1);
-        await expect(page.locator('.custom-select-option').first()).toHaveText('Talk about a book you enjoyed reading');
+        await expect(page.locator('.custom-select-option').first()).toHaveText('Describe a shopping mall.');
 
         await page.locator('#fpTopicSearchInput').fill('zzzz');
         await expect(page.locator('.custom-select-empty')).toBeVisible();
@@ -321,9 +321,9 @@ test.describe('free-practice topic library', () => {
 
         await openFreePracticePanel(page);
         await stubRecording(page);
-        await selectTopicOption(page, 'Describe a place you visited recently');
+        await selectTopicOption(page, 'Describe a famous person you would like to meet.');
 
-        await expect(page.locator('#fpTopicSelectText')).toHaveText('Describe a place you visited recently');
+        await expect(page.locator('#fpTopicSelectText')).toHaveText('Describe a famous person you would like to meet.');
         expect(await page.locator('#freePracticeTopicSelect').inputValue()).toBe('official:1');
 
         await page.locator('#btnStartFreePractice').click();

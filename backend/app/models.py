@@ -58,7 +58,7 @@ class Topic(Base):
     title = Column(String(255), nullable=False)
     points = Column(JSON, nullable=False)
     category = Column(String(100), default="general")
-    season = Column(String(20), default="2025-Q1")
+    season = Column(String(20), default="2026-Q1")
     created_at = Column(DateTime, default=utc_now)
 
 

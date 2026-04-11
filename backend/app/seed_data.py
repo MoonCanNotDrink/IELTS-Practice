@@ -1,214 +1,604 @@
 """Seed the database with IELTS speaking topics and writing prompts."""
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.cambridge_writing_prompts import CAMBRIDGE_ACADEMIC_WRITING_PROMPTS
-from app.models import Topic, WritingPrompt
+from app.models import PracticeSession, Topic, WritingPrompt
+
+CURRENT_PART2_SEASON = "2026-Q1"
+LEGACY_PART2_SEASON = f"{CURRENT_PART2_SEASON}-legacy"
+
+
+def _topic(title: str, points: list[str], category: str) -> dict:
+    return {
+        "title": title,
+        "points": points,
+        "category": category,
+        "season": CURRENT_PART2_SEASON,
+    }
+
 
 SEED_TOPICS = [
-    # ─── Places ───────────────────────────────────────────────
-    {
-        "title": "Describe a place you visited that was very crowded",
-        "points": ["Where the place was", "When you went there", "Why it was crowded",
-                   "And explain how you felt about being there"],
-        "category": "places"
-    },
-    {
-        "title": "Describe a city you would like to visit in the future",
-        "points": ["Where the city is", "How you learned about it", "What you would like to do there",
-                   "And explain why you want to visit this city"],
-        "category": "places"
-    },
-    {
-        "title": "Describe a public place that you think needs improvement",
-        "points": ["What the place is", "Where it is located", "What problems it has",
-                   "And explain what improvements should be made"],
-        "category": "places"
-    },
-    {
-        "title": "Describe a natural place you have visited and enjoyed",
-        "points": ["Where it was", "Who you went with", "What you saw and did there",
-                   "And explain why you enjoyed it"],
-        "category": "places"
-    },
-    {
-        "title": "Describe a building you find interesting",
-        "points": ["What the building is and where it is", "What it is used for",
-                   "Why you find it interesting",
-                   "And explain what you think makes it special"],
-        "category": "places"
-    },
-
-    # ─── People ───────────────────────────────────────────────
-    {
-        "title": "Describe a person who has influenced you a lot",
-        "points": ["Who this person is", "How you know this person",
-                   "What this person has done to influence you",
-                   "And explain why this person has had such a big influence on you"],
-        "category": "people"
-    },
-    {
-        "title": "Describe a friend you enjoy spending time with",
-        "points": ["Who this friend is", "How you met this person",
-                   "What you usually do together",
-                   "And explain why you enjoy spending time with them"],
-        "category": "people"
-    },
-    {
-        "title": "Describe a famous person you admire",
-        "points": ["Who this person is", "What they are famous for",
-                   "How you first heard about them",
-                   "And explain why you admire them"],
-        "category": "people"
-    },
-    {
-        "title": "Describe a person in your family who you most admire",
-        "points": ["Who this person is", "What this person does",
-                   "What they have achieved",
-                   "And explain why you admire them"],
-        "category": "people"
-    },
-
-    # ─── Experiences ──────────────────────────────────────────
-    {
-        "title": "Describe a time when you helped someone",
-        "points": ["Who you helped", "What the situation was", "How you helped them",
-                   "And explain how you felt about helping this person"],
-        "category": "experiences"
-    },
-    {
-        "title": "Describe a skill that took you a long time to learn",
-        "points": ["What the skill was", "When you started learning it",
-                   "Why it took you a long time",
-                   "And explain how you felt when you finally learned it"],
-        "category": "experiences"
-    },
-    {
-        "title": "Describe an important decision you made",
-        "points": ["What the decision was", "When you made it", "How you made the decision",
-                   "And explain why it was important"],
-        "category": "experiences"
-    },
-    {
-        "title": "Describe a time you received good news",
-        "points": ["What the news was", "When and where you received it", "Who told you the news",
-                   "And explain why it was good news for you"],
-        "category": "experiences"
-    },
-    {
-        "title": "Describe an achievement you are proud of",
-        "points": ["What you achieved", "When it happened", "How you achieved it",
-                   "And explain why you are proud of this achievement"],
-        "category": "experiences"
-    },
-    {
-        "title": "Describe a time you had to wait for something important",
-        "points": ["What you were waiting for", "Where and how long you waited",
-                   "Why you had to wait",
-                   "And explain how you felt while waiting"],
-        "category": "experiences"
-    },
-    {
-        "title": "Describe a time you made a mistake and learned from it",
-        "points": ["What the mistake was", "When it happened",
-                   "What you did to fix it",
-                   "And explain what you learned from this experience"],
-        "category": "experiences"
-    },
-    {
-        "title": "Describe an occasion when you had to do something in a hurry",
-        "points": ["What you had to do", "Why you were in a hurry",
-                   "How successfully you completed it",
-                   "And explain how you felt during this experience"],
-        "category": "experiences"
-    },
-
-    # ─── Objects ──────────────────────────────────────────────
-    {
-        "title": "Describe a piece of technology that you find useful",
-        "points": ["What it is", "How often you use it", "What you use it for",
-                   "And explain why you find it useful"],
-        "category": "objects"
-    },
-    {
-        "title": "Describe a book that you have recently read",
-        "points": ["What the book was about", "Why you decided to read it",
-                   "What you liked or disliked about it",
-                   "And explain whether you would recommend it to others"],
-        "category": "objects"
-    },
-    {
-        "title": "Describe a gift you gave or received that was memorable",
-        "points": ["What the gift was", "Who gave it or who you gave it to",
-                   "When this happened",
-                   "And explain why it was memorable"],
-        "category": "objects"
-    },
-    {
-        "title": "Describe a piece of clothing or jewellery that you wear on special occasions",
-        "points": ["What it is", "Where you got it from", "When you wear it",
-                   "And explain why it is special to you"],
-        "category": "objects"
-    },
-
-    # ─── Culture & Society ────────────────────────────────────
-    {
-        "title": "Describe a tradition in your country that you enjoy",
-        "points": ["What the tradition is", "When it takes place",
-                   "What you do during this tradition",
-                   "And explain why you enjoy it"],
-        "category": "culture"
-    },
-    {
-        "title": "Describe a festival or celebration you enjoy",
-        "points": ["What the festival or celebration is", "When it takes place",
-                   "How you celebrate it",
-                   "And explain why you enjoy it"],
-        "category": "culture"
-    },
-    {
-        "title": "Describe a local food or dish you like",
-        "points": ["What the food or dish is", "How it is made",
-                   "When you eat it",
-                   "And explain why you like it"],
-        "category": "culture"
-    },
-
-    # ─── Media & Education ────────────────────────────────────
-    {
-        "title": "Describe a movie that made a strong impression on you",
-        "points": ["What the movie was", "When you watched it", "What it was about",
-                   "And explain why it made a strong impression on you"],
-        "category": "media"
-    },
-    {
-        "title": "Describe a TV program or online video you enjoy watching",
-        "points": ["What it is called and what type of program it is",
-                   "What it is about",
-                   "Who makes it",
-                   "And explain why you enjoy watching it"],
-        "category": "media"
-    },
-    {
-        "title": "Describe a subject you enjoyed studying at school",
-        "points": ["What the subject was", "Who taught it", "What you learned in this subject",
-                   "And explain why you enjoyed studying it"],
-        "category": "education"
-    },
-    {
-        "title": "Describe a course or class you have taken outside of school",
-        "points": ["What the course was", "Why you decided to take it",
-                   "What you learned",
-                   "And explain whether you would recommend it to others"],
-        "category": "education"
-    },
-    {
-        "title": "Describe a time you taught someone something",
-        "points": ["Who you taught", "What you taught them",
-                   "How you taught them",
-                   "And explain how successful you were in teaching them"],
-        "category": "education"
-    },
+    _topic(
+        "Describe a famous person you would like to meet.",
+        [
+            "Who he/she is",
+            "How you knew him/her",
+            "How/where you would like to meet him/her",
+            "And explain why you would like to meet him/her",
+        ],
+        "people",
+    ),
+    _topic(
+        "Describe a child you know who likes drawing very much.",
+        [
+            "How you knew him/her",
+            "What he/she is like",
+            "How often he/she draws",
+            "And explain why you think he/she likes drawing",
+        ],
+        "people",
+    ),
+    _topic(
+        "Describe a person who makes plans a lot.",
+        [
+            "Who he/she is",
+            "How you knew him/her",
+            "What plans he/she makes",
+            "And explain how you feel about this person",
+        ],
+        "people",
+    ),
+    _topic(
+        "Describe a person who encouraged you to protect the nature.",
+        [
+            "Who he/she is",
+            "How he/she encouraged you",
+            "What he/she encouraged you to do",
+            "And explain how you feel about this person",
+        ],
+        "people",
+    ),
+    _topic(
+        "Describe a person who gave a clever solution to a problem.",
+        [
+            "Who the person is",
+            "When you met this person",
+            "What the problem was",
+            "And explain why you think it was a clever solution",
+        ],
+        "people",
+    ),
+    _topic(
+        "Describe one of your friends who learned a skill from someone (not a teacher).",
+        [
+            "Who he/she is",
+            "What skill he/she learned",
+            "How he/she learned",
+            "And explain whether it would be easier to learn from a teacher",
+        ],
+        "people",
+    ),
+    _topic(
+        "Describe someone living in your area who often helps others.",
+        [
+            "What he/she is like",
+            "How he/she helps others",
+            "Why his/her help is beneficial",
+            "And explain why he/she often helps others",
+        ],
+        "people",
+    ),
+    _topic(
+        "Describe a friend of yours who is good at music/singing.",
+        [
+            "Who he/she is",
+            "When/Where you listen to his/her music/singing",
+            "What kind of music/songs he/she is good at",
+            "And explain how you feel when listening to his music/singing",
+        ],
+        "people",
+    ),
+    _topic(
+        "Describe a good friend who is important to you.",
+        [
+            "Who he/she is",
+            "How/Where you got to know him/her",
+            "How long you have known each other",
+            "And explain why he/she is important to you",
+        ],
+        "people",
+    ),
+    _topic(
+        "Describe a person you know who runs a family business.",
+        [
+            "Who he/she is",
+            "What the business is",
+            "What products it sells",
+            "And explain what you have learned from him/her",
+        ],
+        "people",
+    ),
+    _topic(
+        "Describe a friend of yours who has a good habit.",
+        [
+            "Who he/she is",
+            "What good habit he/she has",
+            "When/how you noticed the good habit",
+            "And explain how you will develop the same habit",
+        ],
+        "people",
+    ),
+    _topic(
+        "Describe a creative person whose work you admire.",
+        [
+            "Who he/she is",
+            "How you knew him/her",
+            "What creative things he/she has done",
+            "And explain why you think he/she is creative",
+        ],
+        "people",
+    ),
+    _topic(
+        "Describe a popular person.",
+        [
+            "Who he/she is",
+            "What he/she has done",
+            "Why he/she is popular",
+            "And explain how you feel about him/her",
+        ],
+        "people",
+    ),
+    _topic(
+        "Describe something you cannot live without (not a computer/phone).",
+        [
+            "What it is",
+            "What you do with it",
+            "How it helps you in your life",
+            "And explain why you cannot live without it",
+        ],
+        "objects",
+    ),
+    _topic(
+        "Describe a piece of technology (not a phone) that you would like to own.",
+        [
+            "What it is",
+            "How much it costs",
+            "What you will use it for",
+            "And explain why you would like to own it",
+        ],
+        "objects",
+    ),
+    _topic(
+        "Describe an item on which you spent more than expected.",
+        [
+            "What it is",
+            "How much you spent on it",
+            "Why you bought it",
+            "And explain why you think you spent more than expected",
+        ],
+        "objects",
+    ),
+    _topic(
+        "Describe a wild animal that you want to know more about.",
+        [
+            "What it is",
+            "When you saw it",
+            "Where you saw it",
+            "And explain why you want to know more about it",
+        ],
+        "objects",
+    ),
+    _topic(
+        "Describe something important that your family has kept for a long time.",
+        [
+            "What it is",
+            "What it is used for",
+            "How your family got it",
+            "And explain why it is important to your family",
+        ],
+        "objects",
+    ),
+    _topic(
+        "Describe a book you read that you found useful.",
+        [
+            "What it is",
+            "When and where you read it",
+            "Why you think it is useful",
+            "And explain how you feel about this book",
+        ],
+        "objects",
+    ),
+    _topic(
+        "Describe a toy you got in your childhood.",
+        [
+            "What it was",
+            "When you got it",
+            "How you got it",
+            "And explain how you felt about it.",
+        ],
+        "objects",
+    ),
+    _topic(
+        "Describe an invention that is useful in your daily life.",
+        [
+            "What the invention is",
+            "What it can do",
+            "How popular it is",
+            "And explain whether it is difficult or easy to use",
+        ],
+        "objects",
+    ),
+    _topic(
+        "Describe a perfect job you want to do in the future.",
+        [
+            "What it is",
+            "How you can find this job",
+            "What you need to prepare for this job",
+            "And explain why you want to do this job",
+        ],
+        "general",
+    ),
+    _topic(
+        "Describe a program or app on your computer or phone.",
+        [
+            "What it is",
+            "When/how you use it",
+            "Where you found it",
+            "And explain how you feel about it",
+        ],
+        "general",
+    ),
+    _topic(
+        "Describe a movie you watched recently.",
+        [
+            "When and where you watched it",
+            "Who you watched it with",
+            "What it was about",
+            "And explain why you chose to watch this movie",
+        ],
+        "general",
+    ),
+    _topic(
+        "Describe a natural talent you want to improve.",
+        [
+            "What it is",
+            "When you discovered it",
+            "How you want to improve it",
+            "And explain how you feel about it",
+        ],
+        "general",
+    ),
+    _topic(
+        "Describe an interesting traditional story.",
+        [
+            "What the story is about",
+            "When/how you know it",
+            "Who told you the story",
+            "And explain how you felt when you first heard it",
+        ],
+        "general",
+    ),
+    _topic(
+        "Describe one area of science (medicine, physics and etc.) that sounds interesting to you.",
+        [
+            "What it is",
+            "When you knew it",
+            "How you knew it",
+            "And explain why it sounds interesting to you",
+        ],
+        "general",
+    ),
+    _topic(
+        "Describe a water sport you would like to try in the future.",
+        [
+            "What it is",
+            "What you need to do this sport",
+            "Why you want to learn this sport",
+            "And explain whether it is difficult or easy to learn this sport",
+        ],
+        "general",
+    ),
+    _topic(
+        "Describe your favourite place in your home where you can relax.",
+        [
+            "Where it is",
+            "What it is like",
+            "What you enjoy doing there",
+            "And explain why you feel relaxed at this place",
+        ],
+        "places",
+    ),
+    _topic(
+        "Describe a shopping mall.",
+        [
+            "What its name is",
+            "Where it is",
+            "How often you visit it",
+            "And what you usually buy at the mall",
+        ],
+        "places",
+    ),
+    _topic(
+        "Describe a place with a lot of trees that you would like to visit (e.g. a forest, oasis).",
+        [
+            "Where it is",
+            "How you knew this place",
+            "What it is like",
+            "And explain why you would like to visit it",
+        ],
+        "places",
+    ),
+    _topic(
+        "Describe an interesting building you saw during a trip.",
+        [
+            "Where you saw it",
+            "What it looks like",
+            "What you have known about it",
+            "And explain why you think it is interesting",
+        ],
+        "places",
+    ),
+    _topic(
+        "Describe a natural place (e.g. parks, mountains).",
+        [
+            "Where this place is",
+            "How you knew this place",
+            "What it is like",
+        ],
+        "places",
+    ),
+    _topic(
+        "Describe a time when you felt proud of a family member.",
+        [
+            "When it happened",
+            "Who the person is",
+            "What the person did",
+            "And explain why you felt proud of him/her",
+        ],
+        "experiences",
+    ),
+    _topic(
+        "Describe an occasion when you were not allowed to use a mobile phone.",
+        [
+            "When it was",
+            "Where you were",
+            "Why you were not allowed to use it",
+            "And explain how you felt about that",
+        ],
+        "experiences",
+    ),
+    _topic(
+        "Describe an occasion when many people were smiling.",
+        [
+            "When it happened",
+            "Who you were with",
+            "What happened",
+            "And explain why many people were smiling",
+        ],
+        "experiences",
+    ),
+    _topic(
+        "Describe a time when you gave advice to others.",
+        [
+            "When it was",
+            "To whom you gave the advice",
+            "What the advice was",
+            "And explain why you gave the advice",
+        ],
+        "experiences",
+    ),
+    _topic(
+        "Describe a bicycle/motorcycle/car trip you would like to go on.",
+        [
+            "Who you would like to go with",
+            "Where you would like to go",
+            "When you would like to go",
+            "And explain why you would like to go by bicycle/motorcycle/car",
+        ],
+        "experiences",
+    ),
+    _topic(
+        "Describe a music event that you didn't enjoy.",
+        [
+            "What it was",
+            "Who you went with",
+            "Why you decided to go there",
+            "And explain why you didn't enjoy it",
+        ],
+        "experiences",
+    ),
+    _topic(
+        "Describe a time when you used imagination.",
+        [
+            "When this happened",
+            "Why you need to use imagination",
+            "How you used your imagination",
+            "And explain how you felt about this experience",
+        ],
+        "experiences",
+    ),
+    _topic(
+        "Describe a time when you encouraged someone to do something that he/she didn't want to do.",
+        [
+            "Who he or she is",
+            "What you encouraged him/her to do",
+            "How he/she reacted",
+            "And explain why you encouraged him/her to do it",
+        ],
+        "experiences",
+    ),
+    _topic(
+        "Describe a time when you told an important truth to your friend.",
+        [
+            "When it happened",
+            "Who this friend is",
+            "What kind of truth you told him or her",
+            "And explain what reactions he or she had then",
+        ],
+        "experiences",
+    ),
+    _topic(
+        "Describe an occasion when you lost your way.",
+        [
+            "Where you were",
+            "What happened",
+            "How you felt about it",
+            "And explain how you found your way",
+        ],
+        "experiences",
+    ),
+    _topic(
+        "Describe a trip you would like to make again.",
+        [
+            "Where and when you went",
+            "Who you made the trip with",
+            "What you did during the trip",
+            "And explain why you would like to make a trip again",
+        ],
+        "experiences",
+    ),
+    _topic(
+        "Describe a dinner that you really enjoyed.",
+        [
+            "When it was",
+            "What you ate at the dinner",
+            "Who you had dinner with",
+            "And explain why you enjoyed the dinner",
+        ],
+        "experiences",
+    ),
+    _topic(
+        "Describe a long journey you had.",
+        [
+            "Where you went",
+            "Who you had the journey with",
+            "Why you had the journey",
+            "And explain how you felt about the journey",
+        ],
+        "experiences",
+    ),
+    _topic(
+        "Describe a time when the electricity suddenly went off.",
+        [
+            "When/where it happened",
+            "How long it lasted",
+            "What you did during that time",
+            "And explain how you felt about it",
+        ],
+        "experiences",
+    ),
+    _topic(
+        "Describe an exciting activity you have tried for the first time.",
+        [
+            "What it is",
+            "When/where you did it",
+            "Why you thought it was exciting",
+            "And explain how you felt about it",
+        ],
+        "experiences",
+    ),
+    _topic(
+        "Describe a time when you first talked to others in a foreign language.",
+        [
+            "When this happened",
+            "Who you talked to",
+            "What you talked about",
+            "And explain how you felt about this experience",
+        ],
+        "experiences",
+    ),
+    _topic(
+        "Describe a time when you saw something interesting on social media.",
+        [
+            "When it was",
+            "Where you saw it",
+            "What you saw",
+            "And explain why you think it was interesting",
+        ],
+        "experiences",
+    ),
+    _topic(
+        "Describe a time when you broke something.",
+        [
+            "What it was",
+            "When/where that happened",
+            "How you broke it",
+            "And explain what you did after that",
+        ],
+        "experiences",
+    ),
+    _topic(
+        "Describe an important decision you made with the help of others.",
+        [
+            "Who helped you make it",
+            "What the decision was",
+            "When it happened",
+            "And explain how you felt about it",
+        ],
+        "experiences",
+    ),
+    _topic(
+        "Describe a time when you waited for something special to happen.",
+        [
+            "What you waited for",
+            "Where you waited",
+            "Why it was special",
+            "And explain how you felt while you were waiting",
+        ],
+        "experiences",
+    ),
+    _topic(
+        "Describe a talk you gave to a group of people.",
+        [
+            "Who you gave the talk to",
+            "What the talk was about",
+            "Why you gave the talk",
+            "And explain how you felt about the talk",
+        ],
+        "experiences",
+    ),
+    _topic(
+        "Describe a positive change you made in your life.",
+        [
+            "What the change was",
+            "When it happened",
+            "How it happened",
+            "And explain why it was a positive change",
+        ],
+        "experiences",
+    ),
+    _topic(
+        "Describe a time when you received good service in a shop/store.",
+        [
+            "Where the shop is",
+            "When you went to the shop",
+            "What service you received from the staff",
+            "And explain how you felt about the service",
+        ],
+        "experiences",
+    ),
+    _topic(
+        "Describe an experience when someone apologized to you.",
+        [
+            "When it happened",
+            "Who he or she was",
+            "Why he or she apologized to you",
+            "And explain how you felt about it",
+        ],
+        "experiences",
+    ),
+    _topic(
+        "Describe a time when you had an unusual meal.",
+        [
+            "When you had it",
+            "Where you had it",
+            "Who you had the meal with",
+            "And explain why it was unusual",
+        ],
+        "experiences",
+    ),
 ]
 
 
@@ -442,17 +832,54 @@ SEED_WRITING_PROMPTS = DEFAULT_WRITING_PROMPTS + CAMBRIDGE_ACADEMIC_WRITING_PROM
 
 
 async def seed_topics(db: AsyncSession):
-    """Insert seed topics if the topics table is empty."""
-    result = await db.execute(select(Topic).limit(1))
-    if result.scalars().first() is not None:
-        return  # Already seeded
+    """Sync the current official Part 2 topic bank without breaking history."""
+    result = await db.execute(select(Topic).where(Topic.season == CURRENT_PART2_SEASON))
+    existing_topics = result.scalars().all()
+    existing_by_title = {topic.title: topic for topic in existing_topics}
+
+    inserted = 0
+    updated = 0
+    deleted = 0
+    preserved_legacy = 0
 
     for topic_data in SEED_TOPICS:
-        topic = Topic(**topic_data)
-        db.add(topic)
+        existing = existing_by_title.pop(topic_data["title"], None)
+        if existing is None:
+            db.add(Topic(**topic_data))
+            inserted += 1
+            continue
 
-    await db.commit()
-    print(f"✅ Seeded {len(SEED_TOPICS)} topics into the database.")
+        changed = False
+        for field in ("points", "category", "season"):
+            next_value = topic_data[field]
+            if getattr(existing, field) != next_value:
+                setattr(existing, field, next_value)
+                changed = True
+
+        if changed:
+            updated += 1
+
+    for obsolete_topic in existing_by_title.values():
+        session_result = await db.execute(
+            select(PracticeSession.id)
+            .where(PracticeSession.topic_id == obsolete_topic.id)
+            .limit(1)
+        )
+        if session_result.scalar_one_or_none() is None:
+            await db.delete(obsolete_topic)
+            deleted += 1
+            continue
+
+        obsolete_topic.season = LEGACY_PART2_SEASON
+        preserved_legacy += 1
+
+    if inserted or updated or deleted or preserved_legacy:
+        await db.commit()
+        print(
+            "✅ Synced Part 2 topics into the database. "
+            f"inserted={inserted}, updated={updated}, "
+            f"deleted={deleted}, preserved_legacy={preserved_legacy}"
+        )
 
 
 async def seed_writing_prompts(db: AsyncSession):

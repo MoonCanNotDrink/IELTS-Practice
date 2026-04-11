@@ -36,6 +36,7 @@ from app.routes.helpers import (
     resolve_audio_extension as _resolve_audio_extension,
     get_part2_prompt_title as _get_part2_prompt_title,
 )
+from app.seed_data import CURRENT_PART2_SEASON
 
 router = APIRouter(prefix="/api/part2", tags=["Part 2"])
 logger = logging.getLogger(__name__)
@@ -106,13 +107,17 @@ def _request_id_headers(request_id: str) -> dict[str, str]:
     return {"X-Request-ID": request_id}
 
 
+def _current_official_topics_query():
+    return select(Topic).where(Topic.season == CURRENT_PART2_SEASON)
+
+
 @router.get("/topics/random")
 async def draw_topic(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Draw a random Part 2 topic card."""
-    result = await db.execute(select(Topic).order_by(func.random()).limit(1))
+    result = await db.execute(_current_official_topics_query().order_by(func.random()).limit(1))
     topic = result.scalars().first()
     if not topic:
         raise HTTPException(status_code=404, detail="No topics available")
@@ -131,7 +136,9 @@ async def list_topics(
     current_user: User = Depends(get_current_user),
 ):
     """List all available Part 2 topics."""
-    result = await db.execute(select(Topic).order_by(Topic.category, Topic.id))
+    result = await db.execute(
+        _current_official_topics_query().order_by(Topic.category, Topic.id)
+    )
     topics = result.scalars().all()
     return [
         {
@@ -160,7 +167,9 @@ async def get_free_practice_topics(
     { "official_topics": [...], "saved_topics": [...] }
     """
     # Official topics (selector needs id, title, category)
-    result = await db.execute(select(Topic).order_by(Topic.category, Topic.id))
+    result = await db.execute(
+        _current_official_topics_query().order_by(Topic.category, Topic.id)
+    )
     official = result.scalars().all()
     official_topics = [
         {"id": t.id, "title": t.title, "category": t.category} for t in official
@@ -294,7 +303,7 @@ async def create_session(
     topic = None
     if request.topic_id is not None:
         topic = await db.get(Topic, request.topic_id)
-        if not topic:
+        if not topic or topic.season != CURRENT_PART2_SEASON:
             raise HTTPException(status_code=404, detail="Topic not found")
 
     # Saved-topic path: must belong to current user and not be archived
