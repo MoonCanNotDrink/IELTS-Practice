@@ -24,11 +24,10 @@
                 <button type="button" id="btnLogout" class="btn btn-ghost header-btn-compact auth-logout-hidden" onclick="logout()">Log Out</button>
             </div>
             <h1>
-                <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="url(#micGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
-                    <title>Microphone icon</title>
-                    <defs><linearGradient id="micGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#60a5fa"/><stop offset="100%" style="stop-color:#a78bfa"/></linearGradient></defs>
-                    <rect x="9" y="2" width="6" height="12" rx="3"/>
-                    <path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/>
+                <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="url(#penGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+                    <title>Writing icon</title>
+                    <defs><linearGradient id="penGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#60a5fa"/><stop offset="100%" style="stop-color:#a78bfa"/></linearGradient></defs>
+                    <path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838.838-2.872a2 2 0 0 1 .506-.855z"/>
                 </svg>
                 IELTS Writing Practice
             </h1>
@@ -52,13 +51,13 @@
                 </div>
                 <div class="btn-grid">
                     <button type="button" class="btn btn-ghost btn-full btn-ghost-accent" id="btnWritingTask1" onclick="startWritingMode('task1')">
-                        &#128202; Writing Task 1
+                        <svg class="icon-inline" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg> Writing Task 1
                     </button>
                     <button type="button" class="btn btn-ghost btn-full btn-ghost-accent" id="btnWritingTask2" onclick="startWritingMode('task2')">
-                        &#9997;&#65039; Writing Task 2
+                        <svg class="icon-inline" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838.838-2.872a2 2 0 0 1 .506-.855z"/></svg> Writing Task 2
                     </button>
                     <button type="button" class="btn btn-ghost btn-full btn-grid-span-full btn-ghost-accent" id="btnWritingFreePractice" onclick="showWritingFreePracticeSetup()">
-                        &#9997;&#65039; Writing Free Practice (Custom)
+                        <svg class="icon-inline" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838.838-2.872a2 2 0 0 1 .506-.855z"/></svg> Writing Free Practice (Custom)
                     </button>
                 </div>
                 
@@ -111,7 +110,7 @@
 
                     <div class="btn-group">
                         <button type="button" class="btn btn-primary" id="btnStartWritingFreePractice" onclick="startWritingFreePractice()">
-                            &#9997;&#65039; Start Writing
+                            <svg class="icon-inline" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838.838-2.872a2 2 0 0 1 .506-.855z"/></svg> Start Writing
                         </button>
                         <button class="btn btn-ghost" type="button" onclick="hideWritingFreePracticeSetup()">Cancel</button>
                     </div>
@@ -123,13 +122,13 @@
         <div id="writingFlow" class="hidden">
             <div class="session-actions session-actions-spacing" id="writingSessionActions">
                 <button type="button" class="btn btn-ghost" onclick="interruptPractice()">
-                    &#9209; Interrupt & Back Home
+                    <svg class="icon-inline" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/></svg> Interrupt & Back Home
                 </button>
             </div>
 
             <div class="card" id="writingPromptSection">
                 <div class="card-header">
-                    <span class="icon" id="writingTaskIcon">&#9997;&#65039;</span>
+                    <svg class="icon" id="writingTaskIcon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838.838-2.872a2 2 0 0 1 .506-.855z"/></svg>
                     <h2 id="writingTaskTitle">Writing Task</h2>
                 </div>
                 <div class="part-question-display">
@@ -148,7 +147,7 @@
                 </div>
                 <div class="btn-group controls-submit-spacing">
                     <button type="button" class="btn btn-primary btn-full" id="btnSubmitWriting" onclick="submitWriting()">
-                        &#128190; Submit for Scoring
+                        <svg class="icon-inline" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Submit for Scoring
                     </button>
                 </div>
             </div>
@@ -156,7 +155,7 @@
             <!-- Writing Scoring Section -->
             <div class="card hidden" id="writingScoreSection">
                 <div class="card-header">
-                    <span class="icon">&#128202;</span>
+                    <svg class="icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
                     <h2>AI Assessment Results</h2>
                 </div>
                 <div class="loading-overlay" id="writingScoringLoader">
@@ -179,10 +178,10 @@
                     <!-- Restart / History -->
                     <div class="btn-group controls-actions-spacing">
                         <button type="button" class="btn btn-primary btn-full" onclick="backToHome()">
-                            &#127968; Back to Home
+                            <svg class="icon-inline" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg> Back to Home
                         </button>
                         <a href="/history" class="btn btn-ghost btn-full btn-link-reset">
-                            &#128200; View Progress Chart
+                            <svg class="icon-inline" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg> View Progress Chart
                         </a>
                     </div>
                 </div>

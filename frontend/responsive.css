@@ -8,7 +8,12 @@
     }
 
     .app-container {
-        padding: 20px 14px 36px;
+        padding: 20px 16px 40px;
+    }
+
+    .app-header {
+        padding: 16px;
+        border-radius: var(--radius-md);
     }
 
     .scores-grid {
@@ -24,7 +29,7 @@
     }
 
     .card {
-        padding: 20px;
+        padding: 18px;
     }
 
     .phase-steps {
@@ -47,12 +52,25 @@
         align-items: flex-start;
         flex-direction: column;
     }
+    
+    button, 
+    .theme-toggle, 
+    .theme-option, 
+    .header-btn-compact, 
+    .page-back-link,
+    .phase-step {
+        min-height: 44px;
+    }
 }
 
 @media (min-width: 601px) and (max-width: 1024px) {
     .app-container {
-        max-width: 900px;
-        padding: 30px 20px 44px;
+        max-width: 860px;
+        padding: 32px 24px 48px;
+    }
+
+    .app-header {
+        padding: 20px;
     }
 
     .card {
@@ -80,5 +98,25 @@
         position: static;
         flex-wrap: wrap;
         gap: 16px;
+    }
+}
+
+@media (min-width: 1025px) and (max-width: 1440px) {
+    .app-container {
+        max-width: 960px;
+    }
+}
+
+@media (min-width: 1441px) {
+    .app-container {
+        max-width: 1040px;
+        padding: 48px 32px 72px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
     }
 }

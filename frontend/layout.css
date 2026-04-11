@@ -1,27 +1,29 @@
 /* ---------- Layout ---------- */
 .app-container {
-    max-width: 920px;
+    max-width: 960px;
     margin: 0 auto;
-    padding: 36px 24px 56px;
+    padding: 40px 28px 64px;
     position: relative;
 }
 
 /* ---------- Header ---------- */
 .app-header {
     text-align: center;
-    margin-bottom: 32px;
-    padding: 12px 0 8px;
+    margin-bottom: 36px;
+    padding: 24px;
     position: relative;
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-subtle);
+    box-shadow: var(--shadow-sm);
 }
 
 .app-header h1 {
     font-size: clamp(2.15rem, 3.5vw, 3.1rem);
-    font-weight: 800;
-    background: var(--gradient-primary);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    font-weight: 700;
+    color: var(--color-primary);
     letter-spacing: -0.03em;
+    line-height: 1.1;
     margin-bottom: 10px;
     display: flex;
     align-items: center;
@@ -61,8 +63,8 @@
     min-width: 170px;
     background: var(--bg-card);
     border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-sm);
-    box-shadow: var(--shadow-md);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
     padding: 8px;
     z-index: 220;
 }
@@ -70,7 +72,7 @@
 .theme-option {
     width: 100%;
     border: 1px solid transparent;
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     background: transparent;
     color: var(--text-secondary);
     text-align: left;
@@ -78,23 +80,21 @@
     font-weight: 600;
     padding: 10px 12px;
     cursor: pointer;
-    transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+    transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .theme-option:hover {
-    background: var(--bg-glass-hover);
+    background: var(--bg-glass);
     color: var(--text-primary);
-    transform: translateX(2px);
 }
 
 .theme-option:focus-visible {
     outline: none;
     border-color: var(--accent-blue);
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
 .theme-option.active {
-    background: rgba(59, 130, 246, 0.14);
+    background: rgba(14, 165, 233, 0.08);
     border-color: var(--border-accent);
     color: var(--accent-blue);
 }
@@ -128,4 +128,10 @@
 
 .page-back-link {
     padding: 10px 20px;
+    display: inline-block;
+    transition: transform var(--transition-fast);
+}
+
+.page-back-link:hover {
+    transform: translateX(-4px);
 }

@@ -12,48 +12,57 @@ html {
 
 body {
     font-family: var(--font-sans);
-    background:
-        radial-gradient(circle at top left, rgba(255, 255, 255, 0.75), transparent 34%),
-        linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+    background: var(--bg-primary);
     color: var(--text-primary);
-    line-height: 1.65;
+    line-height: 1.6;
     min-height: 100vh;
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    font-weight: 600;
+}
+
+/* Global Interactive States */
+a, button, [role="button"], select, input[type="submit"], input[type="button"], label {
+    cursor: pointer;
+}
+
+:focus-visible {
+    outline: 2px solid var(--accent-blue);
+    outline-offset: 2px;
+}
+
+/* Accessibility */
 .skip-link {
     position: absolute;
     left: 16px;
-    top: -48px;
+    top: -100px;
     z-index: 10000;
-    padding: 10px 14px;
-    border-radius: var(--radius-sm);
+    padding: 12px 20px;
+    border-radius: var(--radius-md);
     background: var(--bg-card);
     color: var(--text-primary);
     text-decoration: none;
-    border: 1px solid var(--border-accent);
-    box-shadow: var(--shadow-sm);
-    transition: top var(--transition-fast);
+    border: 1px solid var(--border-subtle);
+    box-shadow: var(--shadow-md);
+    transition: top var(--transition-normal);
+    font-weight: 500;
 }
 
 .skip-link:focus {
     top: 16px;
 }
 
-body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background:
-        radial-gradient(circle at 16% 18%, var(--bg-page-overlay-1) 0%, transparent 32%),
-        radial-gradient(circle at 82% 14%, rgba(123, 121, 235, 0.12) 0%, transparent 24%),
-        radial-gradient(circle at 72% 78%, var(--bg-page-overlay-2) 0%, transparent 28%);
-    z-index: -1;
-    animation: bgShift 24s ease-in-out infinite alternate;
-}
-
-@keyframes bgShift {
-    0% { transform: translate3d(0, 0, 0) scale(1); }
-    100% { transform: translate3d(1.5%, -1.5%, 0) scale(1.03); }
+/* Reduce Motion Accessibility */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
 }

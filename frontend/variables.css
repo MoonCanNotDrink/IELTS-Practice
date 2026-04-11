@@ -1,132 +1,179 @@
 /* =========================================================
-   IELTS Speaking Practice - Design System & Global Styles
-   Premium dark theme with glassmorphism and subtle animations
+   IELTS Practice - Design System Variables
+   Warm Minimalism inspired by Notion
+   Brand: Sky Blue #0EA5E9 · Poppins + Open Sans
    ========================================================= */
 
 /* ---------- Google Fonts ---------- */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap');
 
 /* ---------- CSS Variables ---------- */
 :root {
-    --bg-primary: #f7f4ec;
-    --bg-secondary: #fffaf2;
-    --bg-card: rgba(255, 255, 255, 0.92);
-    --bg-glass: rgba(255, 255, 255, 0.74);
-    --bg-glass-hover: rgba(255, 255, 255, 0.98);
+    /* Color Palette - Light Mode (Default) */
+    --color-primary: #0EA5E9;
+    --color-primary-hover: #0284C7;
+    --color-primary-active: #0369A1;
+    --color-cta: #FBBF24;
+    --color-background: #ffffff;
+    --color-background-alt: #f6f5f4;
+    --color-text: rgba(0, 0, 0, 0.90);
 
-    --text-primary: #223049;
-    --text-secondary: #54657e;
-    --text-muted: #7c8ca2;
+    /* Base Backgrounds */
+    --bg-primary: var(--color-background);
+    --bg-secondary: var(--color-background-alt);
+    --bg-card: #ffffff;
+    --bg-glass: var(--color-background-alt);
+    --bg-glass-hover: #efeeed;
 
-    --bg-page-overlay-1: rgba(104, 181, 255, 0.22);
-    --bg-page-overlay-2: rgba(255, 205, 124, 0.22);
+    /* Text Colors */
+    --text-primary: var(--color-text);
+    --text-secondary: #615d59;
+    --text-muted: #a39e98;
 
-    --fp-toggle-bg: rgba(245, 241, 232, 0.95);
-    --fp-toggle-border: rgba(173, 188, 210, 0.48);
-    --fp-toggle-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
-    --fp-toggle-hover-bg: rgba(113, 169, 255, 0.1);
-    --fp-toggle-active-start: rgba(83, 160, 255, 0.98);
-    --fp-toggle-active-end: rgba(67, 125, 233, 0.98);
+    /* Overlays & Accents (subtle warm tints) */
+    --bg-page-overlay-1: transparent;
+    --bg-page-overlay-2: transparent;
+
+    /* Form & Select Component Specific */
+    --fp-toggle-bg: var(--color-background-alt);
+    --fp-toggle-border: rgba(0, 0, 0, 0.1);
+    --fp-toggle-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    --fp-toggle-hover-bg: rgba(0, 0, 0, 0.04);
+    --fp-toggle-active-start: #0EA5E9;
+    --fp-toggle-active-end: #0284C7;
     --fp-toggle-active-text: #ffffff;
 
-    --fp-select-btn-bg: rgba(255, 255, 255, 0.98);
-    --fp-select-btn-hover-bg: rgba(255, 251, 243, 1);
-    --fp-select-btn-focus-bg: rgba(255, 255, 255, 1);
-    --fp-select-dropdown-bg: rgba(255, 255, 255, 0.99);
-    --fp-select-dropdown-border: rgba(173, 188, 210, 0.38);
-    --fp-select-dropdown-shadow: 0 24px 50px rgba(65, 84, 116, 0.16);
-    --fp-select-search-bg: rgba(255, 248, 239, 0.98);
-    --fp-select-input-border: rgba(173, 188, 210, 0.42);
-    --fp-select-input-bg: rgba(246, 244, 238, 0.92);
-    --fp-select-input-focus-bg: rgba(255, 255, 255, 1);
-    --fp-select-group-title: #3a78d1;
-    --fp-select-option-text: #25344c;
-    --fp-select-option-hover-text: #1d2a3e;
-    --fp-select-empty-text: #63748c;
+    --fp-select-btn-bg: #ffffff;
+    --fp-select-btn-hover-bg: var(--color-background-alt);
+    --fp-select-btn-focus-bg: #ffffff;
+    --fp-select-dropdown-bg: #ffffff;
+    --fp-select-dropdown-border: rgba(0, 0, 0, 0.1);
+    --fp-select-dropdown-shadow: var(--shadow-lg);
+    --fp-select-search-bg: var(--color-background-alt);
+    --fp-select-input-border: rgba(0, 0, 0, 0.15);
+    --fp-select-input-bg: #ffffff;
+    --fp-select-input-focus-bg: #ffffff;
+    --fp-select-group-title: var(--text-secondary);
+    --fp-select-option-text: var(--color-text);
+    --fp-select-option-hover-text: var(--color-text);
+    --fp-select-empty-text: var(--text-muted);
 
-    --accent-blue: #4e9fff;
-    --accent-blue-glow: rgba(78, 159, 255, 0.24);
-    --accent-purple: #7f79eb;
-    --accent-green: #48be78;
-    --accent-green-glow: rgba(72, 190, 120, 0.22);
-    --accent-red: #ef6b66;
-    --accent-red-glow: rgba(239, 107, 102, 0.22);
-    --accent-amber: #f2b24d;
-    --accent-amber-glow: rgba(242, 178, 77, 0.22);
-    --surface-danger: rgba(239, 107, 102, 0.12);
-    --border-danger: rgba(239, 107, 102, 0.24);
+    /* Semantic Accents */
+    --accent-blue: var(--color-primary);
+    --accent-blue-glow: rgba(14, 165, 233, 0.12);
+    --accent-purple: #8B5CF6;
+    --accent-green: #10B981;
+    --accent-green-glow: rgba(16, 185, 129, 0.12);
+    --accent-red: #EF4444;
+    --accent-red-glow: rgba(239, 68, 68, 0.12);
+    --accent-amber: var(--color-cta);
+    --accent-amber-glow: rgba(251, 191, 36, 0.12);
+    --surface-danger: rgba(239, 68, 68, 0.06);
+    --border-danger: rgba(239, 68, 68, 0.15);
 
-    --gradient-primary: linear-gradient(135deg, #54a7ff, #7d7cf2);
-    --gradient-success: linear-gradient(135deg, #53d18b, #34b46b);
-    --gradient-danger: linear-gradient(135deg, #ef7a74, #df5a54);
-    --gradient-warm: linear-gradient(135deg, #ffc86f, #f2a84a);
+    /* Gradients - simplified to solid or subtle */
+    --gradient-primary: linear-gradient(135deg, #38BDF8, #0EA5E9);
+    --gradient-success: linear-gradient(135deg, #34D399, #10B981);
+    --gradient-danger: linear-gradient(135deg, #F87171, #EF4444);
+    --gradient-warm: linear-gradient(135deg, #FDE047, #FBBF24);
 
-    --border-subtle: rgba(144, 163, 188, 0.24);
-    --border-accent: rgba(78, 159, 255, 0.42);
+    /* Borders & Structural — whisper borders */
+    --border-subtle: rgba(0, 0, 0, 0.1);
+    --border-accent: rgba(14, 165, 233, 0.25);
+    --card-inner-shadow: none;
 
-    --shadow-sm: 0 10px 24px rgba(70, 92, 126, 0.08);
-    --shadow-md: 0 18px 42px rgba(70, 92, 126, 0.12);
-    --shadow-lg: 0 26px 60px rgba(70, 92, 126, 0.16);
-    --shadow-glow-blue: 0 0 26px rgba(78, 159, 255, 0.16);
-    --shadow-glow-green: 0 0 24px rgba(72, 190, 120, 0.14);
-    --shadow-glow-red: 0 0 24px rgba(239, 107, 102, 0.12);
-    --card-inner-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92);
+    /* Shadows — Notion multi-layer stacks */
+    --shadow-sm:
+        rgba(0, 0, 0, 0.04) 0px 1px 3px,
+        rgba(0, 0, 0, 0.01) 0px 0.5px 1px;
+    --shadow-md:
+        rgba(0, 0, 0, 0.04) 0px 4px 18px,
+        rgba(0, 0, 0, 0.027) 0px 2.025px 7.85px,
+        rgba(0, 0, 0, 0.02) 0px 0.8px 2.93px,
+        rgba(0, 0, 0, 0.01) 0px 0.175px 1.04px;
+    --shadow-lg:
+        rgba(0, 0, 0, 0.01) 0px 1px 3px,
+        rgba(0, 0, 0, 0.02) 0px 3px 7px,
+        rgba(0, 0, 0, 0.02) 0px 7px 15px,
+        rgba(0, 0, 0, 0.04) 0px 14px 28px,
+        rgba(0, 0, 0, 0.05) 0px 23px 52px;
+    --shadow-glow-blue: none;
+    --shadow-glow-green: none;
+    --shadow-glow-red: none;
 
-    --radius-sm: 12px;
-    --radius-md: 18px;
-    --radius-lg: 28px;
-    --radius-xl: 999px;
+    /* Border Radius — Notion scale */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 12px;
 
-    --transition-fast: 0.15s ease;
-    --transition-normal: 0.3s ease;
-    --transition-slow: 0.5s ease;
+    /* Transitions */
+    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
 
-    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    --font-mono: 'JetBrains Mono', 'Cascadia Code', monospace;
+    /* Typography */
+    --font-heading: 'Poppins', system-ui, -apple-system, sans-serif;
+    --font-sans: 'Open Sans', system-ui, -apple-system, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
+/* ---------- Dark Mode — Warm Dark ---------- */
 :root[data-theme='dark'] {
-    --bg-primary: #1a2333;
-    --bg-secondary: #243246;
-    --bg-card: rgba(35, 48, 67, 0.88);
-    --bg-glass: rgba(255, 255, 255, 0.05);
-    --bg-glass-hover: rgba(255, 255, 255, 0.08);
+    /* Base Backgrounds — warm dark, not cold slate */
+    --bg-primary: #1e1e1c;
+    --bg-secondary: #262624;
+    --bg-card: #2a2a28;
+    --bg-glass: #2a2a28;
+    --bg-glass-hover: #333331;
 
-    --text-primary: #f8fbff;
-    --text-secondary: #c4d2e4;
-    --text-muted: #8da1b8;
+    /* Text Colors */
+    --text-primary: rgba(255, 255, 255, 0.92);
+    --text-secondary: #b0aca6;
+    --text-muted: #807c77;
 
-    --bg-page-overlay-1: rgba(78, 159, 255, 0.14);
-    --bg-page-overlay-2: rgba(255, 193, 99, 0.12);
+    /* Overlays */
+    --bg-page-overlay-1: transparent;
+    --bg-page-overlay-2: transparent;
 
-    --fp-toggle-bg: rgba(25, 36, 53, 0.92);
-    --fp-toggle-border: rgba(173, 188, 210, 0.18);
-    --fp-toggle-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-    --fp-toggle-hover-bg: rgba(173, 188, 210, 0.1);
+    /* Form & Select Component Specific */
+    --fp-toggle-bg: #2a2a28;
+    --fp-toggle-border: rgba(255, 255, 255, 0.08);
+    --fp-toggle-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    --fp-toggle-hover-bg: rgba(255, 255, 255, 0.06);
 
-    --fp-select-btn-bg: rgba(28, 39, 57, 0.96);
-    --fp-select-btn-hover-bg: rgba(36, 48, 69, 1);
-    --fp-select-btn-focus-bg: rgba(41, 55, 79, 1);
-    --fp-select-dropdown-bg: rgba(21, 30, 45, 0.98);
-    --fp-select-dropdown-border: rgba(173, 188, 210, 0.2);
-    --fp-select-dropdown-shadow: 0 22px 50px rgba(3, 8, 18, 0.42);
-    --fp-select-search-bg: rgba(27, 38, 56, 0.98);
-    --fp-select-input-border: rgba(173, 188, 210, 0.24);
-    --fp-select-input-bg: rgba(255, 255, 255, 0.06);
-    --fp-select-input-focus-bg: rgba(255, 255, 255, 0.09);
-    --fp-select-group-title: #99c4ff;
-    --fp-select-option-text: #e7eef8;
+    --fp-select-btn-bg: #2a2a28;
+    --fp-select-btn-hover-bg: #333331;
+    --fp-select-btn-focus-bg: #333331;
+    --fp-select-dropdown-bg: #2a2a28;
+    --fp-select-dropdown-border: rgba(255, 255, 255, 0.08);
+    --fp-select-dropdown-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    --fp-select-search-bg: #262624;
+    --fp-select-input-border: rgba(255, 255, 255, 0.12);
+    --fp-select-input-bg: #1e1e1c;
+    --fp-select-input-focus-bg: #1e1e1c;
+    --fp-select-group-title: #b0aca6;
+    --fp-select-option-text: rgba(255, 255, 255, 0.88);
     --fp-select-option-hover-text: #ffffff;
-    --fp-select-empty-text: #c8d6e8;
+    --fp-select-empty-text: #807c77;
 
-    --border-subtle: rgba(255, 255, 255, 0.09);
-    --border-accent: rgba(78, 159, 255, 0.36);
+    /* Borders & Structural */
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --border-accent: rgba(14, 165, 233, 0.3);
+    --card-inner-shadow: none;
 
-    --shadow-sm: 0 10px 24px rgba(4, 8, 18, 0.28);
-    --shadow-md: 0 18px 42px rgba(4, 8, 18, 0.36);
-    --shadow-lg: 0 28px 64px rgba(4, 8, 18, 0.42);
-    --shadow-glow-blue: 0 0 30px rgba(78, 159, 255, 0.18);
-    --shadow-glow-green: 0 0 24px rgba(72, 190, 120, 0.12);
-    --shadow-glow-red: 0 0 24px rgba(239, 107, 102, 0.12);
-    --card-inner-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    /* Shadows */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
+    --shadow-md:
+        rgba(0, 0, 0, 0.12) 0px 4px 18px,
+        rgba(0, 0, 0, 0.08) 0px 2px 8px,
+        rgba(0, 0, 0, 0.06) 0px 1px 3px;
+    --shadow-lg:
+        rgba(0, 0, 0, 0.15) 0px 3px 7px,
+        rgba(0, 0, 0, 0.12) 0px 7px 15px,
+        rgba(0, 0, 0, 0.10) 0px 14px 28px,
+        rgba(0, 0, 0, 0.08) 0px 23px 52px;
+    --shadow-glow-blue: none;
+    --shadow-glow-green: none;
+    --shadow-glow-red: none;
 }
